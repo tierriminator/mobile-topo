@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_topo/topo.dart';
+import 'table.dart' as tbl;
 
 void main() {
   runApp(const MyApp());
@@ -11,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Mobile Topo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -28,10 +30,11 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color.fromARGB(255, 131, 96, 19)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Mobile Topo'),
     );
   }
 }
@@ -56,15 +59,19 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  final List<MeasuredDistance> data = [];
 
-  void _incrementCounter() {
+  void addEntry() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      data.add(const MeasuredDistance(Point(1, 1), Point(2, 2), 3, 4, 5));
+    });
+  }
+
+  void removeLastEntry() {
+    setState(() {
+      if (data.isNotEmpty) {
+        data.removeLast();
+      }
     });
   }
 
@@ -76,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
+
     return Scaffold(
       appBar: AppBar(
         // TRY THIS: Try changing the color here to a specific color (to
@@ -90,36 +98,51 @@ class _MyHomePageState extends State<MyHomePage> {
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
+            // Column is also a layout widget. It takes a list of children and
+            // arranges them vertically. By default, it sizes itself to fit its
+            // children horizontally, and tries to be as tall as its parent.
+            //
+            // Column has various properties to control how it sizes itself and
+            // how it positions its children. Here we use mainAxisAlignment to
+            // center the children vertically; the main axis here is the vertical
+            // axis because Columns are vertical (the cross axis would be
+            // horizontal).
+            //
+            // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
+            // action in the IDE, or press "p" in the console), to see the
+            // wireframe for each widget.
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[tbl.DataTable(data: data)]),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      bottomNavigationBar: BottomAppBar(
+        color: Theme.of(context).colorScheme.inversePrimary,
+        height: 50,
+        child: Padding(
+            padding: const EdgeInsets.all(0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: <Widget>[
+                IconButton(
+                  padding: const EdgeInsets.all(0),
+                  icon: const Icon(Icons.map_outlined),
+                  onPressed: addEntry,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                IconButton(
+                  padding: const EdgeInsets.all(0),
+                  icon: const Icon(Icons.landscape_outlined),
+                  onPressed: removeLastEntry,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                IconButton(
+                  padding: const EdgeInsets.all(0),
+                  icon: const Icon(Icons.table_chart_outlined),
+                  onPressed: addEntry,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ],
+            )),
+      ),
     );
   }
 }
