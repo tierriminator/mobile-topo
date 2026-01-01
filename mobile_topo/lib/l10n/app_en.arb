@@ -16,9 +16,9 @@
   "@sketchViewTitle": {
     "description": "Title for the sketch view"
   },
-  "filesViewTitle": "Files",
-  "@filesViewTitle": {
-    "description": "Title for the files view"
+  "explorerViewTitle": "Explorer",
+  "@explorerViewTitle": {
+    "description": "Title for the explorer view"
   },
   "optionsViewTitle": "Options",
   "@optionsViewTitle": {
@@ -114,9 +114,17 @@
   "@undo": {
     "description": "Undo action"
   },
-  "filesViewPlaceholder": "Files",
-  "@filesViewPlaceholder": {
-    "description": "Placeholder text for files view"
+  "explorerTitle": "Explorer",
+  "@explorerTitle": {
+    "description": "Title shown in explorer toolbar"
+  },
+  "explorerAddNew": "Add new",
+  "@explorerAddNew": {
+    "description": "Tooltip for add new item button in explorer"
+  },
+  "explorerEmpty": "No caves yet. Tap + to create one.",
+  "@explorerEmpty": {
+    "description": "Message shown when explorer is empty"
   },
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {

@@ -21,7 +21,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sketchViewTitle => 'Sketch';
 
   @override
-  String get filesViewTitle => 'Files';
+  String get explorerViewTitle => 'Explorer';
 
   @override
   String get optionsViewTitle => 'Options';
@@ -91,7 +91,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get undo => 'Undo';
 
   @override
-  String get filesViewPlaceholder => 'Files';
+  String get explorerTitle => 'Explorer';
+
+  @override
+  String get explorerAddNew => 'Add new';
+
+  @override
+  String get explorerEmpty => 'No caves yet. Tap + to create one.';
 
   @override
   String get optionsViewPlaceholder => 'Options';

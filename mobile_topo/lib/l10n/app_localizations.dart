@@ -118,11 +118,11 @@ abstract class AppLocalizations {
   /// **'Sketch'**
   String get sketchViewTitle;
 
-  /// Title for the files view
+  /// Title for the explorer view
   ///
   /// In en, this message translates to:
-  /// **'Files'**
-  String get filesViewTitle;
+  /// **'Explorer'**
+  String get explorerViewTitle;
 
   /// Title for the options view
   ///
@@ -245,11 +245,23 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get undo;
 
-  /// Placeholder text for files view
+  /// Title shown in explorer toolbar
   ///
   /// In en, this message translates to:
-  /// **'Files'**
-  String get filesViewPlaceholder;
+  /// **'Explorer'**
+  String get explorerTitle;
+
+  /// Tooltip for add new item button in explorer
+  ///
+  /// In en, this message translates to:
+  /// **'Add new'**
+  String get explorerAddNew;
+
+  /// Message shown when explorer is empty
+  ///
+  /// In en, this message translates to:
+  /// **'No caves yet. Tap + to create one.'**
+  String get explorerEmpty;
 
   /// Placeholder text for options view
   ///

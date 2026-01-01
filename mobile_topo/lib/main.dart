@@ -3,7 +3,7 @@ import 'l10n/app_localizations.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
 import 'views/sketch_view.dart';
-import 'views/files_view.dart';
+import 'views/explorer_view.dart';
 import 'views/options_view.dart';
 
 void main() {
@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
     const DataView(),
     const MapView(),
     const SketchView(),
-    const FilesView(),
+    const ExplorerView(),
     const OptionsView(),
   ];
 
@@ -57,7 +57,7 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         return l10n.sketchViewTitle;
       case 3:
-        return l10n.filesViewTitle;
+        return l10n.explorerViewTitle;
       case 4:
         return l10n.optionsViewTitle;
       default:
@@ -105,7 +105,7 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: const Icon(Icons.folder_outlined),
             activeIcon: const Icon(Icons.folder),
-            label: l10n.filesViewTitle,
+            label: l10n.explorerViewTitle,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.settings_outlined),
