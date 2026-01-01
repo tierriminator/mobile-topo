@@ -3,11 +3,12 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../explorer.dart';
-import '../sketching.dart';
+import '../models/cave.dart';
+import '../models/sketch.dart';
 import 'cave_file.dart';
 import 'cave_repository.dart';
 import 'section_file.dart';
+import 'sketch_serialization.dart';
 
 /// File-based implementation of CaveRepository.
 ///
@@ -164,13 +165,13 @@ class LocalCaveRepository implements CaveRepository {
     final outlineFile = _outlineSketchFile(sectionDir);
     if (await outlineFile.exists()) {
       final bytes = await outlineFile.readAsBytes();
-      outlineSketch = Sketch.fromBytes(bytes);
+      outlineSketch = SketchSerializer.sketchFromBytes(bytes);
     }
 
     final sideViewFile = _sideViewSketchFile(sectionDir);
     if (await sideViewFile.exists()) {
       final bytes = await sideViewFile.readAsBytes();
-      sideViewSketch = Sketch.fromBytes(bytes);
+      sideViewSketch = SketchSerializer.sketchFromBytes(bytes);
     }
 
     return Section(
@@ -298,10 +299,10 @@ class LocalCaveRepository implements CaveRepository {
 
     // Write sketches
     final outlineFile = _outlineSketchFile(sectionDir);
-    await outlineFile.writeAsBytes(section.outlineSketch.toBytes());
+    await outlineFile.writeAsBytes(SketchSerializer.sketchToBytes(section.outlineSketch));
 
     final sideViewFile = _sideViewSketchFile(sectionDir);
-    await sideViewFile.writeAsBytes(section.sideViewSketch.toBytes());
+    await sideViewFile.writeAsBytes(SketchSerializer.sketchToBytes(section.sideViewSketch));
   }
 
   @override

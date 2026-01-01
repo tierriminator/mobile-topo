@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../explorer.dart';
+import '../models/cave.dart';
 
 /// Holds the currently selected section across views.
 class SelectionState extends ChangeNotifier {

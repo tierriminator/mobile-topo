@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../controllers/selection_state.dart';
 import '../data/data_service.dart';
-import '../data/selection_state.dart';
 import '../l10n/app_localizations.dart';
-import '../topo.dart';
+import '../models/survey.dart';
 
 class MapView extends StatefulWidget {
   const MapView({super.key});

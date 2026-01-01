@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui';
 
 /// A single stroke (polyline) in the sketch
@@ -27,41 +26,6 @@ class Stroke {
 
   /// Check if this stroke has enough points to be visible
   bool get isVisible => points.length >= 2;
-
-  /// Serialize this stroke to bytes.
-  /// Format: [color:4][width:4][pointCount:4][points:N*8]
-  Uint8List toBytes() {
-    final buffer = ByteData(12 + points.length * 8);
-    // ignore: deprecated_member_use
-    buffer.setUint32(0, color.value, Endian.little);
-    buffer.setFloat32(4, strokeWidth, Endian.little);
-    buffer.setUint32(8, points.length, Endian.little);
-    for (int i = 0; i < points.length; i++) {
-      buffer.setFloat32(12 + i * 8, points[i].dx, Endian.little);
-      buffer.setFloat32(12 + i * 8 + 4, points[i].dy, Endian.little);
-    }
-    return buffer.buffer.asUint8List();
-  }
-
-  /// Deserialize a stroke from bytes, returning the stroke and bytes consumed.
-  static (Stroke, int) fromBytes(Uint8List data, int offset) {
-    final buffer = ByteData.view(data.buffer, data.offsetInBytes + offset);
-    final colorValue = buffer.getUint32(0, Endian.little);
-    final width = buffer.getFloat32(4, Endian.little);
-    final pointCount = buffer.getUint32(8, Endian.little);
-    final points = <Offset>[];
-    for (int i = 0; i < pointCount; i++) {
-      final dx = buffer.getFloat32(12 + i * 8, Endian.little);
-      final dy = buffer.getFloat32(12 + i * 8 + 4, Endian.little);
-      points.add(Offset(dx, dy));
-    }
-    final bytesConsumed = 12 + pointCount * 8;
-    // ignore: deprecated_member_use
-    return (
-      Stroke(points: points, color: Color(colorValue), strokeWidth: width),
-      bytesConsumed
-    );
-  }
 
   /// Split this stroke by removing points near the eraser position.
   /// Returns a list of remaining stroke segments (may be empty, one, or multiple).
@@ -189,59 +153,6 @@ class Sketch {
     }
 
     return Rect.fromLTRB(minX, minY, maxX, maxY);
-  }
-
-  /// Binary format version for forward compatibility
-  static const int _formatVersion = 1;
-
-  /// Serialize this sketch to bytes.
-  /// Format: [version:1][strokeCount:4][strokes...]
-  Uint8List toBytes() {
-    // Calculate total size
-    int totalSize = 5; // version + stroke count
-    final strokeBytes = <Uint8List>[];
-    for (final stroke in strokes) {
-      final bytes = stroke.toBytes();
-      strokeBytes.add(bytes);
-      totalSize += bytes.length;
-    }
-
-    // Write to buffer
-    final result = Uint8List(totalSize);
-    result[0] = _formatVersion;
-    final view = ByteData.view(result.buffer);
-    view.setUint32(1, strokes.length, Endian.little);
-
-    int offset = 5;
-    for (final bytes in strokeBytes) {
-      result.setRange(offset, offset + bytes.length, bytes);
-      offset += bytes.length;
-    }
-
-    return result;
-  }
-
-  /// Deserialize a sketch from bytes.
-  factory Sketch.fromBytes(Uint8List data) {
-    if (data.isEmpty) return const Sketch();
-
-    final version = data[0];
-    if (version != _formatVersion) {
-      throw FormatException('Unknown sketch format version: $version');
-    }
-
-    final view = ByteData.view(data.buffer, data.offsetInBytes);
-    final strokeCount = view.getUint32(1, Endian.little);
-
-    final strokes = <Stroke>[];
-    int offset = 5;
-    for (int i = 0; i < strokeCount; i++) {
-      final (stroke, bytesConsumed) = Stroke.fromBytes(data, offset);
-      strokes.add(stroke);
-      offset += bytesConsumed;
-    }
-
-    return Sketch(strokes: strokes);
   }
 }
 

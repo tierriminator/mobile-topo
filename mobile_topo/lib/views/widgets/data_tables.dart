@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'l10n/app_localizations.dart';
-import 'topo.dart';
+import '../../l10n/app_localizations.dart';
+import '../../models/survey.dart';
 
 class StretchesTable extends StatelessWidget {
   final List<MeasuredDistance> _data;

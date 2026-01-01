@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../controllers/explorer_state.dart';
 import '../data/cave_repository.dart';
 import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
-import '../explorer.dart';
-import '../topo.dart';
+import '../models/cave.dart';
+import '../models/explorer_path.dart';
+import '../models/survey.dart';
 
 class ExplorerView extends StatefulWidget {
   const ExplorerView({super.key});

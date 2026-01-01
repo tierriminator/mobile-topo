@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import '../controllers/selection_state.dart';
 import '../data/data_service.dart';
-import '../data/selection_state.dart';
-import '../explorer.dart';
 import '../l10n/app_localizations.dart';
-import '../table.dart';
+import '../models/cave.dart';
+import 'widgets/data_tables.dart';
 
 class DataView extends StatefulWidget {
   const DataView({super.key});

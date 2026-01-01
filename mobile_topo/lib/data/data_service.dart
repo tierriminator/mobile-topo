@@ -1,6 +1,6 @@
+import '../controllers/selection_state.dart';
 import 'cave_repository.dart';
 import 'local_cave_repository.dart';
-import 'selection_state.dart';
 
 /// Simple service locator for data access.
 /// Provides a single instance of the cave repository and shared state.

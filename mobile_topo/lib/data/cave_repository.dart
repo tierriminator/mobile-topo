@@ -1,4 +1,4 @@
-import '../explorer.dart';
+import '../models/cave.dart';
 
 /// Metadata for a cave (without loading full section data).
 class CaveSummary {

@@ -1,4 +1,4 @@
-import '../topo.dart';
+import '../models/survey.dart';
 
 /// Section metadata and survey data for JSON serialization.
 /// Sketches are stored separately as binary files.

@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../controllers/selection_state.dart';
 import '../data/data_service.dart';
-import '../data/selection_state.dart';
 import '../l10n/app_localizations.dart';
-import '../sketching.dart';
-import '../topo.dart';
+import '../models/sketch.dart';
+import '../models/survey.dart';
 
 enum SketchViewMode { outline, sideView }
 
