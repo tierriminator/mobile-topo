@@ -142,6 +142,10 @@
   "@undo": {
     "description": "Undo action"
   },
+  "redo": "Redo",
+  "@redo": {
+    "description": "Redo action"
+  },
   "explorerTitle": "Explorer",
   "@explorerTitle": {
     "description": "Title shown in explorer toolbar"

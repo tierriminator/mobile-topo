@@ -287,6 +287,12 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get undo;
 
+  /// Redo action
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
   /// Title shown in explorer toolbar
   ///
   /// In en, this message translates to:

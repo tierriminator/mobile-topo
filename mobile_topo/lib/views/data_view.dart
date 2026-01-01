@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/survey_history.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -18,14 +19,56 @@ enum DataViewMode { stretches, referencePoints }
 
 class _DataViewState extends State<DataView> {
   DataViewMode _mode = DataViewMode.stretches;
+  final SurveyHistory _history = SurveyHistory();
+  String? _currentSectionId;
 
-  Future<void> _addStretch(Section section) async {
+  void _checkSectionChange(Section? section) {
+    if (section?.id != _currentSectionId) {
+      _history.clear();
+      _currentSectionId = section?.id;
+    }
+  }
+
+  Future<void> _applySurveyChange(
+    Section section,
+    Survey newSurvey, {
+    bool recordHistory = true,
+  }) async {
     final selectionState = context.read<SelectionState>();
     final repository = context.read<CaveRepository>();
     final caveId = selectionState.selectedCaveId;
 
     if (caveId == null) return;
 
+    if (recordHistory) {
+      _history.recordState(section.survey);
+    }
+
+    final updatedSection = section.copyWith(
+      survey: newSurvey,
+      modifiedAt: DateTime.now(),
+    );
+
+    await repository.saveSection(caveId, updatedSection);
+    selectionState.updateSection(updatedSection);
+    setState(() {}); // Refresh undo/redo button states
+  }
+
+  Future<void> _undo(Section section) async {
+    final previousSurvey = _history.undo(section.survey);
+    if (previousSurvey != null) {
+      await _applySurveyChange(section, previousSurvey, recordHistory: false);
+    }
+  }
+
+  Future<void> _redo(Section section) async {
+    final nextSurvey = _history.redo(section.survey);
+    if (nextSurvey != null) {
+      await _applySurveyChange(section, nextSurvey, recordHistory: false);
+    }
+  }
+
+  Future<void> _addStretch(Section section) async {
     // Determine next station IDs based on existing stretches
     final stretches = section.survey.stretches;
     Point from;
@@ -40,14 +83,7 @@ class _DataViewState extends State<DataView> {
     }
 
     final stretch = MeasuredDistance(from, to, 0, 0, 0);
-    final updatedSurvey = section.survey.addStretch(stretch);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
-    );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
+    await _applySurveyChange(section, section.survey.addStretch(stretch));
   }
 
   Future<void> _updateStretch(
@@ -55,56 +91,19 @@ class _DataViewState extends State<DataView> {
     int index,
     MeasuredDistance stretch,
   ) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    final updatedSurvey = section.survey.updateStretchAt(index, stretch);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
+    await _applySurveyChange(
+      section,
+      section.survey.updateStretchAt(index, stretch),
     );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
   }
 
   Future<void> _deleteStretch(Section section, int index) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    final updatedSurvey = section.survey.removeStretchAt(index);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
-    );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
+    await _applySurveyChange(section, section.survey.removeStretchAt(index));
   }
 
   Future<void> _addReferencePoint(Section section) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    // Default to station 1.0 at origin
     const point = ReferencePoint(Point(1, 0), 0, 0, 0);
-    final updatedSurvey = section.survey.addReferencePoint(point);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
-    );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
+    await _applySurveyChange(section, section.survey.addReferencePoint(point));
   }
 
   Future<void> _updateReferencePoint(
@@ -112,43 +111,26 @@ class _DataViewState extends State<DataView> {
     int index,
     ReferencePoint point,
   ) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    final updatedSurvey = section.survey.updateReferencePointAt(index, point);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
+    await _applySurveyChange(
+      section,
+      section.survey.updateReferencePointAt(index, point),
     );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
   }
 
   Future<void> _deleteReferencePoint(Section section, int index) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    final updatedSurvey = section.survey.removeReferencePointAt(index);
-    final updatedSection = section.copyWith(
-      survey: updatedSurvey,
-      modifiedAt: DateTime.now(),
+    await _applySurveyChange(
+      section,
+      section.survey.removeReferencePointAt(index),
     );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final section = context.watch<SelectionState>().selectedSection;
+
+    // Clear history when section changes
+    _checkSectionChange(section);
 
     if (section == null) {
       return Center(
@@ -187,6 +169,16 @@ class _DataViewState extends State<DataView> {
                   section.name,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.undo),
+                onPressed: _history.canUndo ? () => _undo(section) : null,
+                tooltip: l10n.undo,
+              ),
+              IconButton(
+                icon: const Icon(Icons.redo),
+                onPressed: _history.canRedo ? () => _redo(section) : null,
+                tooltip: l10n.redo,
               ),
               IconButton(
                 icon: const Icon(Icons.add),
