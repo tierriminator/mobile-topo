@@ -36,12 +36,12 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _views = [
-    DataView(),
-    MapView(),
-    SketchView(),
-    FilesView(),
-    OptionsView(),
+  static final List<Widget> _views = [
+    const DataView(),
+    const MapView(),
+    const SketchView(),
+    const FilesView(),
+    const OptionsView(),
   ];
 
   static const List<String> _titles = [

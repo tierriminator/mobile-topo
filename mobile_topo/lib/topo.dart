@@ -9,3 +9,9 @@ class MeasuredDistance {
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination);
 }
+
+class ReferencePoint {
+  final Point id;
+  final num east, north, altitude;
+  const ReferencePoint(this.id, this.east, this.north, this.altitude);
+}

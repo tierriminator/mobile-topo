@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'topo.dart';
 
-class DataTable extends StatelessWidget {
+class StretchesTable extends StatelessWidget {
   final List<MeasuredDistance> _data;
 
-  const DataTable({super.key, required List<MeasuredDistance> data})
+  const StretchesTable({super.key, required List<MeasuredDistance> data})
       : _data = data;
 
   @override
@@ -39,6 +39,48 @@ class DataTable extends StatelessWidget {
               ),
               TableCell(
                 child: _DataTableCell(text: distance.inclination.toString()),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class ReferencePointsTable extends StatelessWidget {
+  final List<ReferencePoint> _data;
+
+  const ReferencePointsTable({super.key, required List<ReferencePoint> data})
+      : _data = data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Table(
+      border: TableBorder.all(),
+      children: [
+        const TableRow(
+          children: [
+            TableCell(child: Text('ID')),
+            TableCell(child: Text('East')),
+            TableCell(child: Text('North')),
+            TableCell(child: Text('Alt.')),
+          ],
+        ),
+        for (final point in _data)
+          TableRow(
+            children: [
+              TableCell(
+                child: _DataTableCell(
+                    text: '${point.id.corridorId}.${point.id.pointId}'),
+              ),
+              TableCell(
+                child: _DataTableCell(text: point.east.toString()),
+              ),
+              TableCell(
+                child: _DataTableCell(text: point.north.toString()),
+              ),
+              TableCell(
+                child: _DataTableCell(text: point.altitude.toString()),
               ),
             ],
           ),
