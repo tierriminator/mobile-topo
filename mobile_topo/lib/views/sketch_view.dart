@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
+import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/sketch.dart';
@@ -27,9 +28,11 @@ class _SketchViewState extends State<SketchView> {
   Sketch _outlineSketch = const Sketch();
   Sketch _sideViewSketch = const Sketch();
 
-  // Undo stacks
+  // Undo/redo stacks
   final List<Sketch> _outlineUndoStack = [];
   final List<Sketch> _sideViewUndoStack = [];
+  final List<Sketch> _outlineRedoStack = [];
+  final List<Sketch> _sideViewRedoStack = [];
 
   // Drawing state
   SketchMode _sketchMode = SketchMode.move;
@@ -90,6 +93,8 @@ class _SketchViewState extends State<SketchView> {
       _sideViewSketch = section.sideViewSketch;
       _outlineUndoStack.clear();
       _sideViewUndoStack.clear();
+      _outlineRedoStack.clear();
+      _sideViewRedoStack.clear();
       _currentSectionId = section.id;
       _centerViews();
     }
@@ -191,6 +196,9 @@ class _SketchViewState extends State<SketchView> {
   List<Sketch> get _currentUndoStack =>
       _viewMode == SketchViewMode.outline ? _outlineUndoStack : _sideViewUndoStack;
 
+  List<Sketch> get _currentRedoStack =>
+      _viewMode == SketchViewMode.outline ? _outlineRedoStack : _sideViewRedoStack;
+
   void _onScaleStart(ScaleStartDetails details) {
     _startScale = _scale;
     _startOffset = _offset;
@@ -201,6 +209,7 @@ class _SketchViewState extends State<SketchView> {
         final worldPos = _screenToWorld(details.localFocalPoint);
         setState(() {
           _currentUndoStack.add(_currentSketch);
+          _currentRedoStack.clear();
           _currentStroke = Stroke(
             points: [worldPos],
             color: _currentColor,
@@ -208,6 +217,7 @@ class _SketchViewState extends State<SketchView> {
         });
       } else if (_sketchMode == SketchMode.erase) {
         _currentUndoStack.add(_currentSketch);
+        _currentRedoStack.clear();
         _eraseAt(details.localFocalPoint);
       }
     }
@@ -237,6 +247,7 @@ class _SketchViewState extends State<SketchView> {
       setState(() {
         _currentSketch = newSketch;
       });
+      _saveSketch();
     }
   }
 
@@ -246,15 +257,45 @@ class _SketchViewState extends State<SketchView> {
         _currentSketch = _currentSketch.addStroke(_currentStroke!);
         _currentStroke = null;
       });
-      // TODO: Save sketch to section
+      _saveSketch();
     }
+  }
+
+  Future<void> _saveSketch() async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final section = selectionState.selectedSection;
+    final caveId = selectionState.selectedCaveId;
+
+    if (section == null || caveId == null) return;
+
+    final updatedSection = section.copyWith(
+      outlineSketch: _outlineSketch,
+      sideViewSketch: _sideViewSketch,
+      modifiedAt: DateTime.now(),
+    );
+
+    await repository.saveSection(caveId, updatedSection);
+    selectionState.updateSection(updatedSection);
   }
 
   void _undo() {
     if (_currentUndoStack.isNotEmpty) {
       setState(() {
+        _currentRedoStack.add(_currentSketch);
         _currentSketch = _currentUndoStack.removeLast();
       });
+      _saveSketch();
+    }
+  }
+
+  void _redo() {
+    if (_currentRedoStack.isNotEmpty) {
+      setState(() {
+        _currentUndoStack.add(_currentSketch);
+        _currentSketch = _currentRedoStack.removeLast();
+      });
+      _saveSketch();
     }
   }
 
@@ -344,6 +385,11 @@ class _SketchViewState extends State<SketchView> {
                 icon: const Icon(Icons.undo),
                 onPressed: _currentUndoStack.isNotEmpty ? _undo : null,
                 tooltip: l10n.undo,
+              ),
+              IconButton(
+                icon: const Icon(Icons.redo),
+                onPressed: _currentRedoStack.isNotEmpty ? _redo : null,
+                tooltip: l10n.redo,
               ),
             ],
           ),
