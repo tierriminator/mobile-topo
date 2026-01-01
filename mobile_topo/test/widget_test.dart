@@ -9,6 +9,7 @@ import 'package:mobile_topo/data/local_cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
 import 'package:mobile_topo/models/settings.dart';
+import 'package:mobile_topo/services/distox_service.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 
 /// Mock settings repository for testing (no SharedPreferences dependency)
@@ -27,13 +28,16 @@ class MockSettingsRepository extends SettingsRepository {
 void main() {
   Widget createTestApp() {
     final settingsController = SettingsController();
+    final distoXService = DistoXService();
+    final measurementService = MeasurementService(settingsController);
+    measurementService.connectDistoX(distoXService);
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
         ChangeNotifierProvider.value(value: settingsController),
-        ChangeNotifierProvider(
-          create: (_) => MeasurementService(settingsController),
-        ),
+        ChangeNotifierProvider.value(value: distoXService),
+        ChangeNotifierProvider.value(value: measurementService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => MockSettingsRepository()),
       ],

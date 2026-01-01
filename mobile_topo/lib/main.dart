@@ -6,6 +6,7 @@ import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
+import 'services/distox_service.dart';
 import 'services/measurement_service.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
@@ -21,14 +22,18 @@ void main() async {
   final settings = await settingsRepository.load();
   final settingsController = SettingsController(settings);
 
+  // Create DistoX and Measurement services
+  final distoXService = DistoXService();
+  final measurementService = MeasurementService(settingsController);
+  measurementService.connectDistoX(distoXService);
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
         ChangeNotifierProvider.value(value: settingsController),
-        ChangeNotifierProvider(
-          create: (_) => MeasurementService(settingsController),
-        ),
+        ChangeNotifierProvider.value(value: distoXService),
+        ChangeNotifierProvider.value(value: measurementService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => settingsRepository),
       ],

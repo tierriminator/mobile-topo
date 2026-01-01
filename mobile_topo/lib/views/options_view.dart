@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/settings_controller.dart';
 import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/settings.dart';
+import '../services/distox_service.dart';
 
 class OptionsView extends StatelessWidget {
   const OptionsView({super.key});
@@ -18,6 +20,7 @@ class OptionsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsController>();
+    final distoX = context.watch<DistoXService>();
 
     return Scaffold(
       appBar: AppBar(
@@ -27,23 +30,14 @@ class OptionsView extends StatelessWidget {
         children: [
           // Bluetooth / Device Connection
           _SectionHeader(title: l10n.optionsBluetoothSection),
-          ListTile(
-            leading: const Icon(Icons.bluetooth),
-            title: Text(l10n.optionsBluetoothDevice),
-            subtitle: Text(l10n.optionsBluetoothDeviceNone),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Open device selection dialog
-            },
-          ),
+          _DistoXDeviceTile(distoXService: distoX, l10n: l10n),
           SwitchListTile(
             secondary: const Icon(Icons.autorenew),
             title: Text(l10n.optionsAutoConnect),
             subtitle: Text(l10n.optionsAutoConnectDescription),
-            value: settings.autoConnect,
+            value: distoX.autoReconnect,
             onChanged: (value) {
-              settings.autoConnect = value;
-              _saveSettings(context);
+              distoX.setAutoReconnect(value);
             },
           ),
 
@@ -296,6 +290,293 @@ class _SectionHeader extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
       ),
+    );
+  }
+}
+
+/// Widget showing DistoX device connection status with tap to connect/select
+class _DistoXDeviceTile extends StatelessWidget {
+  final DistoXService distoXService;
+  final AppLocalizations l10n;
+
+  const _DistoXDeviceTile({
+    required this.distoXService,
+    required this.l10n,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = distoXService.connectionState;
+    final device = distoXService.connectedDevice ?? distoXService.selectedDevice;
+
+    IconData icon;
+    Color? iconColor;
+    String subtitle;
+
+    switch (state) {
+      case DistoXConnectionState.connected:
+        icon = Icons.bluetooth_connected;
+        iconColor = Colors.green;
+        subtitle = device?.name ?? 'Connected';
+      case DistoXConnectionState.connecting:
+        icon = Icons.bluetooth_searching;
+        iconColor = Colors.orange;
+        subtitle = 'Connecting...';
+      case DistoXConnectionState.reconnecting:
+        icon = Icons.bluetooth_searching;
+        iconColor = Colors.orange;
+        subtitle = 'Reconnecting...';
+      case DistoXConnectionState.disconnected:
+        icon = Icons.bluetooth;
+        iconColor = null;
+        subtitle = device?.name ?? l10n.optionsBluetoothDeviceNone;
+    }
+
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(l10n.optionsBluetoothDevice),
+      subtitle: Text(subtitle),
+      trailing: state == DistoXConnectionState.connected
+          ? TextButton(
+              onPressed: () => distoXService.disconnect(),
+              child: const Text('Disconnect'),
+            )
+          : const Icon(Icons.chevron_right),
+      onTap: state == DistoXConnectionState.connected
+          ? null
+          : () => _showDeviceSelectionDialog(context),
+    );
+  }
+
+  Future<void> _showDeviceSelectionDialog(BuildContext context) async {
+    final isAvailable = await distoXService.isBluetoothAvailable;
+    if (!isAvailable) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bluetooth is not available on this device'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final isEnabled = await distoXService.isBluetoothEnabled;
+    if (!isEnabled) {
+      final enabled = await distoXService.requestEnableBluetooth();
+      if (!enabled) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enable Bluetooth')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => _DeviceSelectionDialog(
+          distoXService: distoXService,
+        ),
+      );
+    }
+  }
+}
+
+/// Dialog for selecting and connecting to a DistoX device
+class _DeviceSelectionDialog extends StatefulWidget {
+  final DistoXService distoXService;
+
+  const _DeviceSelectionDialog({required this.distoXService});
+
+  @override
+  State<_DeviceSelectionDialog> createState() => _DeviceSelectionDialogState();
+}
+
+class _DeviceSelectionDialogState extends State<_DeviceSelectionDialog> {
+  List<DistoXDevice> _bondedDevices = [];
+  final List<DistoXDevice> _discoveredDevices = [];
+  bool _isScanning = false;
+  bool _isConnecting = false;
+  StreamSubscription<DistoXDevice>? _discoverySubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBondedDevices();
+  }
+
+  @override
+  void dispose() {
+    _discoverySubscription?.cancel();
+    widget.distoXService.stopDiscovery();
+    super.dispose();
+  }
+
+  Future<void> _loadBondedDevices() async {
+    final devices = await widget.distoXService.getBondedDevices();
+    if (mounted) {
+      setState(() => _bondedDevices = devices);
+    }
+  }
+
+  void _startScanning() {
+    setState(() {
+      _isScanning = true;
+      _discoveredDevices.clear();
+    });
+
+    _discoverySubscription = widget.distoXService.startDiscovery().listen(
+      (device) {
+        if (mounted &&
+            !_bondedDevices.contains(device) &&
+            !_discoveredDevices.contains(device)) {
+          setState(() => _discoveredDevices.add(device));
+        }
+      },
+      onDone: () {
+        if (mounted) setState(() => _isScanning = false);
+      },
+    );
+  }
+
+  void _stopScanning() {
+    _discoverySubscription?.cancel();
+    widget.distoXService.stopDiscovery();
+    setState(() => _isScanning = false);
+  }
+
+  Future<void> _connectToDevice(DistoXDevice device) async {
+    setState(() => _isConnecting = true);
+    final success = await widget.distoXService.connect(device);
+    if (mounted) {
+      setState(() => _isConnecting = false);
+      if (success) {
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to connect: ${widget.distoXService.lastError ?? "Unknown error"}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select DistoX Device'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_bondedDevices.isNotEmpty) ...[
+              const Text(
+                'Paired Devices',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ..._bondedDevices.map((device) => _DeviceListItem(
+                    device: device,
+                    onTap: _isConnecting ? null : () => _connectToDevice(device),
+                  )),
+              const Divider(),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Available Devices',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (_isScanning)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _discoveredDevices.isEmpty && !_isScanning
+                  ? Center(
+                      child: Text(
+                        _isScanning
+                            ? 'Scanning...'
+                            : 'Tap Scan to find devices',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
+                    )
+                  : ListView(
+                      children: _discoveredDevices
+                          .map((device) => _DeviceListItem(
+                                device: device,
+                                onTap: _isConnecting
+                                    ? null
+                                    : () => _connectToDevice(device),
+                              ))
+                          .toList(),
+                    ),
+            ),
+            if (_isConnecting)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        if (_isScanning)
+          TextButton(
+            onPressed: _stopScanning,
+            child: const Text('Stop'),
+          )
+        else
+          TextButton(
+            onPressed: _isConnecting ? null : _startScanning,
+            child: const Text('Scan'),
+          ),
+      ],
+    );
+  }
+}
+
+/// Single device item in the selection list
+class _DeviceListItem extends StatelessWidget {
+  final DistoXDevice device;
+  final VoidCallback? onTap;
+
+  const _DeviceListItem({
+    required this.device,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        device.isBonded ? Icons.bluetooth_connected : Icons.bluetooth,
+        color: device.isBonded ? Colors.blue : null,
+      ),
+      title: Text(device.name),
+      subtitle: Text(device.address),
+      onTap: onTap,
+      dense: true,
     );
   }
 }

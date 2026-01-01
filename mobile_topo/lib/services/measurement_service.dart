@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../controllers/settings_controller.dart';
 import '../models/settings.dart';
 import '../models/survey.dart';
+import 'distox_protocol.dart';
+import 'distox_service.dart';
 import 'smart_mode_detector.dart';
 
 /// Manages incoming measurements and applies smart mode detection.
@@ -14,6 +16,7 @@ import 'smart_mode_detector.dart';
 /// When smart mode is disabled, each measurement is added individually.
 class MeasurementService extends ChangeNotifier {
   final SettingsController _settings;
+  DistoXService? _distoXService;
 
   /// Detector for cross-section measurements (same station)
   SmartModeDetector? _crossSectionDetector;
@@ -36,6 +39,31 @@ class MeasurementService extends ChangeNotifier {
   MeasurementService(this._settings) {
     _initDetectors();
   }
+
+  /// Connect to a DistoXService to receive measurements
+  void connectDistoX(DistoXService distoXService) {
+    _distoXService = distoXService;
+    _distoXService!.onMeasurement = _onDistoXMeasurement;
+  }
+
+  /// Handle incoming measurement from DistoX device.
+  ///
+  /// In smart mode, all measurements are processed through the stretch
+  /// detector. Triples become survey shots, singles become splays.
+  /// This matches PocketTopo behavior where smart mode auto-detects
+  /// survey shots from identical triples.
+  void _onDistoXMeasurement(DistoXMeasurement m) {
+    debugPrint('DistoX measurement received: $m');
+    addMeasurement(
+      distance: m.distance,
+      azimuth: m.azimuth,
+      inclination: m.inclination,
+      isStretch: true, // In smart mode, detector will categorize as splay or survey
+    );
+  }
+
+  /// Get the connected DistoX service (if any)
+  DistoXService? get distoXService => _distoXService;
 
   void _initDetectors() {
     _crossSectionDetector = SmartModeDetector();

@@ -392,5 +392,60 @@
     "placeholders": {
       "count": {"type": "int"}
     }
+  },
+  "bluetoothNotAvailable": "Bluetooth is not available on this device",
+  "@bluetoothNotAvailable": {
+    "description": "Error message when Bluetooth is not available"
+  },
+  "bluetoothEnablePrompt": "Please enable Bluetooth",
+  "@bluetoothEnablePrompt": {
+    "description": "Prompt to enable Bluetooth"
+  },
+  "bluetoothSelectDevice": "Select DistoX Device",
+  "@bluetoothSelectDevice": {
+    "description": "Dialog title for device selection"
+  },
+  "bluetoothPairedDevices": "Paired Devices",
+  "@bluetoothPairedDevices": {
+    "description": "Section header for paired devices"
+  },
+  "bluetoothAvailableDevices": "Available Devices",
+  "@bluetoothAvailableDevices": {
+    "description": "Section header for available devices"
+  },
+  "bluetoothScanPrompt": "Tap Scan to find devices",
+  "@bluetoothScanPrompt": {
+    "description": "Prompt to start scanning for devices"
+  },
+  "bluetoothConnecting": "Connecting...",
+  "@bluetoothConnecting": {
+    "description": "Status while connecting to device"
+  },
+  "bluetoothReconnecting": "Reconnecting...",
+  "@bluetoothReconnecting": {
+    "description": "Status while reconnecting to device"
+  },
+  "bluetoothConnected": "Connected",
+  "@bluetoothConnected": {
+    "description": "Status when connected to device"
+  },
+  "disconnect": "Disconnect",
+  "@disconnect": {
+    "description": "Button to disconnect from device"
+  },
+  "scan": "Scan",
+  "@scan": {
+    "description": "Button to scan for devices"
+  },
+  "stop": "Stop",
+  "@stop": {
+    "description": "Button to stop scanning"
+  },
+  "connectionFailed": "Failed to connect: {error}",
+  "@connectionFailed": {
+    "description": "Error message when connection fails",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
   }
 }

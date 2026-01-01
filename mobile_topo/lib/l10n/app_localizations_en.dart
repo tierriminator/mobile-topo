@@ -301,4 +301,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String pending(int count) {
     return '$count pending';
   }
+
+  @override
+  String get bluetoothNotAvailable =>
+      'Bluetooth is not available on this device';
+
+  @override
+  String get bluetoothEnablePrompt => 'Please enable Bluetooth';
+
+  @override
+  String get bluetoothSelectDevice => 'Select DistoX Device';
+
+  @override
+  String get bluetoothPairedDevices => 'Paired Devices';
+
+  @override
+  String get bluetoothAvailableDevices => 'Available Devices';
+
+  @override
+  String get bluetoothScanPrompt => 'Tap Scan to find devices';
+
+  @override
+  String get bluetoothConnecting => 'Connecting...';
+
+  @override
+  String get bluetoothReconnecting => 'Reconnecting...';
+
+  @override
+  String get bluetoothConnected => 'Connected';
+
+  @override
+  String get disconnect => 'Disconnect';
+
+  @override
+  String get scan => 'Scan';
+
+  @override
+  String get stop => 'Stop';
+
+  @override
+  String connectionFailed(String error) {
+    return 'Failed to connect: $error';
+  }
 }

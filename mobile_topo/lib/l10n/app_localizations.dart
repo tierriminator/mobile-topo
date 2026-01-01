@@ -658,6 +658,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} pending'**
   String pending(int count);
+
+  /// Error message when Bluetooth is not available
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth is not available on this device'**
+  String get bluetoothNotAvailable;
+
+  /// Prompt to enable Bluetooth
+  ///
+  /// In en, this message translates to:
+  /// **'Please enable Bluetooth'**
+  String get bluetoothEnablePrompt;
+
+  /// Dialog title for device selection
+  ///
+  /// In en, this message translates to:
+  /// **'Select DistoX Device'**
+  String get bluetoothSelectDevice;
+
+  /// Section header for paired devices
+  ///
+  /// In en, this message translates to:
+  /// **'Paired Devices'**
+  String get bluetoothPairedDevices;
+
+  /// Section header for available devices
+  ///
+  /// In en, this message translates to:
+  /// **'Available Devices'**
+  String get bluetoothAvailableDevices;
+
+  /// Prompt to start scanning for devices
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Scan to find devices'**
+  String get bluetoothScanPrompt;
+
+  /// Status while connecting to device
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get bluetoothConnecting;
+
+  /// Status while reconnecting to device
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting...'**
+  String get bluetoothReconnecting;
+
+  /// Status when connected to device
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get bluetoothConnected;
+
+  /// Button to disconnect from device
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnect;
+
+  /// Button to scan for devices
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scan;
+
+  /// Button to stop scanning
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get stop;
+
+  /// Error message when connection fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to connect: {error}'**
+  String connectionFailed(String error);
 }
 
 class _AppLocalizationsDelegate
