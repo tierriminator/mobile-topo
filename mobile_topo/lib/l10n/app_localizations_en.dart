@@ -60,7 +60,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get columnAltitude => 'Alt.';
 
   @override
-  String get mapViewPlaceholder => 'Map View - Cave Overview';
+  String mapStatusOverview(String length, String depth, String scale) {
+    return 'Length: ${length}m  Depth: ${depth}m  Scale: $scale';
+  }
+
+  @override
+  String mapStatusStation(
+      String id, String east, String north, String altitude) {
+    return 'Station $id: E ${east}m, N ${north}m, Alt ${altitude}m';
+  }
 
   @override
   String get sketchViewPlaceholder => 'Sketch View - Outline & Side View';

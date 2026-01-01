@@ -25,8 +25,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.map_outlined));
     await tester.pump();
 
-    // Verify Map view is shown
-    expect(find.text('Map View - Cave Overview'), findsOneWidget);
+    // Verify Map view is shown (look for the status bar with Length/Depth/Scale)
+    expect(find.textContaining('Length:'), findsOneWidget);
 
     // Tap on Sketch tab
     await tester.tap(find.byIcon(Icons.draw_outlined));

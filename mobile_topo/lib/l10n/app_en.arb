@@ -68,9 +68,24 @@
   "@columnAltitude": {
     "description": "Column header for altitude"
   },
-  "mapViewPlaceholder": "Map View - Cave Overview",
-  "@mapViewPlaceholder": {
-    "description": "Placeholder text for map view"
+  "mapStatusOverview": "Length: {length}m  Depth: {depth}m  Scale: {scale}",
+  "@mapStatusOverview": {
+    "description": "Map status bar showing cave overview",
+    "placeholders": {
+      "length": {"type": "String"},
+      "depth": {"type": "String"},
+      "scale": {"type": "String"}
+    }
+  },
+  "mapStatusStation": "Station {id}: E {east}m, N {north}m, Alt {altitude}m",
+  "@mapStatusStation": {
+    "description": "Map status bar showing selected station info",
+    "placeholders": {
+      "id": {"type": "String"},
+      "east": {"type": "String"},
+      "north": {"type": "String"},
+      "altitude": {"type": "String"}
+    }
   },
   "sketchViewPlaceholder": "Sketch View - Outline & Side View",
   "@sketchViewPlaceholder": {

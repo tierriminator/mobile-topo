@@ -196,11 +196,18 @@ abstract class AppLocalizations {
   /// **'Alt.'**
   String get columnAltitude;
 
-  /// Placeholder text for map view
+  /// Map status bar showing cave overview
   ///
   /// In en, this message translates to:
-  /// **'Map View - Cave Overview'**
-  String get mapViewPlaceholder;
+  /// **'Length: {length}m  Depth: {depth}m  Scale: {scale}'**
+  String mapStatusOverview(String length, String depth, String scale);
+
+  /// Map status bar showing selected station info
+  ///
+  /// In en, this message translates to:
+  /// **'Station {id}: E {east}m, N {north}m, Alt {altitude}m'**
+  String mapStatusStation(
+      String id, String east, String north, String altitude);
 
   /// Placeholder text for sketch view
   ///
