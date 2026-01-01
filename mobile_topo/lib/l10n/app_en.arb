@@ -146,6 +146,30 @@
   "@create": {
     "description": "Create button text"
   },
+  "explorerAddSection": "Add Section",
+  "@explorerAddSection": {
+    "description": "Menu item to add a new section"
+  },
+  "explorerAddArea": "Add Area",
+  "@explorerAddArea": {
+    "description": "Menu item to add a new area"
+  },
+  "explorerDelete": "Delete",
+  "@explorerDelete": {
+    "description": "Menu item to delete an item"
+  },
+  "explorerNewSection": "New Section",
+  "@explorerNewSection": {
+    "description": "Default name for a new section"
+  },
+  "explorerNewSectionTitle": "Create New Section",
+  "@explorerNewSectionTitle": {
+    "description": "Title for the new section dialog"
+  },
+  "explorerSectionName": "Section name",
+  "@explorerSectionName": {
+    "description": "Label for section name input"
+  },
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {
     "description": "Placeholder text for options view"

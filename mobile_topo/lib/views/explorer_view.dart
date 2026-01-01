@@ -4,6 +4,7 @@ import '../data/cave_repository.dart';
 import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
 import '../explorer.dart';
+import '../topo.dart';
 
 class ExplorerView extends StatefulWidget {
   const ExplorerView({super.key});
@@ -57,7 +58,11 @@ class _ExplorerViewState extends State<ExplorerView> {
     // Show dialog to get cave name
     final name = await showDialog<String>(
       context: context,
-      builder: (context) => _NewCaveDialog(defaultName: l10n.explorerNewCave),
+      builder: (context) => _NewItemDialog(
+        title: l10n.explorerNewCaveTitle,
+        labelText: l10n.explorerCaveName,
+        defaultName: l10n.explorerNewCave,
+      ),
     );
 
     if (name == null || name.isEmpty) return;
@@ -73,6 +78,41 @@ class _ExplorerViewState extends State<ExplorerView> {
     await _loadCaves();
 
     // Expand the new cave
+    setState(() {
+      _expandedIds.add(cave.id);
+    });
+  }
+
+  Future<void> _createNewSection(Cave cave) async {
+    final l10n = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+
+    // Show dialog to get section name
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _NewItemDialog(
+        title: l10n.explorerNewSectionTitle,
+        labelText: l10n.explorerSectionName,
+        defaultName: l10n.explorerNewSection,
+      ),
+    );
+
+    if (name == null || name.isEmpty) return;
+
+    final section = Section(
+      id: _uuid.v4(),
+      name: name,
+      survey: const Survey(stretches: [], referencePoints: []),
+      createdAt: now,
+      modifiedAt: now,
+    );
+
+    // Add section to cave
+    final updatedCave = cave.addSection(section);
+    await _repository.saveCave(updatedCave);
+    await _loadCaves();
+
+    // Expand the cave to show the new section
     setState(() {
       _expandedIds.add(cave.id);
     });
@@ -138,6 +178,7 @@ class _ExplorerViewState extends State<ExplorerView> {
   }
 
   Widget _buildCaveNode(Cave cave) {
+    final l10n = AppLocalizations.of(context)!;
     final isExpanded = _expandedIds.contains(cave.id);
     final hasChildren = cave.areas.isNotEmpty || cave.sections.isNotEmpty;
 
@@ -151,14 +192,45 @@ class _ExplorerViewState extends State<ExplorerView> {
           subtitle: cave.description,
           depth: 0,
           isExpanded: isExpanded,
-          hasChildren: hasChildren,
-          onTap: hasChildren ? () => _toggleExpanded(cave.id) : null,
+          hasChildren: true, // Always show expand arrow for caves
+          onTap: () => _toggleExpanded(cave.id),
+          trailing: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (value) {
+              if (value == 'add_section') {
+                _createNewSection(cave);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'add_section',
+                child: Row(
+                  children: [
+                    const Icon(Icons.description, size: 20),
+                    const SizedBox(width: 8),
+                    Text(l10n.explorerAddSection),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         if (isExpanded) ...[
           for (final area in cave.areas)
             _buildAreaNode(area, ExplorerPath.cave(cave.id), 1),
           for (final section in cave.sections)
             _buildSectionNode(section, ExplorerPath.cave(cave.id), 1),
+          if (!hasChildren)
+            Padding(
+              padding: const EdgeInsets.only(left: 64, top: 4, bottom: 8),
+              child: Text(
+                l10n.explorerEmpty,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+            ),
         ],
       ],
     );
@@ -217,6 +289,7 @@ class _ExplorerViewState extends State<ExplorerView> {
     required bool hasChildren,
     bool isSelected = false,
     VoidCallback? onTap,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -226,7 +299,7 @@ class _ExplorerViewState extends State<ExplorerView> {
             : null,
         padding: EdgeInsets.only(
           left: 16.0 + depth * 24.0,
-          right: 16.0,
+          right: trailing != null ? 4.0 : 16.0,
           top: 8.0,
           bottom: 8.0,
         ),
@@ -264,6 +337,7 @@ class _ExplorerViewState extends State<ExplorerView> {
                 ],
               ),
             ),
+            if (trailing != null) trailing,
           ],
         ),
       ),
@@ -271,17 +345,23 @@ class _ExplorerViewState extends State<ExplorerView> {
   }
 }
 
-/// Dialog for creating a new cave
-class _NewCaveDialog extends StatefulWidget {
+/// Generic dialog for creating a new item (cave, section, area)
+class _NewItemDialog extends StatefulWidget {
+  final String title;
+  final String labelText;
   final String defaultName;
 
-  const _NewCaveDialog({required this.defaultName});
+  const _NewItemDialog({
+    required this.title,
+    required this.labelText,
+    required this.defaultName,
+  });
 
   @override
-  State<_NewCaveDialog> createState() => _NewCaveDialogState();
+  State<_NewItemDialog> createState() => _NewItemDialogState();
 }
 
-class _NewCaveDialogState extends State<_NewCaveDialog> {
+class _NewItemDialogState extends State<_NewItemDialog> {
   late TextEditingController _controller;
 
   @override
@@ -305,12 +385,12 @@ class _NewCaveDialogState extends State<_NewCaveDialog> {
     final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: Text(l10n.explorerNewCaveTitle),
+      title: Text(widget.title),
       content: TextField(
         controller: _controller,
         autofocus: true,
         decoration: InputDecoration(
-          labelText: l10n.explorerCaveName,
+          labelText: widget.labelText,
         ),
         onSubmitted: (value) => Navigator.of(context).pop(value),
       ),

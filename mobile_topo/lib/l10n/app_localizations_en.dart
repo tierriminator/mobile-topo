@@ -115,5 +115,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get create => 'Create';
 
   @override
+  String get explorerAddSection => 'Add Section';
+
+  @override
+  String get explorerAddArea => 'Add Area';
+
+  @override
+  String get explorerDelete => 'Delete';
+
+  @override
+  String get explorerNewSection => 'New Section';
+
+  @override
+  String get explorerNewSectionTitle => 'Create New Section';
+
+  @override
+  String get explorerSectionName => 'Section name';
+
+  @override
   String get optionsViewPlaceholder => 'Options';
 }

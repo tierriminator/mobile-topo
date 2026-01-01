@@ -293,6 +293,42 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get create;
 
+  /// Menu item to add a new section
+  ///
+  /// In en, this message translates to:
+  /// **'Add Section'**
+  String get explorerAddSection;
+
+  /// Menu item to add a new area
+  ///
+  /// In en, this message translates to:
+  /// **'Add Area'**
+  String get explorerAddArea;
+
+  /// Menu item to delete an item
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get explorerDelete;
+
+  /// Default name for a new section
+  ///
+  /// In en, this message translates to:
+  /// **'New Section'**
+  String get explorerNewSection;
+
+  /// Title for the new section dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Section'**
+  String get explorerNewSectionTitle;
+
+  /// Label for section name input
+  ///
+  /// In en, this message translates to:
+  /// **'Section name'**
+  String get explorerSectionName;
+
   /// Placeholder text for options view
   ///
   /// In en, this message translates to:
