@@ -91,7 +91,10 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(_getTitle(context)),
       ),
-      body: _views[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _views,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
