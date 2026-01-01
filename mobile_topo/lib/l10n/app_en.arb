@@ -257,5 +257,109 @@
   "insertBelow": "Insert below",
   "@insertBelow": {
     "description": "Context menu option to insert row below"
+  },
+  "optionsBluetoothSection": "Bluetooth / Device",
+  "@optionsBluetoothSection": {
+    "description": "Section header for Bluetooth settings"
+  },
+  "optionsBluetoothDevice": "DistoX Device",
+  "@optionsBluetoothDevice": {
+    "description": "Label for DistoX device selection"
+  },
+  "optionsBluetoothDeviceNone": "No device selected",
+  "@optionsBluetoothDeviceNone": {
+    "description": "Subtitle when no Bluetooth device is selected"
+  },
+  "optionsAutoConnect": "Auto Connect",
+  "@optionsAutoConnect": {
+    "description": "Label for auto-connect toggle"
+  },
+  "optionsAutoConnectDescription": "Automatically reconnect when connection drops",
+  "@optionsAutoConnectDescription": {
+    "description": "Description for auto-connect feature"
+  },
+  "optionsSmartModeSection": "Smart Mode",
+  "@optionsSmartModeSection": {
+    "description": "Section header for smart mode settings"
+  },
+  "optionsSmartMode": "Smart Mode",
+  "@optionsSmartMode": {
+    "description": "Label for smart mode toggle"
+  },
+  "optionsSmartModeDescription": "Auto-detect 3 identical shots as survey shot",
+  "@optionsSmartModeDescription": {
+    "description": "Description for smart mode feature"
+  },
+  "optionsShotDirection": "Shot Direction",
+  "@optionsShotDirection": {
+    "description": "Label for default shot direction"
+  },
+  "optionsShotDirectionForward": "Forward",
+  "@optionsShotDirectionForward": {
+    "description": "Forward shot direction option"
+  },
+  "optionsShotDirectionBackward": "Backward",
+  "@optionsShotDirectionBackward": {
+    "description": "Backward shot direction option"
+  },
+  "optionsUnitsSection": "Units",
+  "@optionsUnitsSection": {
+    "description": "Section header for unit settings"
+  },
+  "optionsLengthUnit": "Length Unit",
+  "@optionsLengthUnit": {
+    "description": "Label for length unit selection"
+  },
+  "optionsLengthUnitMeters": "Meters (m)",
+  "@optionsLengthUnitMeters": {
+    "description": "Meters length unit option"
+  },
+  "optionsLengthUnitFeet": "Feet (ft)",
+  "@optionsLengthUnitFeet": {
+    "description": "Feet length unit option"
+  },
+  "optionsAngleUnit": "Angle Unit",
+  "@optionsAngleUnit": {
+    "description": "Label for angle unit selection"
+  },
+  "optionsAngleUnitDegrees": "Degrees (360°)",
+  "@optionsAngleUnitDegrees": {
+    "description": "Degrees angle unit option"
+  },
+  "optionsAngleUnitGrad": "Grad (400g)",
+  "@optionsAngleUnitGrad": {
+    "description": "Grad angle unit option"
+  },
+  "optionsDisplaySection": "Display",
+  "@optionsDisplaySection": {
+    "description": "Section header for display settings"
+  },
+  "optionsShowGrid": "Show Grid",
+  "@optionsShowGrid": {
+    "description": "Label for grid toggle"
+  },
+  "optionsShowGridDescription": "Display grid in sketch view",
+  "@optionsShowGridDescription": {
+    "description": "Description for show grid feature"
+  },
+  "optionsCalibrationSection": "Calibration",
+  "@optionsCalibrationSection": {
+    "description": "Section header for calibration"
+  },
+  "optionsCalibration": "Device Calibration",
+  "@optionsCalibration": {
+    "description": "Label for calibration screen"
+  },
+  "optionsCalibrationDescription": "Calibrate DistoX compass and clinometer",
+  "@optionsCalibrationDescription": {
+    "description": "Description for calibration feature"
+  },
+  "optionsAboutSection": "About",
+  "@optionsAboutSection": {
+    "description": "Section header for about"
+  },
+  "optionsAbout": "About Mobile Topo",
+  "@optionsAbout": {
+    "description": "Label for about screen"
   }
 }

@@ -197,4 +197,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get insertBelow => 'Insert below';
+
+  @override
+  String get optionsBluetoothSection => 'Bluetooth / Device';
+
+  @override
+  String get optionsBluetoothDevice => 'DistoX Device';
+
+  @override
+  String get optionsBluetoothDeviceNone => 'No device selected';
+
+  @override
+  String get optionsAutoConnect => 'Auto Connect';
+
+  @override
+  String get optionsAutoConnectDescription =>
+      'Automatically reconnect when connection drops';
+
+  @override
+  String get optionsSmartModeSection => 'Smart Mode';
+
+  @override
+  String get optionsSmartMode => 'Smart Mode';
+
+  @override
+  String get optionsSmartModeDescription =>
+      'Auto-detect 3 identical shots as survey shot';
+
+  @override
+  String get optionsShotDirection => 'Shot Direction';
+
+  @override
+  String get optionsShotDirectionForward => 'Forward';
+
+  @override
+  String get optionsShotDirectionBackward => 'Backward';
+
+  @override
+  String get optionsUnitsSection => 'Units';
+
+  @override
+  String get optionsLengthUnit => 'Length Unit';
+
+  @override
+  String get optionsLengthUnitMeters => 'Meters (m)';
+
+  @override
+  String get optionsLengthUnitFeet => 'Feet (ft)';
+
+  @override
+  String get optionsAngleUnit => 'Angle Unit';
+
+  @override
+  String get optionsAngleUnitDegrees => 'Degrees (360°)';
+
+  @override
+  String get optionsAngleUnitGrad => 'Grad (400g)';
+
+  @override
+  String get optionsDisplaySection => 'Display';
+
+  @override
+  String get optionsShowGrid => 'Show Grid';
+
+  @override
+  String get optionsShowGridDescription => 'Display grid in sketch view';
+
+  @override
+  String get optionsCalibrationSection => 'Calibration';
+
+  @override
+  String get optionsCalibration => 'Device Calibration';
+
+  @override
+  String get optionsCalibrationDescription =>
+      'Calibrate DistoX compass and clinometer';
+
+  @override
+  String get optionsAboutSection => 'About';
+
+  @override
+  String get optionsAbout => 'About Mobile Topo';
 }

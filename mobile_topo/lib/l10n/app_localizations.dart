@@ -460,6 +460,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Insert below'**
   String get insertBelow;
+
+  /// Section header for Bluetooth settings
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth / Device'**
+  String get optionsBluetoothSection;
+
+  /// Label for DistoX device selection
+  ///
+  /// In en, this message translates to:
+  /// **'DistoX Device'**
+  String get optionsBluetoothDevice;
+
+  /// Subtitle when no Bluetooth device is selected
+  ///
+  /// In en, this message translates to:
+  /// **'No device selected'**
+  String get optionsBluetoothDeviceNone;
+
+  /// Label for auto-connect toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Connect'**
+  String get optionsAutoConnect;
+
+  /// Description for auto-connect feature
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically reconnect when connection drops'**
+  String get optionsAutoConnectDescription;
+
+  /// Section header for smart mode settings
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Mode'**
+  String get optionsSmartModeSection;
+
+  /// Label for smart mode toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Mode'**
+  String get optionsSmartMode;
+
+  /// Description for smart mode feature
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detect 3 identical shots as survey shot'**
+  String get optionsSmartModeDescription;
+
+  /// Label for default shot direction
+  ///
+  /// In en, this message translates to:
+  /// **'Shot Direction'**
+  String get optionsShotDirection;
+
+  /// Forward shot direction option
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get optionsShotDirectionForward;
+
+  /// Backward shot direction option
+  ///
+  /// In en, this message translates to:
+  /// **'Backward'**
+  String get optionsShotDirectionBackward;
+
+  /// Section header for unit settings
+  ///
+  /// In en, this message translates to:
+  /// **'Units'**
+  String get optionsUnitsSection;
+
+  /// Label for length unit selection
+  ///
+  /// In en, this message translates to:
+  /// **'Length Unit'**
+  String get optionsLengthUnit;
+
+  /// Meters length unit option
+  ///
+  /// In en, this message translates to:
+  /// **'Meters (m)'**
+  String get optionsLengthUnitMeters;
+
+  /// Feet length unit option
+  ///
+  /// In en, this message translates to:
+  /// **'Feet (ft)'**
+  String get optionsLengthUnitFeet;
+
+  /// Label for angle unit selection
+  ///
+  /// In en, this message translates to:
+  /// **'Angle Unit'**
+  String get optionsAngleUnit;
+
+  /// Degrees angle unit option
+  ///
+  /// In en, this message translates to:
+  /// **'Degrees (360°)'**
+  String get optionsAngleUnitDegrees;
+
+  /// Grad angle unit option
+  ///
+  /// In en, this message translates to:
+  /// **'Grad (400g)'**
+  String get optionsAngleUnitGrad;
+
+  /// Section header for display settings
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get optionsDisplaySection;
+
+  /// Label for grid toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Show Grid'**
+  String get optionsShowGrid;
+
+  /// Description for show grid feature
+  ///
+  /// In en, this message translates to:
+  /// **'Display grid in sketch view'**
+  String get optionsShowGridDescription;
+
+  /// Section header for calibration
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration'**
+  String get optionsCalibrationSection;
+
+  /// Label for calibration screen
+  ///
+  /// In en, this message translates to:
+  /// **'Device Calibration'**
+  String get optionsCalibration;
+
+  /// Description for calibration feature
+  ///
+  /// In en, this message translates to:
+  /// **'Calibrate DistoX compass and clinometer'**
+  String get optionsCalibrationDescription;
+
+  /// Section header for about
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get optionsAboutSection;
+
+  /// Label for about screen
+  ///
+  /// In en, this message translates to:
+  /// **'About Mobile Topo'**
+  String get optionsAbout;
 }
 
 class _AppLocalizationsDelegate
