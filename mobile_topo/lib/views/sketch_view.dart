@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/sketch_history.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -28,11 +29,9 @@ class _SketchViewState extends State<SketchView> {
   Sketch _outlineSketch = const Sketch();
   Sketch _sideViewSketch = const Sketch();
 
-  // Undo/redo stacks
-  final List<Sketch> _outlineUndoStack = [];
-  final List<Sketch> _sideViewUndoStack = [];
-  final List<Sketch> _outlineRedoStack = [];
-  final List<Sketch> _sideViewRedoStack = [];
+  // Undo/redo history for each view
+  final SketchHistory _outlineHistory = SketchHistory();
+  final SketchHistory _sideViewHistory = SketchHistory();
 
   // Drawing state
   SketchMode _sketchMode = SketchMode.move;
@@ -91,10 +90,8 @@ class _SketchViewState extends State<SketchView> {
       _sideViewPositions = _computeSideViewPositions(section.survey);
       _outlineSketch = section.outlineSketch;
       _sideViewSketch = section.sideViewSketch;
-      _outlineUndoStack.clear();
-      _sideViewUndoStack.clear();
-      _outlineRedoStack.clear();
-      _sideViewRedoStack.clear();
+      _outlineHistory.clear();
+      _sideViewHistory.clear();
       _currentSectionId = section.id;
       _centerViews();
     }
@@ -193,11 +190,8 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  List<Sketch> get _currentUndoStack =>
-      _viewMode == SketchViewMode.outline ? _outlineUndoStack : _sideViewUndoStack;
-
-  List<Sketch> get _currentRedoStack =>
-      _viewMode == SketchViewMode.outline ? _outlineRedoStack : _sideViewRedoStack;
+  SketchHistory get _currentHistory =>
+      _viewMode == SketchViewMode.outline ? _outlineHistory : _sideViewHistory;
 
   void _onScaleStart(ScaleStartDetails details) {
     _startScale = _scale;
@@ -207,17 +201,15 @@ class _SketchViewState extends State<SketchView> {
     if (details.pointerCount == 1) {
       if (_sketchMode == SketchMode.draw) {
         final worldPos = _screenToWorld(details.localFocalPoint);
+        _currentHistory.recordState(_currentSketch);
         setState(() {
-          _currentUndoStack.add(_currentSketch);
-          _currentRedoStack.clear();
           _currentStroke = Stroke(
             points: [worldPos],
             color: _currentColor,
           );
         });
       } else if (_sketchMode == SketchMode.erase) {
-        _currentUndoStack.add(_currentSketch);
-        _currentRedoStack.clear();
+        _currentHistory.recordState(_currentSketch);
         _eraseAt(details.localFocalPoint);
       }
     }
@@ -280,20 +272,20 @@ class _SketchViewState extends State<SketchView> {
   }
 
   void _undo() {
-    if (_currentUndoStack.isNotEmpty) {
+    final previousSketch = _currentHistory.undo(_currentSketch);
+    if (previousSketch != null) {
       setState(() {
-        _currentRedoStack.add(_currentSketch);
-        _currentSketch = _currentUndoStack.removeLast();
+        _currentSketch = previousSketch;
       });
       _saveSketch();
     }
   }
 
   void _redo() {
-    if (_currentRedoStack.isNotEmpty) {
+    final nextSketch = _currentHistory.redo(_currentSketch);
+    if (nextSketch != null) {
       setState(() {
-        _currentUndoStack.add(_currentSketch);
-        _currentSketch = _currentRedoStack.removeLast();
+        _currentSketch = nextSketch;
       });
       _saveSketch();
     }
@@ -383,12 +375,12 @@ class _SketchViewState extends State<SketchView> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.undo),
-                onPressed: _currentUndoStack.isNotEmpty ? _undo : null,
+                onPressed: _currentHistory.canUndo ? _undo : null,
                 tooltip: l10n.undo,
               ),
               IconButton(
                 icon: const Icon(Icons.redo),
-                onPressed: _currentRedoStack.isNotEmpty ? _redo : null,
+                onPressed: _currentHistory.canRedo ? _redo : null,
                 tooltip: l10n.redo,
               ),
             ],
