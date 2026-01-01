@@ -1,0 +1,844 @@
+PocketTopo User Manual
+PocketTopo Version 1.2
+Draft 10/23/2008
+
+1 Table of Contents
+1
+2
+3
+
+Table of Contents................................................................................................................1
+Introduction ........................................................................................................................2
+General User Interface ........................................................................................................2
+3.1
+Main Menu.................................................................................................................2
+3.2
+Toolbar.......................................................................................................................5
+4
+Data View ..........................................................................................................................6
+4.1
+Measured Stretches.....................................................................................................6
+4.2
+Reference Points.........................................................................................................7
+4.3
+Data View Context Menu ...........................................................................................7
+5
+Map View...........................................................................................................................9
+5.1
+Map View Context Menu ...........................................................................................9
+6
+Sketch View .......................................................................................................................9
+6.1
+Drawing States ...........................................................................................................9
+6.2
+Outline Context Menu ..............................................................................................10
+6.3
+Side View Context Menu..........................................................................................11
+7
+Trip Settings .....................................................................................................................11
+7.1
+Trip Form Fields.......................................................................................................12
+7.2
+Trip Form Commands ..............................................................................................12
+8
+Topo Files ........................................................................................................................12
+9
+Import/Export ...................................................................................................................13
+9.1
+Text Export ..............................................................................................................13
+9.2
+Toporobot Export .....................................................................................................14
+9.3
+Toporobot Export Options ........................................................................................14
+9.4
+Graphics Export .......................................................................................................14
+9.5
+Toporobot Import .....................................................................................................14
+10 Calibration........................................................................................................................15
+10.1
+Calibration Table......................................................................................................15
+10.2
+Calibration Menu Commands ...................................................................................16
+11 Missing Features...............................................................................................................17
+
+2
+
+2 Introduction
+PocketTopo is an application used to manage and store cave survey data. It is built to run on a
+Windows Mobile PDA or any other device supporting the .Net compact framework.
+The program is constructed to receive the measured survey data directly from an electronic
+surveying device connected through a wireless Bluetooth connection. Survey data may also be
+typed in manually. However, a connected device is much more effective.
+The data representation is optimized for a three-axis electronic compass/clinometer. It allows any
+number of cross section and guideline measurements in arbitrary directions for each survey
+station.
+A main advantage of the application is the ability to draw sketches directly on the screen of the
+PDA. The immediate availability of precise survey data and the possibility to use additional
+guidelines allows to make precise sketches quickly.
+
+3 General User Interface
+The user interface consists mainly of a toolbar with the main menu and some buttons and a screen
+filling form showing one of three views: a data view with a textual representation of the survey
+data, a cave map view to visualize the cave as a whole, or a sketch view to show the actual
+passage and to draw sketches in both outline and side view.
+
+3.1 Main Menu
+The Main Menu contains several generally used functions.
+Bluetooth
+
+Shows the Bluetooth submenu.
+Bluetooth ►Connect
+
+Open the connection to the measuring device. The Bluetooth port must be correctly configured
+with the Port option.
+Bluetooth ►Disconnect
+
+Closes the Bluetooth connection.
+Bluetooth ►Auto
+
+Enables/disables automatic connection mode. If enabled the PDA tries to reconnect at regular
+intervals if the connection drops.
+Options
+
+Shows the options configuration submenu with various configuration commands.
+
+3
+Options ►Title Bar
+
+Enables or disables the display of the standard title bar. When disabled the active area of the
+screen is slightly enlarged but the Start menu is no longer directly available.
+Options ►Smart
+
+Switches ‘smart’ mode on or off. In smart mode, three nearly identical measurements are
+recognized automatically as a new survey shot. The Reverse option is used to define whether the
+shots are measured forward or backward.
+Options ►Reverse
+
+Sets the default shot direction to forward or backward. The default direction is used in smart
+mode and for the Shot command in the data context menu.
+Options ►Unit
+
+Set the units used for data display and editing. Unit Changes have no effect on the stored data.
+Options ►Unit ►360°
+
+Sets the angle unit to degrees (full circle = 360°).
+Options ►Unit ►400g
+
+Sets the angle unit to grad (full circle = 400g).
+Options ►Unit ►m
+
+Sets the length unit to Meters.
+Options ►Unit ►Feet
+
+Sets the length unit to feet.
+Options ►Port
+
+Sets the serial port for the Bluetooth connection. The port must correspond to the outgoing serial
+port setting in the Bluetooth manager.
+Options ►Port ►None
+
+Sets no Bluetooth port and disables the Bluetooth connection.
+Options ►Port ►COM0 - COM9
+
+Sets the Bluetooth port to the given port number.
+Actual trip…
+
+Opens a form to inspect and change the actual trip settings. The settings are used for new
+measurements.
+Calibration…
+
+Opens the calibration form. This form allows to collect calibration data, to calculate optimal
+calibration coefficients, and to write them back to the measurement device.
+
+4
+File
+
+Shows a submenu with file manipulation commands.
+File ►New Cave
+
+Erases all data and drawings. Used to start the survey of new cave not related to any existing data.
+File ►New
+
+Erases the actual data and drawings but retains the rest of the cave, including the previous actual
+data, for further use. Used to start a new region of the same cave, to be stored in a separate file.
+File ►Open…
+
+Shows a ‘File Open’ dialog to open a existing file. The contents of the file is shown as the new
+actual data and drawings. All other files in the file’s directory are read as well and shown as the
+rest of the cave.
+File ►Save
+
+Saves the actual data and drawings back to the original file.
+File ►Save As…
+
+Opens a ‘Save As’ dialog to save the actual data and drawings to a specific file.
+Import
+
+Shows a submenu with the list of available import converters.
+Import ►Toporobot…
+
+Opens a ‘File Open’ dialog to allow selecting a Toporobot formatted text file to read from.
+Export
+
+Shows a submenu with the list of available export converters.
+Export ►Text…
+
+Opens a ‘Save As’ dialog to save the actual data in a tabular form to a specific text file.
+Export ►Toporobot…
+
+First opens a form to specify the options available for an export of the actual data to a Toporobot
+formatted text file and then opens a ‘Save As’ dialog to specify the actual file to write to.
+Export ►Therion…
+
+Opens a ‘Save As’ dialog to save the actual data to a text file to be read by the Therion software.
+Export ►Outline…
+
+Opens a ‘Save As’ dialog to save the actual outline drawing to a DXF file. DXF files can be
+imported by most graphic editors.
+Export ►Side View…
+
+5
+Opens a ‘Save As’ dialog to save the actual side view drawing to a DXF file. DXF files can be
+imported by most graphic editors.
+Undo
+
+Erases the effect of the last command executed. Undo is available for the data manipulating
+operations in the data view as well as for the drawing operations in the Sketch views. There are
+separate Undo/Redo lists for the data view, the outline sketch, and the side view sketch. The
+Undo button in the toolbar has the same effect.
+Redo
+
+Reverses the last Undo and restores the changed state. The Redo button in the toolbar has the
+same effect.
+Exit
+
+Terminates the program. The Close button in the upper right corner of the screen does not close
+the application but only puts it to the background.
+
+3.2 Toolbar
+The toolbar at the bottom of the screen contains seven buttons in two groups. The left group of
+three buttons is used to change the actual view. The other four buttons are used for zooming and
+Undo/Redo.
+Data Button
+
+Shows the data view. Press the button repeatedly to switch between the table of measured
+stretches and the table of reference points (entry coordinates).
+Map Button
+
+Shows the cave map view.
+Sketch Button
+
+Shows the sketch view. Press the button repeatedly to switch between the outline and side view
+drawings.
+Plus and Minus Buttons
+
+In the map and sketch views the Plus and Minus buttons are used to zoom in and out. This way,
+the scale of the displayed survey data and drawings is selectable between 1:50 to 1:20000 in 15
+steps.
+If an ID field (From or To) is selected in the data view, the buttons can be used increment or
+decrement the actual value.
+Undo and Redo Buttons
+Undo erases the effect of the last command executed. Redo reverses the last Undo and restores
+the changed state. Undo and Redo are available for the data manipulating operations in the data
+view as well as for the drawing operations in the Sketch views. There are separate Undo/Redo
+
+6
+lists for the data view, the outline sketch, and the side view sketch. The Undo and Redo entries in
+the main menu have the same effect.
+
+4 Data View
+The data view shows a textual representation of the survey data. Separate tables are present for
+the measured stretches and for reference points (entrance coordinates).
+If a field of a table is tapped twice, a text field is opened to allow editing of the contents of the
+field. Use the Return key to store the change and close the text field. The Tab key can be used to
+store the actual field and to open the next table field to the right.
+If the cave consists of multiple files stored in the same directory, the contents of the additional
+files is read and shown but cannot be edited. Editing is only allowed for the data in the actual file
+and for newly acquired data.
+ID numbers are used in these tables to identify survey stations. IDs are of the form ‘a.b’, where
+‘a’ and ‘b’ are numbers. ‘a’ is normally the same for all points in a series and ‘b’ is incremented
+for each station, but this is not a strict requirement. IDs must be unique in the current cave (i.e. in
+all files in the current directory).
+All changes to the data can be reversed by the Undo command.
+
+4.1 Measured Stretches
+The stretches table contains the following columns:
+From
+
+The ID of the station where the stretch starts (i.e. is measured from). If the field is empty, the
+stretch is ignored.
+To
+
+The ID of the station where the stretch ends. If this field is empty, the stretch is interpreted as a
+cross section measurement at the station given by the From field. Otherwise the stretch is a
+survey shot between the two stations.
+Dist
+
+The measured distance in m. If the distance is zero, the row is interpreted as a ‘dummy’ shot
+making two stations equivalent, for instance at the beginning of a new series.
+Decl
+
+The measured declination (azimuth) in the unit selected in the Unit option (degree or grad).
+Incl
+
+The measured inclination in the unit selected in the Unit option (degree or grad). Downwards
+sloping lines are shown as negative values.
+Comment
+
+The last column contains a star (‘*’) if a comment is set for the row.
+
+7
+
+4.2 Reference Points
+The reference Points table contains the following columns:
+ID
+
+The ID of the station defined by the given coordinates.
+East
+
+The east (horizontal) part of the coordinates in m.
+North
+
+The north (vertical) part of the coordinates in m.
+Alt
+
+The altitude above sea level of the station in m.
+Comment
+
+The last column contains a star (‘*’) if a comment is set for the row.
+
+4.3 Data View Context Menu
+The context menus of both tables are mostly identical. Exceptions are indicated in the description.
+Comment
+
+Opens a text field to inspect and edit the comment associated with the actual row. The same
+happens if the last field of a row is tapped twice. A star (‘*’) is shown in this field if a comment is
+set for that row.
+Trip…
+
+Only available for stretches.
+Opens a form to inspect and change the trip settings associated with the actual row.
+New Row
+
+Inserts a new empty row above the actual one. Use the command in the empty space below the
+last row to append a new one at the end.
+Delete Row
+
+Deletes the actual row. Use the Undo command to retrieve erroneously deleted data.
+Shot -> / Shot <-
+
+Only available for stretches.
+If applied to a cross section stretch (To = empty), it changes the stretch into a survey shot by
+setting the To field to the next ID. If the Reverse option is set, the shot is turned into a backward
+shot by exchanging the From and To fields. Use the Renumber command to propagate the
+number change to subsequent rows.
+If applied to a survey shot, the command switches between forward and backward shots.
+
+8
+The arrow at the end of the command indicates whether the resulting shot will be forward (->) or
+backward (<-).
+Renumber
+
+Only available for stretches.
+Reassigns the IDs of all subsequent rows starting at the actual one. The command is mainly used
+to propagate changes made to a row to subsequent rows with fresh measurement data.
+If you want to restrict the renumbering to a specific interval for some reasons, insert an empty
+row at the end of the interval, apply Renumber to the first row, and then remove the empty row.
+Start Here
+
+Starts a new series of measurements at the station defined by the actual stretch or reference point.
+The command inserts a new row at the end of the stretch table with the From field set to the
+actual ID, the To field set to the Next ID value in the actual Trip data, and the distance and angles
+set to zero. Such a ‘dummy’ shot is not strictly needed but is recommended because it allows to
+have a separate set of cross section measurements for the first point of the new series. By
+convention the name of the new passage is added as a comment to this row.
+The first number of the Next ID value is incremented automatically after this command.
+Continue Here
+
+Only available for stretches.
+Used to continue a preexisting series after the processing of other series (for instance branches).
+The command must be used at the last station of the existing series. It inserts a new row at the end
+of the table with From field set to the actual ID, an empty To field, and the distance and angles
+set to zero. This represents a ‘dummy’ cross section which has no effect on the survey but
+enforces the numbering to continue from the ID of the selected station.
+Copy
+
+Copies the textual contents of the actual field to the paste buffer.
+Paste
+
+Replaces the contents of the actual field by the text stored in the paste buffer.
+-> Map
+
+Switches to the map view and moves the drawing such that the station defined by the actual row
+is centered on the screen.
+-> Outline
+
+Switches to the outline sketch and moves the drawing such that the station defined by the actual
+row is centered on the screen.
+-> Side View
+
+Switches to the side view sketch and moves the drawing such that the station defined by the
+actual row is centered on the screen.
+
+9
+
+5 Map View
+The map view is mainly used to give an overview of the whole cave. It shows all reference points
+and survey shots but no drawings and no cross sections. The part read from the actual file is
+shown in red, the rest in black.
+The actual scale of the view can be changed with the Plus and Minus buttons. The actually
+visible section can be moved with the pen or with the cursor keys of the device.
+A text line at the bottom of the view shows the current length and depth of the cave together with
+the actual scale. If one of the visible survey stations is tapped with the pen, the text changes to
+show the ID and the coordinates of the station.
+
+5.1 Map View Context Menu
+-> Data
+
+Switches to the data view and selects the row representing the actual station.
+-> Outline
+
+Switches to the outline sketch and moves the drawing such that the actual station is centered on
+the screen.
+-> Side View
+
+Switches to the side view sketch and moves the drawing such that the actual station is centered on
+the screen.
+
+6 Sketch View
+The sketch view shows the survey data (survey shots and cross sections) and allows to make
+drawings directly on the screen. The actual scale of the view can be changed with the Plus and
+Minus buttons. The actually visible section can be moved with the pen or with the cursor keys.
+Two separate drawing areas are available for outline and side view sketches. The side view is a
+projection on the development of the survey shots.
+A text line at the bottom of the view shows the actual scale. If one of the visible survey stations
+is tapped with the pen in Move mode, the text changes to show the ID and the coordinates of the
+station.
+All drawing operations can be reversed by the Undo command. There are separate Undo/Redo
+lists for both, the Outline and the Side View sketches.
+
+6.1 Drawing States
+For the actual drawing, the view can be set to one of seven states represented by the small
+pictograms at the top of the screen.
+Move
+
+10
+In this state, the drawing can be move directly with the pen and the context menu is enabled but
+no drawing can take place.
+Pen Color
+
+Selects a ‘pen’ with the given color. Any move on the screen draws a line in that color. Use
+hatching for areas to minimize the amount of memory needed.
+Moving the visible frame is still possible if it is started in one of the small arrow handles in the
+corners or using the cursor keys of the device.
+Delete
+
+Selects an ‘eraser’ mode where each pen tab near an already painted line deletes it. Use the Undo
+command to retrieve an erroneously removed line.
+Moving the visible frame is still possible if it is started in one of the small arrow handles in the
+corners or using the cursor keys of the device.
+
+6.2 Outline Context Menu
+Show Grid
+
+When enabled, a grid is shown in the background of the drawing. The size of the grid is either 1m
+or 5 feet depending on the selected unit. The grid is hidden for scales of 1:1000 and above.
+Show All
+
+When enabled, shows the survey data of the whole cave. Otherwise just the actual data is shown.
+XSection |
+
+When used at a survey station, prepares a vertical cross section drawing corresponding to that
+station. The next pen tap defines the position in the drawing where the cross section will be
+drawn. A copy of the station and an appropriate projection of all cross section measurements
+appear at that point. A wrong cross section may be removed with the Undo command or using the
+Delete mode.
+-> Data
+
+Switches to the data view and selects the row representing the actual station.
+-> Map
+
+Switches to the map view and moves the drawing such that the actual station is centered on the
+screen.
+-> Side View
+
+Switches to the side view sketch and moves the drawing such that the actual station is centered on
+the screen.
+
+11
+
+6.3 Side View Context Menu
+Flip
+
+When enabled, forces the actual survey line to run from right to left instead of from left to right.
+There is no Undo for this operation. Use the same command on the same station to reverse it.
+Flip All
+
+Same as Flip but applies to the actual survey line and all following lines of the same series.
+There is no Undo for this operation. Use the same command on the same station to reverse it.
+Show Grid
+
+When enabled, a grid is shown in the background of the drawing. The size of the grid is either 1m
+or 5 feet depending on the selected unit. The grid is hidden for scales of 1:1000 and above.
+XSection |
+
+When used at a survey station, prepares a vertical cross section drawing corresponding to that
+station. The next pen tap defines the position in the drawing where the cross section will be
+drawn. A copy of the station and an appropriate projection of all cross section measurements
+appear at that point. A wrong cross section may be removed with the Undo command or using the
+Delete mode.
+XSection –
+
+When used at a survey station, prepares a horizontal cross section drawing corresponding to that
+station. The next pen tap defines the position in the drawing where the cross section will be
+drawn. A copy of the station and an appropriate projection of all cross section measurements
+appear at that point. A wrong cross section may be removed with the Undo command or using the
+Delete mode.
+-> Data
+
+Switches to the data view and selects the row representing the actual station.
+-> Map
+
+Switches to the map view and moves the drawing such that the actual station is centered on the
+screen.
+-> Outline
+
+Switches to the outline sketch and moves the drawing such that the actual station is centered on
+the screen.
+
+7 Trip Settings
+Each measured stretch is associated with a set of ‘Trip’ data containing values common for all
+measurements made during the same surveying event.
+There are two kind of trip data: actual and stored. The actual data is used for newly acquired data.
+It can be inspected and changed using the Actual Trip command in the main menu. The stored
+
+12
+data is bound to a group of measurements stored on a file. It can be inspected and changed using
+the data view context menu on one of the corresponding stretches.
+
+7.1 Trip Form Fields
+Date
+
+The date when the trip took place.
+Decl Correction
+
+A manually determined declination correction value. This is the angular difference between map
+north and magnetic north. Magnetic north east of map north is represented as a positive number.
+The unit used is a selected by the Unit option in the main menu.
+When the survey data is evaluated, the correction is added to the declination angle of each
+associated stretch.
+Next ID
+
+Only present in actual trip info.
+Specifies the next ID to be used by the Start Here command for the first Station of a new series.
+The series part of the value is incremented after each usage of the Start Here command.
+Comment
+
+The comment field contains further information about the trip like names of persons involved,
+condition of the cave, and so on.
+
+7.2 Trip Form Commands
+Cancel
+
+Discards any changes and closes the Trip form.
+New
+
+Only available for actual trip info.
+Resets the actual trip form by setting the date to the current date and erases the comment field.
+OK (upper right corner of the screen)
+
+Stores the actual field values and closes the Trip form. For the actual trip the data is stored to the
+preferences settings. These are independent of the actual file. Stored trip data is saved together
+with the survey data at the next invoke of a Save or Save As command.
+
+8 Topo Files
+All data, survey and drawings, are normally saved in a compact binary representation to so called
+Topo files with the extension ‘.top’. Except for very small caves it is recommended to partition
+the data into several files. To keep the view of the whole cave, the program always reads in all the
+
+13
+files of a cave, but only the data of the actual file may be changed or extended. To avoid
+problems with this approach some simple rules must be followed:
+- There must be a separate directory for each cave, even if the cave consists of a single file.
+- No data should be duplicated inside such a directory. If you want to make a backup copy, move
+it to another directory.
+For very large caves, the number of files may become too large. In this case it is recommended to
+replace old and settled files by one single file containing survey data only and to keep only those
+files separate on which you are actually working on. To make such a file you have to export all
+the individual files to an existing cave surveying program (something you have to do anyway)
+and then to import the combined data again. Such a file is named ‘$.top’ per convention and is
+placed in the directory of the cave. It is used just for reference but is never opened directly and
+edited. The same holds if part of the cave is imported from preexisting survey data.
+To avoid data loss in case of a hardware or software failure, the actual data is continuously stored
+to non volatile memory. Two files (back1.top & back2.top) are written alternately to avoid
+problems when the system fails during writing of one of them. The files are normally deleted
+when the application is closed and the last saved state is restored automatically if the files are still
+present at startup. If a storage card is present, the backup files are copied to the card as well.
+
+9 Import/Export
+The Import and Export commands are used to convert between existing survey file formats and
+Topo files. The following commands are currently available:
+
+9.1 Text Export
+Writes the actual survey data to a text file using the following structure:
+[1]: 2008/07/24
+
+0.27
+
+1.0
+
+200000.000
+
+1.0
+1.0
+1.0
+1.1
+1.1
+1.1
+1.1
+1.1
+1.1
+1.1
+1.2
+1.2
+1.2
+1.2
+
+1.1
+1.1
+1.1
+
+1.2
+1.2
+1.2
+
+Trip comment
+600000.000
+2.564
+2.563
+2.562
+1.237
+1.662
+0.930
+2.852
+4.045
+4.039
+4.049
+0.842
+1.077
+0.404
+0.639
+
+269.56
+268.35
+268.61
+226.37
+271.32
+267.67
+351.63
+317.14
+317.24
+316.90
+178.86
+58.89
+297.86
+357.82
+
+700.000
+0.96
+0.91
+0.83
+-7.48
+80.68
+-84.97
+3.98
+20.84
+20.90
+20.80
+0.60
+3.28
+82.82
+-85.36
+
+Reference point comment
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+[1]
+
+Station comment
+
+14
+
+9.2 Toporobot Export
+Writes the actual survey data to a Toporobot compatible text file. If the cave consists of a single
+Topo file, the resulting text can be imported by the Toporobot program directly. If the cave is
+split up into several parts, the parts must be exported separately and merged using a text editor.
+There is no way to import a part of a cave directly in Toporobot.
+
+9.3 Toporobot Export Options
+The Export Toporobot command first opens a form to select some options affecting the result of
+the export.
+Code Number
+
+The index used to identify the code settings for the exported stations. Use the number of an
+existing code setting matching the one constructed by the export or use the next free index.
+Trip Number
+
+The index used to identify the trip settings for the exported stations. Use the next free trip index.
+If there are multiple trips associated with the exported data, they are numbered consecutively
+starting with the given index.
+Auto Declination
+
+If checked, the generated code instructs the Toporobot program to use automatic declination
+correction according to the given trip date and reference point coordinates. Otherwise the code
+uses manual declination correction with the value given in the trip settings.
+Include Guidelines
+
+If checked, the data of the guidelines (individual cross section measurements) is included as a
+comment with each station. This has no influence on the output generated by Toporobot but
+allows to reconstruct the precise measurements later. Toporobot compatible left, right, up, down
+values calculated out of the guidelines are included in the output anyway.
+
+9.4 Graphics Export
+The drawings made in the in Sketch views can be exported by the Export Outline and Export
+Side View commands. The drawings including a graphical representation of the survey shots and
+guidelines is written to a DXF file. DXF files can be imported by most graphic editors. The
+natural scale set in the output is 1:500. If you need a different scale, enlarge or reduce the drawing
+accordingly in the graphic editor.
+
+9.5 Toporobot Import
+Reads the survey data from a Toporobot formatted text file. Such an import is usually stored in a
+$.top file for reference. New files in the same directory are used for further surveys.
+
+15
+
+10 Calibration
+The calibration form allows to perform measurement device calibration and to analyze its quality.
+It is opened with the Calibration command in the main menu. It mainly consists of a table
+showing the calibration measurements and their analysis. New calibration measurements made on
+a connected device are automatically added to the table.
+
+10.1 Calibration Table
+The calibration table contains the following columns:
+Enable
+
+The first and last columns show a star (‘*’) if the row is enabled. The values contained in disabled
+rows are ignored during evaluation of the table. The enabled/disabled state can be toggle by
+tapping the field. Disabled rows are useful to exclude wrong measurements and to perform a
+‘leave one out’ analysis of the calibration.
+Group
+
+The second column contains the group assignment. Groups are used to define sets of calibration
+measurements made in the same direction but with varying roll angles. Tapping on the field
+cycles through the three possible states: empty, ‘A’, and ‘B’. An empty fields is used for
+individual measurements. A series of ‘A’ or ‘B’ denotes a group. Use ‘A’ and ‘B’ alternately to
+define any number groups. By default the first 16 rows are configured as 4 groups of 4
+measurements each.
+∆
+
+The estimated error of the corrected data in this row.
+|G|
+
+The length of the corrected gravity vector. Should be close to one.
+|M|
+
+The length of the corrected magnetic field vector. Should be close to one.
+α
+
+The angle between the two corrected gravity and magnetic field vectors. Should be nearly
+identical for all rows. α is equal to 90° - inclination of the magnetic field.
+Gx
+
+The measured gravity vector X component (laser direction).
+Gy
+
+The measured gravity vector Y component (left/right).
+Gz
+
+The measured gravity vector Z component (up/down).
+
+16
+Mx
+
+The measured magnetic field vector X component (laser direction).
+My
+
+The measured magnetic field vector Y component (left/right).
+Mz
+
+The measured magnetic field vector Z component (up/down).
+Decl
+
+The declination (azimuth) angle calculated from the corrected vectors. Shows in the unit selected
+by the Unit option.
+Incl
+
+The inclination angle calculated from the corrected vectors. Shows in the unit selected by the Unit
+option.
+Roll
+
+The roll angle (turn around the X axis) calculated from the corrected vectors. Shows in the unit
+selected by the Unit option.
+
+10.2 Calibration Menu Commands
+Bluetooth
+
+Same as the Bluetooth submenu of the Main Menu.
+New
+
+Clears the calibration table to prepare for new calibration measurements.
+Open…
+
+Shows a ‘File Open’ dialog to read a calibration data set from a ‘.cal’ file.
+Save…
+
+Shows a ‘Save As’ dialog to write the actual calibration data to a ‘.cal’ file.
+Export…
+
+Shows a ‘Save As’ dialog to write the actual calibration data to a text file.
+Start
+
+Connects to the device and switches Calibration Mode on. An error message is shown in the
+status bar if the connection fails. Bluetooth must be properly configured for this command.
+Stop
+
+17
+Connects to the device and switches Calibration Mode off. An error message is shown in the
+status bar if the connection fails. Bluetooth must be properly configured for this command.
+Update
+
+Connects to the device and writes the calculated calibration coefficients to non-volatile memory
+in the device. The progress of the transfer or an error message is shown in the status bar.
+Bluetooth must be properly configured for this command.
+Evaluate
+
+Recalculates the calibration from the values in the table using the actual settings of the Enable
+and Group fields. The following values are shown in the status bar:
+n: The effective number of measurements used for the calibration.
+i: The number of iterations needed to get the result.
+∆: The average (RMS) estimated error over all measurements.
+The error value should be smaller than 0.5 for a good calibration.
+OK (upper right corner of the screen)
+
+Closes the calibration form and returns to the main views.
+
+11 Missing Features
+The following functions are not currently implemented but are planned to be included in a future
+release of the program:
+- User selectable grid.
+- Automatic declination correction.
+- Loop closure and analysis.
+- Direct reading of reference point coordinates from a connected GPS.
+
+
