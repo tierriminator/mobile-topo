@@ -69,7 +69,6 @@ class _DataViewState extends State<DataView> {
   }
 
   Future<void> _addStretch(Section section) async {
-    // Determine next station IDs based on existing stretches
     final stretches = section.survey.stretches;
     Point from;
     Point to;
@@ -84,6 +83,30 @@ class _DataViewState extends State<DataView> {
 
     final stretch = MeasuredDistance(from, to, 0, 0, 0);
     await _applySurveyChange(section, section.survey.addStretch(stretch));
+  }
+
+  Future<void> _insertStretchAt(Section section, int index) async {
+    final stretches = section.survey.stretches;
+    Point from;
+    Point to;
+    if (stretches.isEmpty) {
+      from = const Point(1, 0);
+      to = const Point(1, 1);
+    } else if (index < stretches.length) {
+      final refStretch = stretches[index];
+      from = refStretch.from;
+      to = refStretch.from;
+    } else {
+      final lastStretch = stretches.last;
+      from = lastStretch.to;
+      to = Point(from.corridorId, from.pointId.toInt() + 1);
+    }
+
+    final stretch = MeasuredDistance(from, to, 0, 0, 0);
+    await _applySurveyChange(
+      section,
+      section.survey.insertStretchAt(index, stretch),
+    );
   }
 
   Future<void> _updateStretch(
@@ -104,6 +127,14 @@ class _DataViewState extends State<DataView> {
   Future<void> _addReferencePoint(Section section) async {
     const point = ReferencePoint(Point(1, 0), 0, 0, 0);
     await _applySurveyChange(section, section.survey.addReferencePoint(point));
+  }
+
+  Future<void> _insertReferencePointAt(Section section, int index) async {
+    const point = ReferencePoint(Point(1, 0), 0, 0, 0);
+    await _applySurveyChange(
+      section,
+      section.survey.insertReferencePointAt(index, point),
+    );
   }
 
   Future<void> _updateReferencePoint(
@@ -254,6 +285,8 @@ class _DataViewState extends State<DataView> {
           padding: const EdgeInsets.all(8.0),
           child: StretchesTable(
             data: stretches,
+            onInsertAbove: (index) => _insertStretchAt(section, index),
+            onInsertBelow: (index) => _insertStretchAt(section, index + 1),
             onUpdate: (index, stretch) =>
                 _updateStretch(section, index, stretch),
             onDelete: (index) => _deleteStretch(section, index),
@@ -287,6 +320,8 @@ class _DataViewState extends State<DataView> {
           padding: const EdgeInsets.all(8.0),
           child: ReferencePointsTable(
             data: referencePoints,
+            onInsertAbove: (index) => _insertReferencePointAt(section, index),
+            onInsertBelow: (index) => _insertReferencePointAt(section, index + 1),
             onUpdate: (index, point) =>
                 _updateReferencePoint(section, index, point),
             onDelete: (index) => _deleteReferencePoint(section, index),

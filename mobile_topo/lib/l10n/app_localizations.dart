@@ -448,6 +448,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Required'**
   String get required;
+
+  /// Context menu option to insert row above
+  ///
+  /// In en, this message translates to:
+  /// **'Insert above'**
+  String get insertAbove;
+
+  /// Context menu option to insert row below
+  ///
+  /// In en, this message translates to:
+  /// **'Insert below'**
+  String get insertBelow;
 }
 
 class _AppLocalizationsDelegate

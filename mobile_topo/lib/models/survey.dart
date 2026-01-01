@@ -227,6 +227,12 @@ class Survey {
     return copyWith(stretches: [...stretches, stretch]);
   }
 
+  Survey insertStretchAt(int index, MeasuredDistance stretch) {
+    final newStretches = List<MeasuredDistance>.from(stretches);
+    newStretches.insert(index, stretch);
+    return copyWith(stretches: newStretches);
+  }
+
   Survey updateStretchAt(int index, MeasuredDistance stretch) {
     final newStretches = List<MeasuredDistance>.from(stretches);
     newStretches[index] = stretch;
@@ -241,6 +247,12 @@ class Survey {
 
   Survey addReferencePoint(ReferencePoint point) {
     return copyWith(referencePoints: [...referencePoints, point]);
+  }
+
+  Survey insertReferencePointAt(int index, ReferencePoint point) {
+    final newPoints = List<ReferencePoint>.from(referencePoints);
+    newPoints.insert(index, point);
+    return copyWith(referencePoints: newPoints);
   }
 
   Survey updateReferencePointAt(int index, ReferencePoint point) {

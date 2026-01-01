@@ -249,5 +249,13 @@
   "required": "Required",
   "@required": {
     "description": "Error message for required field"
+  },
+  "insertAbove": "Insert above",
+  "@insertAbove": {
+    "description": "Context menu option to insert row above"
+  },
+  "insertBelow": "Insert below",
+  "@insertBelow": {
+    "description": "Context menu option to insert row below"
   }
 }

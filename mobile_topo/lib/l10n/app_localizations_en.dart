@@ -191,4 +191,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get required => 'Required';
+
+  @override
+  String get insertAbove => 'Insert above';
+
+  @override
+  String get insertBelow => 'Insert below';
 }
