@@ -48,7 +48,7 @@ class DataTable extends StatelessWidget {
 }
 
 class _DataTableCell extends StatelessWidget {
-  const _DataTableCell({super.key, required this.text});
+  const _DataTableCell({required this.text});
 
   final String text;
 

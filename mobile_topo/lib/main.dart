@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_topo/topo.dart';
-import 'table.dart' as tbl;
+import 'views/data_view.dart';
+import 'views/map_view.dart';
+import 'views/sketch_view.dart';
+import 'views/files_view.dart';
+import 'views/options_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -9,138 +12,93 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Mobile Topo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(
             seedColor: const Color.fromARGB(255, 131, 96, 19)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Mobile Topo'),
+      home: const MainScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final List<MeasuredDistance> data = [];
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
 
-  void addEntry() {
-    setState(() {
-      data.add(const MeasuredDistance(Point(1, 1), Point(2, 2), 3, 4, 5));
-    });
-  }
+  static const List<Widget> _views = [
+    DataView(),
+    MapView(),
+    SketchView(),
+    FilesView(),
+    OptionsView(),
+  ];
 
-  void removeLastEntry() {
+  static const List<String> _titles = [
+    'Data',
+    'Map',
+    'Sketch',
+    'Files',
+    'Options',
+  ];
+
+  void _onItemTapped(int index) {
     setState(() {
-      if (data.isNotEmpty) {
-        data.removeLast();
-      }
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(_titles[_selectedIndex]),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-            // Column is also a layout widget. It takes a list of children and
-            // arranges them vertically. By default, it sizes itself to fit its
-            // children horizontally, and tries to be as tall as its parent.
-            //
-            // Column has various properties to control how it sizes itself and
-            // how it positions its children. Here we use mainAxisAlignment to
-            // center the children vertically; the main axis here is the vertical
-            // axis because Columns are vertical (the cross axis would be
-            // horizontal).
-            //
-            // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-            // action in the IDE, or press "p" in the console), to see the
-            // wireframe for each widget.
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[tbl.DataTable(data: data)]),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        color: Theme.of(context).colorScheme.inversePrimary,
-        height: 50,
-        child: Padding(
-            padding: const EdgeInsets.all(0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                IconButton(
-                  padding: const EdgeInsets.all(0),
-                  icon: const Icon(Icons.map_outlined),
-                  onPressed: addEntry,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-                IconButton(
-                  padding: const EdgeInsets.all(0),
-                  icon: const Icon(Icons.landscape_outlined),
-                  onPressed: removeLastEntry,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-                IconButton(
-                  padding: const EdgeInsets.all(0),
-                  icon: const Icon(Icons.table_chart_outlined),
-                  onPressed: addEntry,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ],
-            )),
+      body: _views[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.table_chart_outlined),
+            activeIcon: Icon(Icons.table_chart),
+            label: 'Data',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.draw_outlined),
+            activeIcon: Icon(Icons.draw),
+            label: 'Sketch',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.folder_outlined),
+            activeIcon: Icon(Icons.folder),
+            label: 'Files',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Options',
+          ),
+        ],
       ),
     );
   }
