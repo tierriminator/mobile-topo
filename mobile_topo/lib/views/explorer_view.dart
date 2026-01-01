@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../controllers/explorer_state.dart';
+import '../controllers/selection_state.dart';
 import '../data/cave_repository.dart';
-import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/explorer_path.dart';
@@ -16,7 +17,6 @@ class ExplorerView extends StatefulWidget {
 }
 
 class _ExplorerViewState extends State<ExplorerView> {
-  final CaveRepository _repository = DataService().caveRepository;
   final _uuid = const Uuid();
 
   // Explorer state with loaded caves
@@ -28,20 +28,26 @@ class _ExplorerViewState extends State<ExplorerView> {
   // Loading state
   bool _isLoading = true;
 
+  bool _initialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    _loadCaves();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      _loadCaves();
+    }
   }
 
   Future<void> _loadCaves() async {
     setState(() => _isLoading = true);
 
-    final summaries = await _repository.listCaves();
+    final repository = context.read<CaveRepository>();
+    final summaries = await repository.listCaves();
     final caves = <Cave>[];
 
     for (final summary in summaries) {
-      final cave = await _repository.getCave(summary.id);
+      final cave = await repository.getCave(summary.id);
       if (cave != null) {
         caves.add(cave);
       }
@@ -55,6 +61,7 @@ class _ExplorerViewState extends State<ExplorerView> {
 
   Future<void> _createNewCave() async {
     final l10n = AppLocalizations.of(context)!;
+    final repository = context.read<CaveRepository>();
     final now = DateTime.now();
 
     // Show dialog to get cave name
@@ -76,7 +83,7 @@ class _ExplorerViewState extends State<ExplorerView> {
       modifiedAt: now,
     );
 
-    await _repository.saveCave(cave);
+    await repository.saveCave(cave);
     await _loadCaves();
 
     // Expand the new cave
@@ -87,6 +94,7 @@ class _ExplorerViewState extends State<ExplorerView> {
 
   Future<void> _createNewSection(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
+    final repository = context.read<CaveRepository>();
     final now = DateTime.now();
 
     // Show dialog to get section name
@@ -111,7 +119,7 @@ class _ExplorerViewState extends State<ExplorerView> {
 
     // Add section to cave
     final updatedCave = cave.addSection(section);
-    await _repository.saveCave(updatedCave);
+    await repository.saveCave(updatedCave);
     await _loadCaves();
 
     // Expand the cave to show the new section
@@ -136,7 +144,7 @@ class _ExplorerViewState extends State<ExplorerView> {
     });
 
     // Update shared selection state
-    DataService().selectionState.selectSection(path.caveId, section);
+    context.read<SelectionState>().selectSection(path.caveId, section);
   }
 
   @override

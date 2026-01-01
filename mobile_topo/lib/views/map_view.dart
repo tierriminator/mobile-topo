@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
-import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
 
@@ -12,8 +12,6 @@ class MapView extends StatefulWidget {
 }
 
 class _MapViewState extends State<MapView> {
-  final SelectionState _selectionState = DataService().selectionState;
-
   Map<Point, StationPosition> _positions = {};
 
   // View transformation
@@ -34,41 +32,21 @@ class _MapViewState extends State<MapView> {
   // Track current section to detect changes
   String? _currentSectionId;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectionState.addListener(_onSelectionChanged);
-    _updateFromSection();
-  }
-
-  @override
-  void dispose() {
-    _selectionState.removeListener(_onSelectionChanged);
-    super.dispose();
-  }
-
-  void _onSelectionChanged() {
-    _updateFromSection();
-  }
-
-  void _updateFromSection() {
-    final section = _selectionState.selectedSection;
-    if (section == null) {
-      setState(() {
+  void _updateFromSection(String? sectionId, Survey? survey) {
+    if (sectionId == null || survey == null) {
+      if (_currentSectionId != null) {
         _positions = {};
         _currentSectionId = null;
-      });
+      }
       return;
     }
 
     // Only recompute and recenter if section changed
-    if (section.id != _currentSectionId) {
-      _positions = section.survey.computeStationPositions();
-      _currentSectionId = section.id;
+    if (sectionId != _currentSectionId) {
+      _positions = survey.computeStationPositions();
+      _currentSectionId = sectionId;
       _centerView();
     }
-
-    setState(() {});
   }
 
   void _centerView() {
@@ -136,7 +114,10 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = _selectionState.selectedSection;
+    final section = context.watch<SelectionState>().selectedSection;
+
+    // Update positions when section changes
+    _updateFromSection(section?.id, section?.survey);
 
     if (section == null) {
       return Center(

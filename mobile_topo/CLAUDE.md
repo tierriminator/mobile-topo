@@ -112,7 +112,6 @@ Persistence and serialization:
 - **`cave_file.dart`**: JSON serialization for cave metadata
 - **`section_file.dart`**: JSON serialization for section data
 - **`sketch_serialization.dart`**: Binary serialization for sketches
-- **`data_service.dart`**: Service locator for repository and state
 
 **File structure on disk:**
 ```
@@ -144,10 +143,28 @@ UI widgets:
 - To add a new language: create `app_<locale>.arb` and run `flutter gen-l10n`
 - Access strings via `AppLocalizations.of(context)!.<key>`
 
+### Dependency Injection (`main.dart`)
+
+Uses the `provider` package for dependency injection:
+
+```dart
+MultiProvider(
+  providers: [
+    ChangeNotifierProvider(create: (_) => SelectionState()),
+    Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
+  ],
+  child: const MyApp(),
+)
+```
+
+Access in views:
+- `context.watch<SelectionState>()` - Listen and rebuild on changes
+- `context.read<CaveRepository>()` - One-time access without rebuilding
+
 ### Key Patterns
 
 - **MVC separation**: Models are pure data, controllers manage state, views handle UI
-- **State management**: `ChangeNotifier` with listeners for cross-view updates
+- **Provider pattern**: Dependencies injected via widget tree using `provider` package
+- **State management**: `ChangeNotifier` with `context.watch()` for automatic rebuilds
 - **Repository pattern**: Abstract interface for data persistence
-- **Service locator**: `DataService` singleton provides access to repository and state
 - **Linting**: Configured via `flutter_lints` package

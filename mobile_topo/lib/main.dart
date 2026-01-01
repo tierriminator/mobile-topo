@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'controllers/selection_state.dart';
+import 'data/cave_repository.dart';
+import 'data/local_cave_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
@@ -7,7 +11,15 @@ import 'views/explorer_view.dart';
 import 'views/options_view.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SelectionState()),
+        Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

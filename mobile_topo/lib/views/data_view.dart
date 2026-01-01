@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
-import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import 'widgets/data_tables.dart';
@@ -16,28 +16,11 @@ enum DataViewMode { stretches, referencePoints }
 
 class _DataViewState extends State<DataView> {
   DataViewMode _mode = DataViewMode.stretches;
-  final SelectionState _selectionState = DataService().selectionState;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectionState.addListener(_onSelectionChanged);
-  }
-
-  @override
-  void dispose() {
-    _selectionState.removeListener(_onSelectionChanged);
-    super.dispose();
-  }
-
-  void _onSelectionChanged() {
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = _selectionState.selectedSection;
+    final section = context.watch<SelectionState>().selectedSection;
 
     if (section == null) {
       return Center(

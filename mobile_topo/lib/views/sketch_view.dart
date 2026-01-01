@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
-import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
+import '../models/cave.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
 
@@ -16,8 +17,6 @@ class SketchView extends StatefulWidget {
 }
 
 class _SketchViewState extends State<SketchView> {
-  final SelectionState _selectionState = DataService().selectionState;
-
   Map<Point, StationPosition> _positions = {};
   Map<Point, Offset> _sideViewPositions = {};
 
@@ -71,33 +70,15 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _selectionState.addListener(_onSelectionChanged);
-    _updateFromSection();
-  }
-
-  @override
-  void dispose() {
-    _selectionState.removeListener(_onSelectionChanged);
-    super.dispose();
-  }
-
-  void _onSelectionChanged() {
-    _updateFromSection();
-  }
-
-  void _updateFromSection() {
-    final section = _selectionState.selectedSection;
+  void _updateFromSection(Section? section) {
     if (section == null) {
-      setState(() {
+      if (_currentSectionId != null) {
         _positions = {};
         _sideViewPositions = {};
         _outlineSketch = const Sketch();
         _sideViewSketch = const Sketch();
         _currentSectionId = null;
-      });
+      }
       return;
     }
 
@@ -112,8 +93,6 @@ class _SketchViewState extends State<SketchView> {
       _currentSectionId = section.id;
       _centerViews();
     }
-
-    setState(() {});
   }
 
   void _centerViews() {
@@ -289,7 +268,10 @@ class _SketchViewState extends State<SketchView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = _selectionState.selectedSection;
+    final section = context.watch<SelectionState>().selectedSection;
+
+    // Update positions when section changes
+    _updateFromSection(section);
 
     if (section == null) {
       return Center(
