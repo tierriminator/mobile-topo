@@ -7,14 +7,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project aims to re-implement **PocketTopo** in Flutter for modern mobile devices (iOS/Android). PocketTopo is cave surveying software originally written for Windows Mobile by Beat Heeb.
 
 ### Target Features (from PocketTopo)
-- **DistoX integration**: Connect to DistoX laser distance meters via Bluetooth to receive survey measurements
-- **Survey data management**: Table view showing measurement records (from/to stations, distance, azimuth, inclination)
-- **Map view**: Display connected survey stations as a 2D cave map
-- **Sketching**: Draw cave walls and features on top of survey shots (plan and profile views)
-- **Export**: Support for Therion, VisualTopo, and DXF formats
+
+**Three Main Views:**
+- **Data View**: Table of measured stretches (From, To, Distance, Declination, Inclination) and reference points (entrance coordinates with East, North, Altitude)
+- **Map View**: Overview of the whole cave showing all stations and survey shots
+- **Sketch View**: Drawing on top of survey data with separate outline (plan) and side view (profile) sketches
+
+**Core Functionality:**
+- **DistoX integration**: Bluetooth connection to receive measurements; supports "smart mode" (auto-detect 3 identical shots as a survey shot)
+- **Station IDs**: Format `a.b` where `a` is typically the series/corridor number and `b` is the point number
+- **Cross-sections**: Multiple measurements at arbitrary angles per station for passage dimensions
+- **Trip settings**: Metadata per survey session (date, declination correction, surveyors)
+- **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
+
+**Import/Export:**
+- Import: Toporobot format
+- Export: Text, Toporobot, Therion, DXF (outline and side view drawings)
+- Native format: `.top` binary files
 
 ### Reference
-- Original PocketTopo: https://paperless.bheeb.ch/
+- PocketTopo manual: `docs/pocket_topo/PocketTopoManual.txt`
+- Original PocketTopo website: https://paperless.bheeb.ch/
 - Similar Android app (SexyTopo): https://github.com/richsmith/sexytopo
 
 ## Build and Development Commands
@@ -49,8 +62,8 @@ flutter analyze
 Flutter application for cave surveying. Currently in early development with basic data table UI.
 
 ### Core Domain (`lib/topo.dart`)
-- `Point`: Represents a survey point with corridor and point IDs
-- `MeasuredDistance`: Represents a measurement between two points, storing distance, azimuth, and inclination
+- `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` station ID format)
+- `MeasuredDistance`: A "stretch" between two stations with distance, azimuth (declination), and inclination
 
 ### UI Structure
 - `main.dart`: App entry point with `MyApp` (root widget) and `MyHomePage` (main screen with stateful measurement data management)
