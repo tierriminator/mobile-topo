@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../table.dart';
 import '../topo.dart';
 
@@ -27,21 +28,22 @@ class _DataViewState extends State<DataView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: SegmentedButton<DataViewMode>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: DataViewMode.stretches,
-                label: Text('Stretches'),
-                icon: Icon(Icons.straighten),
+                label: Text(l10n.stretches),
+                icon: const Icon(Icons.straighten),
               ),
               ButtonSegment(
                 value: DataViewMode.referencePoints,
-                label: Text('Reference Points'),
-                icon: Icon(Icons.location_on),
+                label: Text(l10n.referencePoints),
+                icon: const Icon(Icons.location_on),
               ),
             ],
             selected: {_mode},

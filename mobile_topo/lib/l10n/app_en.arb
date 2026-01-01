@@ -1,0 +1,87 @@
+{
+  "@@locale": "en",
+  "appTitle": "Mobile Topo",
+  "@appTitle": {
+    "description": "The application title"
+  },
+  "dataViewTitle": "Data",
+  "@dataViewTitle": {
+    "description": "Title for the data view"
+  },
+  "mapViewTitle": "Map",
+  "@mapViewTitle": {
+    "description": "Title for the map view"
+  },
+  "sketchViewTitle": "Sketch",
+  "@sketchViewTitle": {
+    "description": "Title for the sketch view"
+  },
+  "filesViewTitle": "Files",
+  "@filesViewTitle": {
+    "description": "Title for the files view"
+  },
+  "optionsViewTitle": "Options",
+  "@optionsViewTitle": {
+    "description": "Title for the options view"
+  },
+  "stretches": "Stretches",
+  "@stretches": {
+    "description": "Label for stretches/measured distances table"
+  },
+  "referencePoints": "Reference Points",
+  "@referencePoints": {
+    "description": "Label for reference points table"
+  },
+  "columnFrom": "From",
+  "@columnFrom": {
+    "description": "Column header for 'from' station"
+  },
+  "columnTo": "To",
+  "@columnTo": {
+    "description": "Column header for 'to' station"
+  },
+  "columnDistance": "Dist.",
+  "@columnDistance": {
+    "description": "Column header for distance"
+  },
+  "columnAzimuth": "Azi.",
+  "@columnAzimuth": {
+    "description": "Column header for azimuth/declination"
+  },
+  "columnInclination": "Incl.",
+  "@columnInclination": {
+    "description": "Column header for inclination"
+  },
+  "columnId": "ID",
+  "@columnId": {
+    "description": "Column header for station ID"
+  },
+  "columnEast": "East",
+  "@columnEast": {
+    "description": "Column header for east coordinate"
+  },
+  "columnNorth": "North",
+  "@columnNorth": {
+    "description": "Column header for north coordinate"
+  },
+  "columnAltitude": "Alt.",
+  "@columnAltitude": {
+    "description": "Column header for altitude"
+  },
+  "mapViewPlaceholder": "Map View - Cave Overview",
+  "@mapViewPlaceholder": {
+    "description": "Placeholder text for map view"
+  },
+  "sketchViewPlaceholder": "Sketch View - Outline & Side View",
+  "@sketchViewPlaceholder": {
+    "description": "Placeholder text for sketch view"
+  },
+  "filesViewPlaceholder": "Files",
+  "@filesViewPlaceholder": {
+    "description": "Placeholder text for files view"
+  },
+  "optionsViewPlaceholder": "Options",
+  "@optionsViewPlaceholder": {
+    "description": "Placeholder text for options view"
+  }
+}

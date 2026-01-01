@@ -59,17 +59,24 @@ flutter analyze
 
 ## Architecture
 
-Flutter application for cave surveying. Currently in early development with basic data table UI.
+Flutter application for cave surveying. Currently in early development with basic navigation and data table UI.
 
 ### Core Domain (`lib/topo.dart`)
 - `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` station ID format)
 - `MeasuredDistance`: A "stretch" between two stations with distance, azimuth (declination), and inclination
+- `ReferencePoint`: Entrance coordinates with station ID, east, north, and altitude
 
 ### UI Structure
-- `main.dart`: App entry point with `MyApp` (root widget) and `MyHomePage` (main screen with stateful measurement data management)
-- `table.dart`: Custom `DataTable` widget for displaying measurement data with editable cells
+- `main.dart`: App entry point with `MainScreen` providing bottom navigation between 5 views
+- `views/`: Separate view widgets for Data, Map, Sketch, Files, and Options
+- `table.dart`: `StretchesTable` and `ReferencePointsTable` widgets for displaying survey data
+
+### Localization
+- Uses Flutter's built-in localization with ARB files in `lib/l10n/`
+- Template file: `app_en.arb` (English)
+- To add a new language: create `app_<locale>.arb` and run `flutter gen-l10n`
+- Access strings via `AppLocalizations.of(context)!.<key>`
 
 ### Key Patterns
 - State management uses Flutter's built-in `StatefulWidget` pattern
-- The `table.dart` module is imported with alias `tbl` to avoid conflicts with Flutter's built-in DataTable
 - Linting configured via `flutter_lints` package

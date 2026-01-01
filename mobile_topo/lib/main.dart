@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_localizations.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
 import 'views/sketch_view.dart';
@@ -15,12 +16,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mobile Topo',
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
             seedColor: const Color.fromARGB(255, 131, 96, 19)),
         useMaterial3: true,
       ),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: const MainScreen(),
     );
   }
@@ -44,13 +47,23 @@ class _MainScreenState extends State<MainScreen> {
     const OptionsView(),
   ];
 
-  static const List<String> _titles = [
-    'Data',
-    'Map',
-    'Sketch',
-    'Files',
-    'Options',
-  ];
+  String _getTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (_selectedIndex) {
+      case 0:
+        return l10n.dataViewTitle;
+      case 1:
+        return l10n.mapViewTitle;
+      case 2:
+        return l10n.sketchViewTitle;
+      case 3:
+        return l10n.filesViewTitle;
+      case 4:
+        return l10n.optionsViewTitle;
+      default:
+        return '';
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -60,10 +73,11 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(_titles[_selectedIndex]),
+        title: Text(_getTitle(context)),
       ),
       body: _views[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -72,31 +86,31 @@ class _MainScreenState extends State<MainScreen> {
         onTap: _onItemTapped,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.table_chart_outlined),
-            activeIcon: Icon(Icons.table_chart),
-            label: 'Data',
+            icon: const Icon(Icons.table_chart_outlined),
+            activeIcon: const Icon(Icons.table_chart),
+            label: l10n.dataViewTitle,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Map',
+            icon: const Icon(Icons.map_outlined),
+            activeIcon: const Icon(Icons.map),
+            label: l10n.mapViewTitle,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.draw_outlined),
-            activeIcon: Icon(Icons.draw),
-            label: 'Sketch',
+            icon: const Icon(Icons.draw_outlined),
+            activeIcon: const Icon(Icons.draw),
+            label: l10n.sketchViewTitle,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.folder_outlined),
-            activeIcon: Icon(Icons.folder),
-            label: 'Files',
+            icon: const Icon(Icons.folder_outlined),
+            activeIcon: const Icon(Icons.folder),
+            label: l10n.filesViewTitle,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Options',
+            icon: const Icon(Icons.settings_outlined),
+            activeIcon: const Icon(Icons.settings),
+            label: l10n.optionsViewTitle,
           ),
         ],
       ),

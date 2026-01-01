@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_localizations.dart';
 import 'topo.dart';
 
 class StretchesTable extends StatelessWidget {
@@ -9,16 +10,17 @@ class StretchesTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Table(
       border: TableBorder.all(),
       children: [
-        const TableRow(
+        TableRow(
           children: [
-            TableCell(child: Text('From')),
-            TableCell(child: Text('To')),
-            TableCell(child: Text('Dist.')),
-            TableCell(child: Text('Azi.')),
-            TableCell(child: Text('Incl.')),
+            TableCell(child: Text(l10n.columnFrom)),
+            TableCell(child: Text(l10n.columnTo)),
+            TableCell(child: Text(l10n.columnDistance)),
+            TableCell(child: Text(l10n.columnAzimuth)),
+            TableCell(child: Text(l10n.columnInclination)),
           ],
         ),
         for (final distance in _data)
@@ -55,15 +57,16 @@ class ReferencePointsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Table(
       border: TableBorder.all(),
       children: [
-        const TableRow(
+        TableRow(
           children: [
-            TableCell(child: Text('ID')),
-            TableCell(child: Text('East')),
-            TableCell(child: Text('North')),
-            TableCell(child: Text('Alt.')),
+            TableCell(child: Text(l10n.columnId)),
+            TableCell(child: Text(l10n.columnEast)),
+            TableCell(child: Text(l10n.columnNorth)),
+            TableCell(child: Text(l10n.columnAltitude)),
           ],
         ),
         for (final point in _data)
