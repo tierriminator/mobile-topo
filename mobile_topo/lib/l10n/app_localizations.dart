@@ -376,6 +376,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Options'**
   String get optionsViewPlaceholder;
+
+  /// Button to add a new stretch
+  ///
+  /// In en, this message translates to:
+  /// **'Add Stretch'**
+  String get addStretch;
+
+  /// Title for add stretch dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Add Stretch'**
+  String get addStretchTitle;
+
+  /// Tooltip for delete stretch button
+  ///
+  /// In en, this message translates to:
+  /// **'Delete stretch'**
+  String get deleteStretch;
+
+  /// Label for from station input
+  ///
+  /// In en, this message translates to:
+  /// **'From station'**
+  String get fromStation;
+
+  /// Label for to station input
+  ///
+  /// In en, this message translates to:
+  /// **'To station'**
+  String get toStation;
+
+  /// Label for distance input
+  ///
+  /// In en, this message translates to:
+  /// **'Distance (m)'**
+  String get distance;
+
+  /// Label for azimuth input
+  ///
+  /// In en, this message translates to:
+  /// **'Azimuth (°)'**
+  String get azimuth;
+
+  /// Label for inclination input
+  ///
+  /// In en, this message translates to:
+  /// **'Inclination (°)'**
+  String get inclination;
+
+  /// Add button text
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// Error message for invalid number input
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid number'**
+  String get invalidNumber;
+
+  /// Error message for required field
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
 }
 
 class _AppLocalizationsDelegate

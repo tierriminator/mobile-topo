@@ -212,4 +212,30 @@ class Survey {
     }
     return maxAlt - minAlt;
   }
+
+  Survey copyWith({
+    List<MeasuredDistance>? stretches,
+    List<ReferencePoint>? referencePoints,
+  }) {
+    return Survey(
+      stretches: stretches ?? this.stretches,
+      referencePoints: referencePoints ?? this.referencePoints,
+    );
+  }
+
+  Survey addStretch(MeasuredDistance stretch) {
+    return copyWith(stretches: [...stretches, stretch]);
+  }
+
+  Survey updateStretchAt(int index, MeasuredDistance stretch) {
+    final newStretches = List<MeasuredDistance>.from(stretches);
+    newStretches[index] = stretch;
+    return copyWith(stretches: newStretches);
+  }
+
+  Survey removeStretchAt(int index) {
+    final newStretches = List<MeasuredDistance>.from(stretches);
+    newStretches.removeAt(index);
+    return copyWith(stretches: newStretches);
+  }
 }

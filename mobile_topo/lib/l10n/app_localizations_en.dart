@@ -155,4 +155,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get optionsViewPlaceholder => 'Options';
+
+  @override
+  String get addStretch => 'Add Stretch';
+
+  @override
+  String get addStretchTitle => 'Add Stretch';
+
+  @override
+  String get deleteStretch => 'Delete stretch';
+
+  @override
+  String get fromStation => 'From station';
+
+  @override
+  String get toStation => 'To station';
+
+  @override
+  String get distance => 'Distance (m)';
+
+  @override
+  String get azimuth => 'Azimuth (°)';
+
+  @override
+  String get inclination => 'Inclination (°)';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get invalidNumber => 'Invalid number';
+
+  @override
+  String get required => 'Required';
 }

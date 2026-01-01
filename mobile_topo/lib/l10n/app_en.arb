@@ -201,5 +201,49 @@
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {
     "description": "Placeholder text for options view"
+  },
+  "addStretch": "Add Stretch",
+  "@addStretch": {
+    "description": "Button to add a new stretch"
+  },
+  "addStretchTitle": "Add Stretch",
+  "@addStretchTitle": {
+    "description": "Title for add stretch dialog"
+  },
+  "deleteStretch": "Delete stretch",
+  "@deleteStretch": {
+    "description": "Tooltip for delete stretch button"
+  },
+  "fromStation": "From station",
+  "@fromStation": {
+    "description": "Label for from station input"
+  },
+  "toStation": "To station",
+  "@toStation": {
+    "description": "Label for to station input"
+  },
+  "distance": "Distance (m)",
+  "@distance": {
+    "description": "Label for distance input"
+  },
+  "azimuth": "Azimuth (°)",
+  "@azimuth": {
+    "description": "Label for azimuth input"
+  },
+  "inclination": "Inclination (°)",
+  "@inclination": {
+    "description": "Label for inclination input"
+  },
+  "add": "Add",
+  "@add": {
+    "description": "Add button text"
+  },
+  "invalidNumber": "Invalid number",
+  "@invalidNumber": {
+    "description": "Error message for invalid number input"
+  },
+  "required": "Required",
+  "@required": {
+    "description": "Error message for required field"
   }
 }
