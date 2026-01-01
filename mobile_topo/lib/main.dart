@@ -6,6 +6,7 @@ import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
+import 'services/measurement_service.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
 import 'views/sketch_view.dart';
@@ -18,12 +19,16 @@ void main() async {
   // Load settings before app starts
   final settingsRepository = SettingsRepository();
   final settings = await settingsRepository.load();
+  final settingsController = SettingsController(settings);
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
-        ChangeNotifierProvider(create: (_) => SettingsController(settings)),
+        ChangeNotifierProvider.value(value: settingsController),
+        ChangeNotifierProvider(
+          create: (_) => MeasurementService(settingsController),
+        ),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => settingsRepository),
       ],

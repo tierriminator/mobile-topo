@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/survey.dart';
+import '../services/measurement_service.dart';
 import 'widgets/data_tables.dart';
 
 class DataView extends StatefulWidget {
@@ -21,12 +23,58 @@ class _DataViewState extends State<DataView> {
   DataViewMode _mode = DataViewMode.stretches;
   final History<Survey> _history = History<Survey>();
   String? _currentSectionId;
+  bool _measurementServiceBound = false;
 
   void _checkSectionChange(Section? section) {
     if (section?.id != _currentSectionId) {
       _history.clear();
       _currentSectionId = section?.id;
+
+      // Update measurement service with current station from survey
+      // Use addPostFrameCallback to avoid calling setState during build
+      if (section != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final measurementService = context.read<MeasurementService>();
+          final stretches = section.survey.stretches;
+          if (stretches.isNotEmpty) {
+            final lastStretch = stretches.last;
+            // If last stretch has a "To" station, continue from there
+            if (lastStretch.to.corridorId != 0 || lastStretch.to.pointId != 0) {
+              measurementService.continueFrom(lastStretch.to);
+            } else {
+              measurementService.continueFrom(lastStretch.from);
+            }
+          }
+        });
+      }
     }
+  }
+
+  void _bindMeasurementService(Section section) {
+    if (_measurementServiceBound) return;
+
+    final measurementService = context.read<MeasurementService>();
+
+    measurementService.onStretchReady = (stretch) {
+      _addMeasuredStretch(section, stretch);
+    };
+
+    measurementService.onCrossSectionReady = (crossSection) {
+      _addMeasuredStretch(section, crossSection);
+    };
+
+    _measurementServiceBound = true;
+  }
+
+  Future<void> _addMeasuredStretch(
+      Section section, MeasuredDistance stretch) async {
+    // Re-fetch the current section to avoid stale data
+    final currentSection = context.read<SelectionState>().selectedSection;
+    if (currentSection == null || currentSection.id != section.id) return;
+
+    await _applySurveyChange(
+        currentSection, currentSection.survey.addStretch(stretch));
   }
 
   Future<void> _applySurveyChange(
@@ -155,10 +203,148 @@ class _DataViewState extends State<DataView> {
     );
   }
 
+  void _showMeasurementInputDialog(BuildContext context, Section section) {
+    final l10n = AppLocalizations.of(context)!;
+    final measurementService = context.read<MeasurementService>();
+    final settingsController = context.read<SettingsController>();
+
+    final distanceController = TextEditingController();
+    final azimuthController = TextEditingController();
+    final inclinationController = TextEditingController();
+    bool isStretch = true;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.addMeasurement),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Current station info
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      settingsController.smartModeEnabled
+                          ? Icons.auto_awesome
+                          : Icons.auto_awesome_outlined,
+                      size: 16,
+                      color: settingsController.smartModeEnabled
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${l10n.columnFrom}: ${measurementService.currentStation}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (isStretch) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '→ ${measurementService.nextStation}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Measurement type toggle
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                    value: true,
+                    label: Text(l10n.stretch),
+                    icon: const Icon(Icons.arrow_forward),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text(l10n.crossSection),
+                    icon: const Icon(Icons.open_in_full),
+                  ),
+                ],
+                selected: {isStretch},
+                onSelectionChanged: (selection) {
+                  setDialogState(() {
+                    isStretch = selection.first;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: distanceController,
+                decoration: InputDecoration(
+                  labelText: l10n.distance,
+                  suffixText: 'm',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: azimuthController,
+                decoration: InputDecoration(
+                  labelText: l10n.azimuth,
+                  suffixText: '°',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: inclinationController,
+                decoration: InputDecoration(
+                  labelText: l10n.inclination,
+                  suffixText: '°',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final distance =
+                    double.tryParse(distanceController.text) ?? 0.0;
+                final azimuth =
+                    double.tryParse(azimuthController.text) ?? 0.0;
+                final inclination =
+                    double.tryParse(inclinationController.text) ?? 0.0;
+
+                measurementService.addMeasurement(
+                  distance: distance,
+                  azimuth: azimuth,
+                  inclination: inclination,
+                  isStretch: isStretch,
+                );
+
+                Navigator.pop(dialogContext);
+              },
+              child: Text(l10n.add),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final section = context.watch<SelectionState>().selectedSection;
+    final measurementService = context.watch<MeasurementService>();
+    final settingsController = context.watch<SettingsController>();
 
     // Clear history when section changes
     _checkSectionChange(section);
@@ -184,6 +370,9 @@ class _DataViewState extends State<DataView> {
         ),
       );
     }
+
+    // Bind measurement service callbacks
+    _bindMeasurementService(section);
 
     return Column(
       children: [
@@ -217,6 +406,63 @@ class _DataViewState extends State<DataView> {
                     ? _addStretch(section)
                     : _addReferencePoint(section),
                 tooltip: l10n.addStretch,
+              ),
+            ],
+          ),
+        ),
+        // Smart mode status bar
+        Container(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                settingsController.smartModeEnabled
+                    ? Icons.auto_awesome
+                    : Icons.auto_awesome_outlined,
+                size: 16,
+                color: settingsController.smartModeEnabled
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                settingsController.smartModeEnabled
+                    ? l10n.smartModeOn
+                    : l10n.smartModeOff,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(width: 16),
+              Text(
+                '${l10n.station}: ${measurementService.currentStation}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (measurementService.pendingStretches > 0 ||
+                  measurementService.pendingCrossSections > 0) ...[
+                const SizedBox(width: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    l10n.pending(measurementService.pendingStretches +
+                        measurementService.pendingCrossSections),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.bluetooth),
+                iconSize: 20,
+                onPressed: () => _showMeasurementInputDialog(context, section),
+                tooltip: l10n.addMeasurement,
               ),
             ],
           ),

@@ -278,4 +278,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get optionsAbout => 'About Mobile Topo';
+
+  @override
+  String get addMeasurement => 'Add Measurement';
+
+  @override
+  String get stretch => 'Stretch';
+
+  @override
+  String get crossSection => 'Cross-section';
+
+  @override
+  String get smartModeOn => 'Smart mode';
+
+  @override
+  String get smartModeOff => 'Manual mode';
+
+  @override
+  String get station => 'Station';
+
+  @override
+  String pending(int count) {
+    return '$count pending';
+  }
 }

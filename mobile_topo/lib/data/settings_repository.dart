@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/settings.dart';
 
@@ -7,14 +8,28 @@ class SettingsRepository {
   static const String _settingsKey = 'app_settings';
 
   SharedPreferences? _prefs;
+  bool _initFailed = false;
 
   Future<void> _ensureInitialized() async {
-    _prefs ??= await SharedPreferences.getInstance();
+    if (_initFailed) return;
+    if (_prefs != null) return;
+
+    try {
+      _prefs = await SharedPreferences.getInstance();
+    } catch (e) {
+      // SharedPreferences may fail on some platforms (e.g., macOS without entitlements)
+      debugPrint('SharedPreferences initialization failed: $e');
+      _initFailed = true;
+    }
   }
 
   /// Load settings from storage
   Future<Settings> load() async {
     await _ensureInitialized();
+    if (_prefs == null) {
+      return const Settings();
+    }
+
     final jsonString = _prefs!.getString(_settingsKey);
     if (jsonString == null) {
       return const Settings();
@@ -30,6 +45,11 @@ class SettingsRepository {
   /// Save settings to storage
   Future<void> save(Settings settings) async {
     await _ensureInitialized();
+    if (_prefs == null) {
+      debugPrint('Cannot save settings: SharedPreferences not available');
+      return;
+    }
+
     final jsonString = jsonEncode(settings.toJson());
     await _prefs!.setString(_settingsKey, jsonString);
   }

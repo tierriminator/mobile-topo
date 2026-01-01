@@ -616,6 +616,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About Mobile Topo'**
   String get optionsAbout;
+
+  /// Button/dialog title for adding a measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Add Measurement'**
+  String get addMeasurement;
+
+  /// Label for a survey stretch (From→To measurement)
+  ///
+  /// In en, this message translates to:
+  /// **'Stretch'**
+  String get stretch;
+
+  /// Label for a cross-section measurement (splay shot)
+  ///
+  /// In en, this message translates to:
+  /// **'Cross-section'**
+  String get crossSection;
+
+  /// Status text when smart mode is enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Smart mode'**
+  String get smartModeOn;
+
+  /// Status text when smart mode is disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Manual mode'**
+  String get smartModeOff;
+
+  /// Label for current station
+  ///
+  /// In en, this message translates to:
+  /// **'Station'**
+  String get station;
+
+  /// Shows number of pending measurements
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String pending(int count);
 }
 
 class _AppLocalizationsDelegate

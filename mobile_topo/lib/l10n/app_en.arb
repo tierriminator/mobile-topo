@@ -361,5 +361,36 @@
   "optionsAbout": "About Mobile Topo",
   "@optionsAbout": {
     "description": "Label for about screen"
+  },
+  "addMeasurement": "Add Measurement",
+  "@addMeasurement": {
+    "description": "Button/dialog title for adding a measurement"
+  },
+  "stretch": "Stretch",
+  "@stretch": {
+    "description": "Label for a survey stretch (From→To measurement)"
+  },
+  "crossSection": "Cross-section",
+  "@crossSection": {
+    "description": "Label for a cross-section measurement (splay shot)"
+  },
+  "smartModeOn": "Smart mode",
+  "@smartModeOn": {
+    "description": "Status text when smart mode is enabled"
+  },
+  "smartModeOff": "Manual mode",
+  "@smartModeOff": {
+    "description": "Status text when smart mode is disabled"
+  },
+  "station": "Station",
+  "@station": {
+    "description": "Label for current station"
+  },
+  "pending": "{count} pending",
+  "@pending": {
+    "description": "Shows number of pending measurements",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
   }
 }
