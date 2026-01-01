@@ -126,6 +126,26 @@
   "@explorerEmpty": {
     "description": "Message shown when explorer is empty"
   },
+  "explorerNewCave": "New Cave",
+  "@explorerNewCave": {
+    "description": "Default name for a new cave"
+  },
+  "explorerNewCaveTitle": "Create New Cave",
+  "@explorerNewCaveTitle": {
+    "description": "Title for the new cave dialog"
+  },
+  "explorerCaveName": "Cave name",
+  "@explorerCaveName": {
+    "description": "Label for cave name input"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "create": "Create",
+  "@create": {
+    "description": "Create button text"
+  },
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {
     "description": "Placeholder text for options view"

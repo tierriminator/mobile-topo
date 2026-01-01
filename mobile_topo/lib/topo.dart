@@ -15,6 +15,16 @@ class Point {
 
   @override
   String toString() => '$corridorId.$pointId';
+
+  Map<String, dynamic> toJson() => {
+        'corridorId': corridorId,
+        'pointId': pointId,
+      };
+
+  factory Point.fromJson(Map<String, dynamic> json) => Point(
+        json['corridorId'] as num,
+        json['pointId'] as num,
+      );
 }
 
 class MeasuredDistance {
@@ -22,12 +32,43 @@ class MeasuredDistance {
   final num distance, azimut, inclination;
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination);
+
+  Map<String, dynamic> toJson() => {
+        'from': from.toJson(),
+        'to': to.toJson(),
+        'distance': distance,
+        'azimut': azimut,
+        'inclination': inclination,
+      };
+
+  factory MeasuredDistance.fromJson(Map<String, dynamic> json) =>
+      MeasuredDistance(
+        Point.fromJson(json['from'] as Map<String, dynamic>),
+        Point.fromJson(json['to'] as Map<String, dynamic>),
+        json['distance'] as num,
+        json['azimut'] as num,
+        json['inclination'] as num,
+      );
 }
 
 class ReferencePoint {
   final Point id;
   final num east, north, altitude;
   const ReferencePoint(this.id, this.east, this.north, this.altitude);
+
+  Map<String, dynamic> toJson() => {
+        'id': id.toJson(),
+        'east': east,
+        'north': north,
+        'altitude': altitude,
+      };
+
+  factory ReferencePoint.fromJson(Map<String, dynamic> json) => ReferencePoint(
+        Point.fromJson(json['id'] as Map<String, dynamic>),
+        json['east'] as num,
+        json['north'] as num,
+        json['altitude'] as num,
+      );
 }
 
 /// Calculated 3D position of a survey station
@@ -46,6 +87,20 @@ class Survey {
     required this.stretches,
     required this.referencePoints,
   });
+
+  Map<String, dynamic> toJson() => {
+        'stretches': stretches.map((s) => s.toJson()).toList(),
+        'referencePoints': referencePoints.map((r) => r.toJson()).toList(),
+      };
+
+  factory Survey.fromJson(Map<String, dynamic> json) => Survey(
+        stretches: (json['stretches'] as List)
+            .map((s) => MeasuredDistance.fromJson(s as Map<String, dynamic>))
+            .toList(),
+        referencePoints: (json['referencePoints'] as List)
+            .map((r) => ReferencePoint.fromJson(r as Map<String, dynamic>))
+            .toList(),
+      );
 
   /// Computes positions of all stations from reference points and stretches.
   /// Returns a map from Point to StationPosition.

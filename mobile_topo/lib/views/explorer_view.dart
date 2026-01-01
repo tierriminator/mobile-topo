@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
+import '../data/cave_repository.dart';
+import '../data/data_service.dart';
 import '../l10n/app_localizations.dart';
 import '../explorer.dart';
-import '../topo.dart';
 
 class ExplorerView extends StatefulWidget {
   const ExplorerView({super.key});
@@ -11,94 +13,69 @@ class ExplorerView extends StatefulWidget {
 }
 
 class _ExplorerViewState extends State<ExplorerView> {
-  // Placeholder data - will be replaced with actual state management
-  late ExplorerState _explorerState;
+  final CaveRepository _repository = DataService().caveRepository;
+  final _uuid = const Uuid();
+
+  // Explorer state with loaded caves
+  ExplorerState _explorerState = const ExplorerState();
 
   // Track expanded state for tree nodes
   final Set<String> _expandedIds = {};
 
+  // Loading state
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    _explorerState = _createSampleData();
+    _loadCaves();
   }
 
-  ExplorerState _createSampleData() {
+  Future<void> _loadCaves() async {
+    setState(() => _isLoading = true);
+
+    final summaries = await _repository.listCaves();
+    final caves = <Cave>[];
+
+    for (final summary in summaries) {
+      final cave = await _repository.getCave(summary.id);
+      if (cave != null) {
+        caves.add(cave);
+      }
+    }
+
+    setState(() {
+      _explorerState = ExplorerState(caves: caves);
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _createNewCave() async {
+    final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
 
-    // Create sample sections
-    final section1 = Section(
-      id: 'section-1',
-      name: 'Entrance',
-      survey: const Survey(
-        stretches: [
-          MeasuredDistance(Point(1, 0), Point(1, 1), 5.0, 45.0, -10.0),
-          MeasuredDistance(Point(1, 1), Point(1, 2), 4.0, 90.0, 5.0),
-        ],
-        referencePoints: [
-          ReferencePoint(Point(1, 0), 0.0, 0.0, 100.0),
-        ],
-      ),
-      createdAt: now,
-      modifiedAt: now,
+    // Show dialog to get cave name
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _NewCaveDialog(defaultName: l10n.explorerNewCave),
     );
 
-    final section2 = Section(
-      id: 'section-2',
-      name: 'Main Gallery',
-      survey: const Survey(
-        stretches: [
-          MeasuredDistance(Point(1, 2), Point(1, 3), 6.0, 120.0, -5.0),
-          MeasuredDistance(Point(1, 3), Point(1, 4), 3.5, 180.0, 0.0),
-        ],
-        referencePoints: [],
-      ),
-      createdAt: now,
-      modifiedAt: now,
-    );
+    if (name == null || name.isEmpty) return;
 
-    final section3 = Section(
-      id: 'section-3',
-      name: 'Side Passage',
-      survey: const Survey(
-        stretches: [
-          MeasuredDistance(Point(2, 0), Point(2, 1), 5.5, 60.0, -10.0),
-        ],
-        referencePoints: [],
-      ),
-      createdAt: now,
-      modifiedAt: now,
-    );
-
-    // Create sample areas
-    final upperLevel = Area(
-      id: 'area-upper',
-      name: 'Upper Level',
-      sections: [section2],
-      createdAt: now,
-      modifiedAt: now,
-    );
-
-    final lowerLevel = Area(
-      id: 'area-lower',
-      name: 'Lower Level',
-      sections: [section3],
-      createdAt: now,
-      modifiedAt: now,
-    );
-
-    // Create sample cave
     final cave = Cave(
-      id: 'cave-1',
-      name: 'Sample Cave',
-      description: 'A sample cave for testing',
-      sections: [section1],
-      areas: [upperLevel, lowerLevel],
+      id: _uuid.v4(),
+      name: name,
       createdAt: now,
       modifiedAt: now,
     );
 
-    return ExplorerState(caves: [cave]);
+    await _repository.saveCave(cave);
+    await _loadCaves();
+
+    // Expand the new cave
+    setState(() {
+      _expandedIds.add(cave.id);
+    });
   }
 
   void _toggleExpanded(String id) {
@@ -137,9 +114,7 @@ class _ExplorerViewState extends State<ExplorerView> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: () {
-                  // TODO: Add new cave/area/section
-                },
+                onPressed: _createNewCave,
                 tooltip: l10n.explorerAddNew,
               ),
             ],
@@ -147,14 +122,16 @@ class _ExplorerViewState extends State<ExplorerView> {
         ),
         // Tree view
         Expanded(
-          child: _explorerState.caves.isEmpty
-              ? Center(child: Text(l10n.explorerEmpty))
-              : ListView(
-                  children: [
-                    for (final cave in _explorerState.caves)
-                      _buildCaveNode(cave),
-                  ],
-                ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _explorerState.caves.isEmpty
+                  ? Center(child: Text(l10n.explorerEmpty))
+                  : ListView(
+                      children: [
+                        for (final cave in _explorerState.caves)
+                          _buildCaveNode(cave),
+                      ],
+                    ),
         ),
       ],
     );
@@ -290,6 +267,63 @@ class _ExplorerViewState extends State<ExplorerView> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Dialog for creating a new cave
+class _NewCaveDialog extends StatefulWidget {
+  final String defaultName;
+
+  const _NewCaveDialog({required this.defaultName});
+
+  @override
+  State<_NewCaveDialog> createState() => _NewCaveDialogState();
+}
+
+class _NewCaveDialogState extends State<_NewCaveDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.defaultName);
+    _controller.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: widget.defaultName.length,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return AlertDialog(
+      title: Text(l10n.explorerNewCaveTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: l10n.explorerCaveName,
+        ),
+        onSubmitted: (value) => Navigator.of(context).pop(value),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: Text(l10n.create),
+        ),
+      ],
     );
   }
 }

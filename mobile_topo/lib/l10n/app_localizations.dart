@@ -263,6 +263,36 @@ abstract class AppLocalizations {
   /// **'No caves yet. Tap + to create one.'**
   String get explorerEmpty;
 
+  /// Default name for a new cave
+  ///
+  /// In en, this message translates to:
+  /// **'New Cave'**
+  String get explorerNewCave;
+
+  /// Title for the new cave dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Cave'**
+  String get explorerNewCaveTitle;
+
+  /// Label for cave name input
+  ///
+  /// In en, this message translates to:
+  /// **'Cave name'**
+  String get explorerCaveName;
+
+  /// Cancel button text
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// Create button text
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
   /// Placeholder text for options view
   ///
   /// In en, this message translates to:

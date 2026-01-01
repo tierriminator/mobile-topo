@@ -100,5 +100,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerEmpty => 'No caves yet. Tap + to create one.';
 
   @override
+  String get explorerNewCave => 'New Cave';
+
+  @override
+  String get explorerNewCaveTitle => 'Create New Cave';
+
+  @override
+  String get explorerCaveName => 'Cave name';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get create => 'Create';
+
+  @override
   String get optionsViewPlaceholder => 'Options';
 }
