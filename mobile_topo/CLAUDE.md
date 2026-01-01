@@ -59,24 +59,95 @@ flutter analyze
 
 ## Architecture
 
-Flutter application for cave surveying. Currently in early development with basic navigation and data table UI.
+Flutter application for cave surveying using MVC architecture.
 
-### Core Domain (`lib/topo.dart`)
-- `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` station ID format)
-- `MeasuredDistance`: A "stretch" between two stations with distance, azimuth (declination), and inclination
-- `ReferencePoint`: Entrance coordinates with station ID, east, north, and altitude
+```
+lib/
+├── models/           # Domain models (pure data classes)
+├── controllers/      # State management
+├── data/             # Data persistence layer
+├── views/            # UI layer
+│   └── widgets/      # Reusable UI components
+├── l10n/             # Localization
+└── main.dart         # App entry point
+```
 
-### UI Structure
-- `main.dart`: App entry point with `MainScreen` providing bottom navigation between 5 views
-- `views/`: Separate view widgets for Data, Map, Sketch, Files, and Options
-- `table.dart`: `StretchesTable` and `ReferencePointsTable` widgets for displaying survey data
+### Models (`lib/models/`)
 
-### Localization
-- Uses Flutter's built-in localization with ARB files in `lib/l10n/`
+Pure domain objects without serialization logic:
+
+- **`survey.dart`**: Core survey data types
+  - `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` format)
+  - `MeasuredDistance`: A "stretch" between two stations with distance, azimuth, and inclination
+  - `ReferencePoint`: Entrance coordinates with station ID, east, north, and altitude
+  - `StationPosition`: Calculated 3D position of a station
+  - `Survey`: Collection of stretches and reference points with position computation
+
+- **`cave.dart`**: Explorer hierarchy
+  - `Cave`: Top-level container with areas and sections
+  - `Area`: Organizational container (can nest)
+  - `Section`: Leaf node containing survey data and sketches
+
+- **`sketch.dart`**: Drawing primitives
+  - `Stroke`: Single polyline with color and width
+  - `Sketch`: Collection of strokes
+  - `SketchColors`: Available drawing colors
+  - `SketchMode`: Drawing mode enum (move, draw, erase)
+
+- **`explorer_path.dart`**: Navigation path helper for cave hierarchy
+
+### Controllers (`lib/controllers/`)
+
+State management classes using `ChangeNotifier`:
+
+- **`selection_state.dart`**: Tracks currently selected section across views
+- **`explorer_state.dart`**: Holds all caves and current navigation path
+
+### Data Layer (`lib/data/`)
+
+Persistence and serialization:
+
+- **`cave_repository.dart`**: Abstract repository interface
+- **`local_cave_repository.dart`**: File-based implementation
+- **`cave_file.dart`**: JSON serialization for cave metadata
+- **`section_file.dart`**: JSON serialization for section data
+- **`sketch_serialization.dart`**: Binary serialization for sketches
+- **`data_service.dart`**: Service locator for repository and state
+
+**File structure on disk:**
+```
+caves/
+└── {cave-id}/
+    ├── cave.json
+    └── sections/
+        └── {section-id}/
+            ├── section.json
+            ├── outline.sketch
+            └── sideview.sketch
+```
+
+### Views (`lib/views/`)
+
+UI widgets:
+
+- **`data_view.dart`**: Table of stretches and reference points
+- **`map_view.dart`**: 2D overview of survey with pan/zoom
+- **`sketch_view.dart`**: Drawing canvas with outline/side view toggle
+- **`explorer_view.dart`**: Cave/section browser
+- **`options_view.dart`**: Settings (placeholder)
+- **`widgets/data_tables.dart`**: Reusable table components
+
+### Localization (`lib/l10n/`)
+
+- Uses Flutter's built-in localization with ARB files
 - Template file: `app_en.arb` (English)
 - To add a new language: create `app_<locale>.arb` and run `flutter gen-l10n`
 - Access strings via `AppLocalizations.of(context)!.<key>`
 
 ### Key Patterns
-- State management uses Flutter's built-in `StatefulWidget` pattern
-- Linting configured via `flutter_lints` package
+
+- **MVC separation**: Models are pure data, controllers manage state, views handle UI
+- **State management**: `ChangeNotifier` with listeners for cross-view updates
+- **Repository pattern**: Abstract interface for data persistence
+- **Service locator**: `DataService` singleton provides access to repository and state
+- **Linting**: Configured via `flutter_lints` package
