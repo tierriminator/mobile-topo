@@ -238,4 +238,20 @@ class Survey {
     newStretches.removeAt(index);
     return copyWith(stretches: newStretches);
   }
+
+  Survey addReferencePoint(ReferencePoint point) {
+    return copyWith(referencePoints: [...referencePoints, point]);
+  }
+
+  Survey updateReferencePointAt(int index, ReferencePoint point) {
+    final newPoints = List<ReferencePoint>.from(referencePoints);
+    newPoints[index] = point;
+    return copyWith(referencePoints: newPoints);
+  }
+
+  Survey removeReferencePointAt(int index) {
+    final newPoints = List<ReferencePoint>.from(referencePoints);
+    newPoints.removeAt(index);
+    return copyWith(referencePoints: newPoints);
+  }
 }

@@ -278,15 +278,39 @@ class _NumberCellState extends State<_NumberCell> {
 
 class ReferencePointsTable extends StatelessWidget {
   final List<ReferencePoint> _data;
+  final void Function(int index)? onDelete;
+  final void Function(int index, ReferencePoint point)? onUpdate;
 
-  const ReferencePointsTable({super.key, required List<ReferencePoint> data})
-      : _data = data;
+  const ReferencePointsTable({
+    super.key,
+    required List<ReferencePoint> data,
+    this.onDelete,
+    this.onUpdate,
+  }) : _data = data;
+
+  void _updatePoint(int index, ReferencePoint current, {
+    Point? id,
+    num? east,
+    num? north,
+    num? altitude,
+  }) {
+    final updated = ReferencePoint(
+      id ?? current.id,
+      east ?? current.east,
+      north ?? current.north,
+      altitude ?? current.altitude,
+    );
+    onUpdate?.call(index, updated);
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final showActions = onDelete != null;
+
     return Table(
       border: TableBorder.all(),
+      columnWidths: showActions ? const {4: FixedColumnWidth(48)} : null,
       children: [
         TableRow(
           children: [
@@ -294,24 +318,61 @@ class ReferencePointsTable extends StatelessWidget {
             TableCell(child: _HeaderCell(text: l10n.columnEast)),
             TableCell(child: _HeaderCell(text: l10n.columnNorth)),
             TableCell(child: _HeaderCell(text: l10n.columnAltitude)),
+            if (showActions) const TableCell(child: SizedBox.shrink()),
           ],
         ),
-        for (final point in _data)
-          TableRow(
-            children: [
-              TableCell(
-                child: _DataTableCell(text: point.id.toString()),
-              ),
-              TableCell(
-                child: _DataTableCell(text: point.east.toString()),
-              ),
-              TableCell(
-                child: _DataTableCell(text: point.north.toString()),
-              ),
-              TableCell(
-                child: _DataTableCell(text: point.altitude.toString()),
-              ),
-            ],
+        for (var i = 0; i < _data.length; i++)
+          _buildRow(context, i, _data[i], showActions),
+      ],
+    );
+  }
+
+  TableRow _buildRow(
+    BuildContext context,
+    int index,
+    ReferencePoint point,
+    bool showActions,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    return TableRow(
+      children: [
+        TableCell(
+          child: _PointCell(
+            point: point.id,
+            onChanged: (p) => _updatePoint(index, point, id: p),
+          ),
+        ),
+        TableCell(
+          child: _NumberCell(
+            value: point.east,
+            signed: true,
+            onChanged: (v) => _updatePoint(index, point, east: v),
+          ),
+        ),
+        TableCell(
+          child: _NumberCell(
+            value: point.north,
+            signed: true,
+            onChanged: (v) => _updatePoint(index, point, north: v),
+          ),
+        ),
+        TableCell(
+          child: _NumberCell(
+            value: point.altitude,
+            signed: true,
+            onChanged: (v) => _updatePoint(index, point, altitude: v),
+          ),
+        ),
+        if (showActions)
+          TableCell(
+            verticalAlignment: TableCellVerticalAlignment.middle,
+            child: IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: () => onDelete?.call(index),
+              tooltip: l10n.deleteStretch,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
           ),
       ],
     );
@@ -337,16 +398,3 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-class _DataTableCell extends StatelessWidget {
-  const _DataTableCell({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Text(text),
-    );
-  }
-}

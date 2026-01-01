@@ -88,6 +88,63 @@ class _DataViewState extends State<DataView> {
     selectionState.updateSection(updatedSection);
   }
 
+  Future<void> _addReferencePoint(Section section) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final caveId = selectionState.selectedCaveId;
+
+    if (caveId == null) return;
+
+    // Default to station 1.0 at origin
+    const point = ReferencePoint(Point(1, 0), 0, 0, 0);
+    final updatedSurvey = section.survey.addReferencePoint(point);
+    final updatedSection = section.copyWith(
+      survey: updatedSurvey,
+      modifiedAt: DateTime.now(),
+    );
+
+    await repository.saveSection(caveId, updatedSection);
+    selectionState.updateSection(updatedSection);
+  }
+
+  Future<void> _updateReferencePoint(
+    Section section,
+    int index,
+    ReferencePoint point,
+  ) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final caveId = selectionState.selectedCaveId;
+
+    if (caveId == null) return;
+
+    final updatedSurvey = section.survey.updateReferencePointAt(index, point);
+    final updatedSection = section.copyWith(
+      survey: updatedSurvey,
+      modifiedAt: DateTime.now(),
+    );
+
+    await repository.saveSection(caveId, updatedSection);
+    selectionState.updateSection(updatedSection);
+  }
+
+  Future<void> _deleteReferencePoint(Section section, int index) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final caveId = selectionState.selectedCaveId;
+
+    if (caveId == null) return;
+
+    final updatedSurvey = section.survey.removeReferencePointAt(index);
+    final updatedSection = section.copyWith(
+      survey: updatedSurvey,
+      modifiedAt: DateTime.now(),
+    );
+
+    await repository.saveSection(caveId, updatedSection);
+    selectionState.updateSection(updatedSection);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -131,12 +188,13 @@ class _DataViewState extends State<DataView> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              if (_mode == DataViewMode.stretches)
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _addStretch(section),
-                  tooltip: l10n.addStretch,
-                ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => _mode == DataViewMode.stretches
+                    ? _addStretch(section)
+                    : _addReferencePoint(section),
+                tooltip: l10n.addStretch,
+              ),
             ],
           ),
         ),
@@ -213,18 +271,34 @@ class _DataViewState extends State<DataView> {
     } else {
       if (referencePoints.isEmpty) {
         return Center(
-          child: Text(
-            l10n.dataViewNoReferencePoints,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                l10n.dataViewNoReferencePoints,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => _addReferencePoint(section),
+                icon: const Icon(Icons.add),
+                label: Text(l10n.referencePoints),
+              ),
+            ],
           ),
         );
       }
       return SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: ReferencePointsTable(data: referencePoints),
+          child: ReferencePointsTable(
+            data: referencePoints,
+            onUpdate: (index, point) =>
+                _updateReferencePoint(section, index, point),
+            onDelete: (index) => _deleteReferencePoint(section, index),
+          ),
         ),
       );
     }
