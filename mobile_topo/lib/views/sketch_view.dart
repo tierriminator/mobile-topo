@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../data/data_service.dart';
+import '../data/selection_state.dart';
 import '../l10n/app_localizations.dart';
 import '../sketching.dart';
 import '../topo.dart';
@@ -14,28 +16,15 @@ class SketchView extends StatefulWidget {
 }
 
 class _SketchViewState extends State<SketchView> {
-  // Placeholder survey data - will be replaced with actual data management
-  final Survey _survey = const Survey(
-    stretches: [
-      MeasuredDistance(Point(1, 0), Point(1, 1), 5.0, 45.0, -10.0),
-      MeasuredDistance(Point(1, 1), Point(1, 2), 4.0, 90.0, 5.0),
-      MeasuredDistance(Point(1, 2), Point(1, 3), 6.0, 120.0, -5.0),
-      MeasuredDistance(Point(1, 3), Point(1, 4), 3.5, 180.0, 0.0),
-      MeasuredDistance(Point(1, 2), Point(2, 0), 4.5, 30.0, -15.0),
-      MeasuredDistance(Point(2, 0), Point(2, 1), 5.5, 60.0, -10.0),
-    ],
-    referencePoints: [
-      ReferencePoint(Point(1, 0), 0.0, 0.0, 100.0),
-    ],
-  );
+  final SelectionState _selectionState = DataService().selectionState;
 
-  late Map<Point, StationPosition> _positions;
-  late Map<Point, Offset> _sideViewPositions;
+  Map<Point, StationPosition> _positions = {};
+  Map<Point, Offset> _sideViewPositions = {};
 
   // View mode
   SketchViewMode _viewMode = SketchViewMode.outline;
 
-  // Sketches for each view
+  // Sketches for each view (from section)
   Sketch _outlineSketch = const Sketch();
   Sketch _sideViewSketch = const Sketch();
 
@@ -53,6 +42,16 @@ class _SketchViewState extends State<SketchView> {
   Offset _outlineOffset = Offset.zero;
   double _sideViewScale = 20.0;
   Offset _sideViewOffset = Offset.zero;
+
+  // Gesture handling
+  double _startScale = 1.0;
+  Offset _startOffset = Offset.zero;
+  Offset _startFocalPoint = Offset.zero;
+
+  Size _canvasSize = Size.zero;
+
+  // Track current section to detect changes
+  String? _currentSectionId;
 
   double get _scale => _viewMode == SketchViewMode.outline ? _outlineScale : _sideViewScale;
   set _scale(double value) {
@@ -72,22 +71,51 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  // Gesture handling
-  double _startScale = 1.0;
-  Offset _startOffset = Offset.zero;
-  Offset _startFocalPoint = Offset.zero;
-
-  Size _canvasSize = Size.zero;
-
   @override
   void initState() {
     super.initState();
-    _positions = _survey.computeStationPositions();
-    _sideViewPositions = _computeSideViewPositions();
-    _centerViews();
+    _selectionState.addListener(_onSelectionChanged);
+    _updateFromSection();
   }
 
-  /// Center both views on their data
+  @override
+  void dispose() {
+    _selectionState.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    _updateFromSection();
+  }
+
+  void _updateFromSection() {
+    final section = _selectionState.selectedSection;
+    if (section == null) {
+      setState(() {
+        _positions = {};
+        _sideViewPositions = {};
+        _outlineSketch = const Sketch();
+        _sideViewSketch = const Sketch();
+        _currentSectionId = null;
+      });
+      return;
+    }
+
+    // Only recompute if section changed
+    if (section.id != _currentSectionId) {
+      _positions = section.survey.computeStationPositions();
+      _sideViewPositions = _computeSideViewPositions(section.survey);
+      _outlineSketch = section.outlineSketch;
+      _sideViewSketch = section.sideViewSketch;
+      _outlineUndoStack.clear();
+      _sideViewUndoStack.clear();
+      _currentSectionId = section.id;
+      _centerViews();
+    }
+
+    setState(() {});
+  }
+
   void _centerViews() {
     // Center outline view
     final outlineBounds = _computeBounds(
@@ -119,21 +147,20 @@ class _SketchViewState extends State<SketchView> {
     return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
-  /// Compute positions for side view (developed profile)
-  Map<Point, Offset> _computeSideViewPositions() {
+  Map<Point, Offset> _computeSideViewPositions(Survey survey) {
     final sidePositions = <Point, Offset>{};
     final visited = <Point>{};
 
-    // Start from reference points
-    for (final ref in _survey.referencePoints) {
+    for (final ref in survey.referencePoints) {
       sidePositions[ref.id] = Offset(0, -ref.altitude.toDouble());
-      _buildSideViewFromStation(ref.id, 0, sidePositions, visited);
+      _buildSideViewFromStation(survey, ref.id, 0, sidePositions, visited);
     }
 
     return sidePositions;
   }
 
   void _buildSideViewFromStation(
+    Survey survey,
     Point station,
     double horizontalPos,
     Map<Point, Offset> positions,
@@ -142,7 +169,7 @@ class _SketchViewState extends State<SketchView> {
     if (visited.contains(station)) return;
     visited.add(station);
 
-    for (final stretch in _survey.stretches) {
+    for (final stretch in survey.stretches) {
       Point? nextStation;
       double distance = stretch.distance.toDouble();
       double inclination = stretch.inclination.toDouble();
@@ -166,7 +193,7 @@ class _SketchViewState extends State<SketchView> {
         final nextVertPos = currentPos.dy - sign * vertDist;
 
         positions[nextStation] = Offset(nextHorizPos, nextVertPos);
-        _buildSideViewFromStation(nextStation, nextHorizPos, positions, visited);
+        _buildSideViewFromStation(survey, nextStation, nextHorizPos, positions, visited);
       }
     }
   }
@@ -192,7 +219,6 @@ class _SketchViewState extends State<SketchView> {
 
     if (details.pointerCount == 1) {
       if (_sketchMode == SketchMode.draw) {
-        // Start drawing
         final worldPos = _screenToWorld(details.localFocalPoint);
         setState(() {
           _currentUndoStack.add(_currentSketch);
@@ -202,7 +228,6 @@ class _SketchViewState extends State<SketchView> {
           );
         });
       } else if (_sketchMode == SketchMode.erase) {
-        // Save state for undo before erasing
         _currentUndoStack.add(_currentSketch);
         _eraseAt(details.localFocalPoint);
       }
@@ -211,16 +236,13 @@ class _SketchViewState extends State<SketchView> {
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     if (_sketchMode == SketchMode.draw && details.pointerCount == 1 && _currentStroke != null) {
-      // Continue drawing
       final worldPos = _screenToWorld(details.localFocalPoint);
       setState(() {
         _currentStroke = _currentStroke!.addPoint(worldPos);
       });
     } else if (_sketchMode == SketchMode.erase && details.pointerCount == 1) {
-      // Continue erasing while dragging
       _eraseAt(details.localFocalPoint);
     } else if (_sketchMode == SketchMode.move || details.pointerCount > 1) {
-      // Pan/zoom
       setState(() {
         _scale = (_startScale * details.scale).clamp(5.0, 200.0);
         final focalPointDelta = details.localFocalPoint - _startFocalPoint;
@@ -240,12 +262,12 @@ class _SketchViewState extends State<SketchView> {
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
-    // End drawing if there's a stroke in progress
     if (_currentStroke != null) {
       setState(() {
         _currentSketch = _currentSketch.addStroke(_currentStroke!);
         _currentStroke = null;
       });
+      // TODO: Save sketch to section
     }
   }
 
@@ -267,16 +289,56 @@ class _SketchViewState extends State<SketchView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final section = _selectionState.selectedSection;
+
+    if (section == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.draw_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.sketchViewNoSection,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       children: [
-        // View mode toggle and tools
+        // Section name header
         Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.description, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  section.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // View mode toggle bar
+        Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
             children: [
-              // View mode toggle
               SegmentedButton<SketchViewMode>(
                 segments: [
                   ButtonSegment(
@@ -296,7 +358,6 @@ class _SketchViewState extends State<SketchView> {
                 },
               ),
               const Spacer(),
-              // Undo button
               IconButton(
                 icon: const Icon(Icons.undo),
                 onPressed: _currentUndoStack.isNotEmpty ? _undo : null,
@@ -311,18 +372,15 @@ class _SketchViewState extends State<SketchView> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
             children: [
-              // Move mode
               _buildModeButton(
                 icon: Icons.pan_tool,
                 mode: SketchMode.move,
                 tooltip: l10n.sketchModeMove,
               ),
               const SizedBox(width: 8),
-              // Color buttons
               for (final color in SketchColors.all)
                 _buildColorButton(color),
               const SizedBox(width: 8),
-              // Eraser
               _buildModeButton(
                 icon: Icons.auto_fix_high,
                 mode: SketchMode.erase,
@@ -333,32 +391,41 @@ class _SketchViewState extends State<SketchView> {
         ),
         // Canvas
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-              return GestureDetector(
-                onScaleStart: _onScaleStart,
-                onScaleUpdate: _onScaleUpdate,
-                onScaleEnd: _onScaleEnd,
-                child: ClipRect(
-                  child: CustomPaint(
-                    painter: _SketchPainter(
-                      survey: _survey,
-                      stationPositions: _viewMode == SketchViewMode.outline
-                          ? _positions.map((k, v) => MapEntry(k, Offset(v.east, -v.north)))
-                          : _sideViewPositions,
-                      sketch: _currentSketch,
-                      currentStroke: _currentStroke,
-                      scale: _scale,
-                      offset: _offset,
-                      isOutlineView: _viewMode == SketchViewMode.outline,
-                    ),
-                    size: Size.infinite,
+          child: _positions.isEmpty
+              ? Center(
+                  child: Text(
+                    l10n.sketchViewNoData,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                    return GestureDetector(
+                      onScaleStart: _onScaleStart,
+                      onScaleUpdate: _onScaleUpdate,
+                      onScaleEnd: _onScaleEnd,
+                      child: ClipRect(
+                        child: CustomPaint(
+                          painter: _SketchPainter(
+                            survey: section.survey,
+                            stationPositions: _viewMode == SketchViewMode.outline
+                                ? _positions.map((k, v) => MapEntry(k, Offset(v.east, -v.north)))
+                                : _sideViewPositions,
+                            sketch: _currentSketch,
+                            currentStroke: _currentStroke,
+                            scale: _scale,
+                            offset: _offset,
+                            isOutlineView: _viewMode == SketchViewMode.outline,
+                          ),
+                          size: Size.infinite,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
         // Status bar
         Container(
@@ -455,7 +522,6 @@ class _SketchPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw survey shots
     final shotPaint = Paint()
       ..color = Colors.red
       ..strokeWidth = 1.5
@@ -476,18 +542,15 @@ class _SketchPainter extends CustomPainter {
       }
     }
 
-    // Draw stations
     for (final entry in stationPositions.entries) {
       final screenPos = _worldToScreen(entry.value, size);
       canvas.drawCircle(screenPos, 3, stationPaint);
     }
 
-    // Draw sketched strokes
     for (final stroke in sketch.strokes) {
       _drawStroke(canvas, size, stroke);
     }
 
-    // Draw current stroke being drawn
     if (currentStroke != null) {
       _drawStroke(canvas, size, currentStroke!);
     }

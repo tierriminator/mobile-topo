@@ -128,11 +128,13 @@ class _ExplorerViewState extends State<ExplorerView> {
     });
   }
 
-  void _selectSection(ExplorerPath path) {
+  void _selectSection(ExplorerPath path, Section section) {
     setState(() {
       _explorerState = _explorerState.copyWith(currentPath: path);
     });
-    // TODO: Navigate to the section data/sketch view
+
+    // Update shared selection state
+    DataService().selectionState.selectSection(path.caveId, section);
   }
 
   @override
@@ -275,7 +277,7 @@ class _ExplorerViewState extends State<ExplorerView> {
       isExpanded: false,
       hasChildren: false,
       isSelected: isSelected,
-      onTap: () => _selectSection(path),
+      onTap: () => _selectSection(path, section),
     );
   }
 

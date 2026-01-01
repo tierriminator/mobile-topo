@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../data/data_service.dart';
+import '../data/selection_state.dart';
+import '../explorer.dart';
 import '../l10n/app_localizations.dart';
 import '../table.dart';
-import '../topo.dart';
 
 class DataView extends StatefulWidget {
   const DataView({super.key});
@@ -14,23 +16,69 @@ enum DataViewMode { stretches, referencePoints }
 
 class _DataViewState extends State<DataView> {
   DataViewMode _mode = DataViewMode.stretches;
+  final SelectionState _selectionState = DataService().selectionState;
 
-  // Placeholder data - will be replaced with actual data management later
-  final List<MeasuredDistance> _stretches = const [
-    MeasuredDistance(Point(1, 0), Point(1, 1), 2.5, 45.0, -5.0),
-    MeasuredDistance(Point(1, 1), Point(1, 2), 3.2, 120.0, 10.0),
-    MeasuredDistance(Point(1, 2), Point(1, 3), 1.8, 90.0, 0.0),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _selectionState.addListener(_onSelectionChanged);
+  }
 
-  final List<ReferencePoint> _referencePoints = const [
-    ReferencePoint(Point(1, 0), 600000.0, 200000.0, 450.0),
-  ];
+  @override
+  void dispose() {
+    _selectionState.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final section = _selectionState.selectedSection;
+
+    if (section == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.dataViewNoSection,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
+        // Section name header
+        Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.description, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                section.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+        // Mode toggle
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: SegmentedButton<DataViewMode>(
@@ -54,17 +102,53 @@ class _DataViewState extends State<DataView> {
             },
           ),
         ),
+        // Data table
         Expanded(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: _mode == DataViewMode.stretches
-                  ? StretchesTable(data: _stretches)
-                  : ReferencePointsTable(data: _referencePoints),
-            ),
-          ),
+          child: _buildDataContent(section),
         ),
       ],
     );
+  }
+
+  Widget _buildDataContent(Section section) {
+    final l10n = AppLocalizations.of(context)!;
+    final stretches = section.survey.stretches;
+    final referencePoints = section.survey.referencePoints;
+
+    if (_mode == DataViewMode.stretches) {
+      if (stretches.isEmpty) {
+        return Center(
+          child: Text(
+            l10n.dataViewNoStretches,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        );
+      }
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: StretchesTable(data: stretches),
+        ),
+      );
+    } else {
+      if (referencePoints.isEmpty) {
+        return Center(
+          child: Text(
+            l10n.dataViewNoReferencePoints,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        );
+      }
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ReferencePointsTable(data: referencePoints),
+        ),
+      );
+    }
   }
 }

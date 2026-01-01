@@ -15,10 +15,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dataViewTitle => 'Data';
 
   @override
+  String get dataViewNoSection => 'Select a section in Explorer';
+
+  @override
+  String get dataViewNoStretches => 'No stretches yet';
+
+  @override
+  String get dataViewNoReferencePoints => 'No reference points yet';
+
+  @override
   String get mapViewTitle => 'Map';
 
   @override
+  String get mapViewNoSection => 'Select a section in Explorer';
+
+  @override
+  String get mapViewNoData => 'No survey data yet';
+
+  @override
   String get sketchViewTitle => 'Sketch';
+
+  @override
+  String get sketchViewNoSection => 'Select a section in Explorer';
+
+  @override
+  String get sketchViewNoData => 'No survey data yet';
 
   @override
   String get explorerViewTitle => 'Explorer';

@@ -8,13 +8,41 @@
   "@dataViewTitle": {
     "description": "Title for the data view"
   },
+  "dataViewNoSection": "Select a section in Explorer",
+  "@dataViewNoSection": {
+    "description": "Message shown when no section is selected"
+  },
+  "dataViewNoStretches": "No stretches yet",
+  "@dataViewNoStretches": {
+    "description": "Message shown when section has no stretches"
+  },
+  "dataViewNoReferencePoints": "No reference points yet",
+  "@dataViewNoReferencePoints": {
+    "description": "Message shown when section has no reference points"
+  },
   "mapViewTitle": "Map",
   "@mapViewTitle": {
     "description": "Title for the map view"
   },
+  "mapViewNoSection": "Select a section in Explorer",
+  "@mapViewNoSection": {
+    "description": "Message shown when no section is selected"
+  },
+  "mapViewNoData": "No survey data yet",
+  "@mapViewNoData": {
+    "description": "Message shown when section has no survey data"
+  },
   "sketchViewTitle": "Sketch",
   "@sketchViewTitle": {
     "description": "Title for the sketch view"
+  },
+  "sketchViewNoSection": "Select a section in Explorer",
+  "@sketchViewNoSection": {
+    "description": "Message shown when no section is selected"
+  },
+  "sketchViewNoData": "No survey data yet",
+  "@sketchViewNoData": {
+    "description": "Message shown when section has no survey data"
   },
   "explorerViewTitle": "Explorer",
   "@explorerViewTitle": {

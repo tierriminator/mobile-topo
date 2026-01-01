@@ -25,15 +25,14 @@ void main() {
     await tester.tap(find.byIcon(Icons.map_outlined));
     await tester.pump();
 
-    // Verify Map view is shown (look for the status bar with Length/Depth/Scale)
-    expect(find.textContaining('Length:'), findsOneWidget);
+    // Verify Map view is shown (shows empty state when no section selected)
+    expect(find.text('Select a section in Explorer'), findsOneWidget);
 
     // Tap on Sketch tab
     await tester.tap(find.byIcon(Icons.draw_outlined));
     await tester.pump();
 
-    // Verify Sketch view is shown (look for the Outline/Side View toggle)
-    expect(find.text('Outline'), findsOneWidget);
-    expect(find.text('Side View'), findsOneWidget);
+    // Verify Sketch view is shown (shows empty state when no section selected)
+    expect(find.text('Select a section in Explorer'), findsOneWidget);
   });
 }

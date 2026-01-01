@@ -106,17 +106,59 @@ abstract class AppLocalizations {
   /// **'Data'**
   String get dataViewTitle;
 
+  /// Message shown when no section is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Select a section in Explorer'**
+  String get dataViewNoSection;
+
+  /// Message shown when section has no stretches
+  ///
+  /// In en, this message translates to:
+  /// **'No stretches yet'**
+  String get dataViewNoStretches;
+
+  /// Message shown when section has no reference points
+  ///
+  /// In en, this message translates to:
+  /// **'No reference points yet'**
+  String get dataViewNoReferencePoints;
+
   /// Title for the map view
   ///
   /// In en, this message translates to:
   /// **'Map'**
   String get mapViewTitle;
 
+  /// Message shown when no section is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Select a section in Explorer'**
+  String get mapViewNoSection;
+
+  /// Message shown when section has no survey data
+  ///
+  /// In en, this message translates to:
+  /// **'No survey data yet'**
+  String get mapViewNoData;
+
   /// Title for the sketch view
   ///
   /// In en, this message translates to:
   /// **'Sketch'**
   String get sketchViewTitle;
+
+  /// Message shown when no section is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Select a section in Explorer'**
+  String get sketchViewNoSection;
+
+  /// Message shown when section has no survey data
+  ///
+  /// In en, this message translates to:
+  /// **'No survey data yet'**
+  String get sketchViewNoData;
 
   /// Title for the explorer view
   ///

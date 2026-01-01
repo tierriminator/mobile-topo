@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../data/data_service.dart';
+import '../data/selection_state.dart';
 import '../l10n/app_localizations.dart';
 import '../topo.dart';
 
@@ -10,22 +12,9 @@ class MapView extends StatefulWidget {
 }
 
 class _MapViewState extends State<MapView> {
-  // Placeholder survey data - will be replaced with actual data management
-  final Survey _survey = const Survey(
-    stretches: [
-      MeasuredDistance(Point(1, 0), Point(1, 1), 5.0, 45.0, -10.0),
-      MeasuredDistance(Point(1, 1), Point(1, 2), 4.0, 90.0, 5.0),
-      MeasuredDistance(Point(1, 2), Point(1, 3), 6.0, 120.0, -5.0),
-      MeasuredDistance(Point(1, 3), Point(1, 4), 3.5, 180.0, 0.0),
-      MeasuredDistance(Point(1, 2), Point(2, 0), 4.5, 30.0, -15.0),
-      MeasuredDistance(Point(2, 0), Point(2, 1), 5.5, 60.0, -10.0),
-    ],
-    referencePoints: [
-      ReferencePoint(Point(1, 0), 0.0, 0.0, 100.0),
-    ],
-  );
+  final SelectionState _selectionState = DataService().selectionState;
 
-  late Map<Point, StationPosition> _positions;
+  Map<Point, StationPosition> _positions = {};
 
   // View transformation
   double _scale = 20.0; // pixels per meter
@@ -39,10 +28,68 @@ class _MapViewState extends State<MapView> {
   // Selected station
   Point? _selectedStation;
 
+  // Store the canvas size for tap detection
+  Size _canvasSize = Size.zero;
+
+  // Track current section to detect changes
+  String? _currentSectionId;
+
   @override
   void initState() {
     super.initState();
-    _positions = _survey.computeStationPositions();
+    _selectionState.addListener(_onSelectionChanged);
+    _updateFromSection();
+  }
+
+  @override
+  void dispose() {
+    _selectionState.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    _updateFromSection();
+  }
+
+  void _updateFromSection() {
+    final section = _selectionState.selectedSection;
+    if (section == null) {
+      setState(() {
+        _positions = {};
+        _currentSectionId = null;
+      });
+      return;
+    }
+
+    // Only recompute and recenter if section changed
+    if (section.id != _currentSectionId) {
+      _positions = section.survey.computeStationPositions();
+      _currentSectionId = section.id;
+      _centerView();
+    }
+
+    setState(() {});
+  }
+
+  void _centerView() {
+    if (_positions.isEmpty) return;
+
+    // Compute bounds
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    for (final pos in _positions.values) {
+      if (pos.east < minX) minX = pos.east;
+      if (-pos.north < minY) minY = -pos.north;
+      if (pos.east > maxX) maxX = pos.east;
+      if (-pos.north > maxY) maxY = -pos.north;
+    }
+
+    final centerX = (minX + maxX) / 2;
+    final centerY = (minY + maxY) / 2;
+    _offset = Offset(-centerX * _scale, -centerY * _scale);
   }
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -53,20 +100,13 @@ class _MapViewState extends State<MapView> {
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      // Handle zoom
       _scale = (_startScale * details.scale).clamp(5.0, 200.0);
-
-      // Handle pan - calculate total delta from start
       final focalPointDelta = details.focalPoint - _startFocalPoint;
       _offset = _startOffset + focalPointDelta;
     });
   }
 
-  // Store the canvas size for tap detection
-  Size _canvasSize = Size.zero;
-
   void _handleTapUp(TapUpDetails details) {
-    // Find if a station was tapped
     final tapPos = details.localPosition;
 
     for (final entry in _positions.entries) {
@@ -81,16 +121,12 @@ class _MapViewState extends State<MapView> {
       }
     }
 
-    // No station tapped, deselect
     setState(() {
       _selectedStation = null;
     });
   }
 
   Offset _worldToScreen(double east, double north, Size size) {
-    // Convert world coordinates to screen coordinates
-    // East goes right (positive X), North goes up (negative Y in screen coords)
-    // Center the map in the view
     return Offset(
       east * _scale + _offset.dx + size.width / 2,
       -north * _scale + _offset.dy + size.height / 2,
@@ -100,10 +136,34 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final depth = _survey.computeDepth(_positions);
-    final length = _survey.totalLength;
+    final section = _selectionState.selectedSection;
 
-    // Get selected station info
+    if (section == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.mapViewNoSection,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final survey = section.survey;
+    final depth = survey.computeDepth(_positions);
+    final length = survey.totalLength;
+
     String statusText;
     if (_selectedStation != null && _positions.containsKey(_selectedStation)) {
       final pos = _positions[_selectedStation]!;
@@ -123,29 +183,53 @@ class _MapViewState extends State<MapView> {
 
     return Column(
       children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-              return GestureDetector(
-                onScaleStart: _onScaleStart,
-                onScaleUpdate: _onScaleUpdate,
-                onTapUp: _handleTapUp,
-                child: ClipRect(
-                  child: CustomPaint(
-                    painter: _MapPainter(
-                      survey: _survey,
-                      positions: _positions,
-                      scale: _scale,
-                      offset: _offset,
-                      selectedStation: _selectedStation,
-                    ),
-                    size: Size.infinite,
-                  ),
-                ),
-              );
-            },
+        // Section name header
+        Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.description, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                section.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
           ),
+        ),
+        Expanded(
+          child: _positions.isEmpty
+              ? Center(
+                  child: Text(
+                    l10n.mapViewNoData,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                    return GestureDetector(
+                      onScaleStart: _onScaleStart,
+                      onScaleUpdate: _onScaleUpdate,
+                      onTapUp: _handleTapUp,
+                      child: ClipRect(
+                        child: CustomPaint(
+                          painter: _MapPainter(
+                            survey: survey,
+                            positions: _positions,
+                            scale: _scale,
+                            offset: _offset,
+                            selectedStation: _selectedStation,
+                          ),
+                          size: Size.infinite,
+                        ),
+                      ),
+                    );
+                  },
+                ),
         ),
         Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -203,7 +287,7 @@ class _MapPainter extends CustomPainter {
       ..color = Colors.blue
       ..style = PaintingStyle.fill;
 
-    // Draw survey shots (lines between stations)
+    // Draw survey shots
     for (final stretch in survey.stretches) {
       final fromPos = positions[stretch.from];
       final toPos = positions[stretch.to];
