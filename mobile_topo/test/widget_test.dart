@@ -3,16 +3,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
+import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/local_cave_repository.dart';
+import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
+import 'package:mobile_topo/models/settings.dart';
+
+/// Mock settings repository for testing (no SharedPreferences dependency)
+class MockSettingsRepository extends SettingsRepository {
+  Settings _settings = const Settings();
+
+  @override
+  Future<Settings> load() async => _settings;
+
+  @override
+  Future<void> save(Settings settings) async {
+    _settings = settings;
+  }
+}
 
 void main() {
   Widget createTestApp() {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
+        ChangeNotifierProvider(create: (_) => SettingsController()),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
+        Provider<SettingsRepository>(create: (_) => MockSettingsRepository()),
       ],
       child: const MyApp(),
     );

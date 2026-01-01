@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/selection_state.dart';
+import 'controllers/settings_controller.dart';
 import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
+import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
@@ -10,12 +12,20 @@ import 'views/sketch_view.dart';
 import 'views/explorer_view.dart';
 import 'views/options_view.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load settings before app starts
+  final settingsRepository = SettingsRepository();
+  final settings = await settingsRepository.load();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
+        ChangeNotifierProvider(create: (_) => SettingsController(settings)),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
+        Provider<SettingsRepository>(create: (_) => settingsRepository),
       ],
       child: const MyApp(),
     ),
