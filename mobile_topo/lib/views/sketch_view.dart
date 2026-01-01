@@ -48,9 +48,29 @@ class _SketchViewState extends State<SketchView> {
   Color _currentColor = SketchColors.black;
   Stroke? _currentStroke;
 
-  // View transformation
-  double _scale = 20.0;
-  Offset _offset = Offset.zero;
+  // View transformation (separate for each view mode)
+  double _outlineScale = 20.0;
+  Offset _outlineOffset = Offset.zero;
+  double _sideViewScale = 20.0;
+  Offset _sideViewOffset = Offset.zero;
+
+  double get _scale => _viewMode == SketchViewMode.outline ? _outlineScale : _sideViewScale;
+  set _scale(double value) {
+    if (_viewMode == SketchViewMode.outline) {
+      _outlineScale = value;
+    } else {
+      _sideViewScale = value;
+    }
+  }
+
+  Offset get _offset => _viewMode == SketchViewMode.outline ? _outlineOffset : _sideViewOffset;
+  set _offset(Offset value) {
+    if (_viewMode == SketchViewMode.outline) {
+      _outlineOffset = value;
+    } else {
+      _sideViewOffset = value;
+    }
+  }
 
   // Gesture handling
   double _startScale = 1.0;
@@ -64,6 +84,39 @@ class _SketchViewState extends State<SketchView> {
     super.initState();
     _positions = _survey.computeStationPositions();
     _sideViewPositions = _computeSideViewPositions();
+    _centerViews();
+  }
+
+  /// Center both views on their data
+  void _centerViews() {
+    // Center outline view
+    final outlineBounds = _computeBounds(
+      _positions.values.map((p) => Offset(p.east, -p.north)).toList(),
+    );
+    if (outlineBounds != null) {
+      _outlineOffset = -outlineBounds.center * _outlineScale;
+    }
+
+    // Center side view
+    final sideBounds = _computeBounds(_sideViewPositions.values.toList());
+    if (sideBounds != null) {
+      _sideViewOffset = -sideBounds.center * _sideViewScale;
+    }
+  }
+
+  Rect? _computeBounds(List<Offset> points) {
+    if (points.isEmpty) return null;
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+    for (final p in points) {
+      if (p.dx < minX) minX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   /// Compute positions for side view (developed profile)
