@@ -258,76 +258,83 @@ class _DataViewState extends State<DataView> {
     final stretches = section.survey.stretches;
     final referencePoints = section.survey.referencePoints;
 
-    if (_mode == DataViewMode.stretches) {
-      if (stretches.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                l10n.dataViewNoStretches,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return IndexedStack(
+      index: _mode == DataViewMode.stretches ? 0 : 1,
+      children: [
+        // Stretches view
+        stretches.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      l10n.dataViewNoStretches,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _addStretch(section),
-                icon: const Icon(Icons.add),
-                label: Text(l10n.addStretch),
-              ),
-            ],
-          ),
-        );
-      }
-      return SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: StretchesTable(
-            data: stretches,
-            onInsertAbove: (index) => _insertStretchAt(section, index),
-            onInsertBelow: (index) => _insertStretchAt(section, index + 1),
-            onUpdate: (index, stretch) =>
-                _updateStretch(section, index, stretch),
-            onDelete: (index) => _deleteStretch(section, index),
-          ),
-        ),
-      );
-    } else {
-      if (referencePoints.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                l10n.dataViewNoReferencePoints,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _addStretch(section),
+                      icon: const Icon(Icons.add),
+                      label: Text(l10n.addStretch),
                     ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: StretchesTable(
+                    data: stretches,
+                    onInsertAbove: (index) => _insertStretchAt(section, index),
+                    onInsertBelow: (index) =>
+                        _insertStretchAt(section, index + 1),
+                    onUpdate: (index, stretch) =>
+                        _updateStretch(section, index, stretch),
+                    onDelete: (index) => _deleteStretch(section, index),
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _addReferencePoint(section),
-                icon: const Icon(Icons.add),
-                label: Text(l10n.referencePoints),
+        // Reference points view
+        referencePoints.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      l10n.dataViewNoReferencePoints,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _addReferencePoint(section),
+                      icon: const Icon(Icons.add),
+                      label: Text(l10n.referencePoints),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ReferencePointsTable(
+                    data: referencePoints,
+                    onInsertAbove: (index) =>
+                        _insertReferencePointAt(section, index),
+                    onInsertBelow: (index) =>
+                        _insertReferencePointAt(section, index + 1),
+                    onUpdate: (index, point) =>
+                        _updateReferencePoint(section, index, point),
+                    onDelete: (index) => _deleteReferencePoint(section, index),
+                  ),
+                ),
               ),
-            ],
-          ),
-        );
-      }
-      return SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ReferencePointsTable(
-            data: referencePoints,
-            onInsertAbove: (index) => _insertReferencePointAt(section, index),
-            onInsertBelow: (index) => _insertReferencePointAt(section, index + 1),
-            onUpdate: (index, point) =>
-                _updateReferencePoint(section, index, point),
-            onDelete: (index) => _deleteReferencePoint(section, index),
-          ),
-        ),
-      );
-    }
+      ],
+    );
   }
 }
