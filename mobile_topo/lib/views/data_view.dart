@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
-import '../controllers/survey_history.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -19,7 +19,7 @@ enum DataViewMode { stretches, referencePoints }
 
 class _DataViewState extends State<DataView> {
   DataViewMode _mode = DataViewMode.stretches;
-  final SurveyHistory _history = SurveyHistory();
+  final History<Survey> _history = History<Survey>();
   String? _currentSectionId;
 
   void _checkSectionChange(Section? section) {
@@ -41,7 +41,7 @@ class _DataViewState extends State<DataView> {
     if (caveId == null) return;
 
     if (recordHistory) {
-      _history.recordState(section.survey);
+      _history.record(section.survey);
     }
 
     final updatedSection = section.copyWith(

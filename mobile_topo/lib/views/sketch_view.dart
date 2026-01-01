@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
-import '../controllers/sketch_history.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -30,8 +30,8 @@ class _SketchViewState extends State<SketchView> {
   Sketch _sideViewSketch = const Sketch();
 
   // Undo/redo history for each view
-  final SketchHistory _outlineHistory = SketchHistory();
-  final SketchHistory _sideViewHistory = SketchHistory();
+  final History<Sketch> _outlineHistory = History<Sketch>();
+  final History<Sketch> _sideViewHistory = History<Sketch>();
 
   // Drawing state
   SketchMode _sketchMode = SketchMode.move;
@@ -190,7 +190,7 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  SketchHistory get _currentHistory =>
+  History<Sketch> get _currentHistory =>
       _viewMode == SketchViewMode.outline ? _outlineHistory : _sideViewHistory;
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -201,7 +201,7 @@ class _SketchViewState extends State<SketchView> {
     if (details.pointerCount == 1) {
       if (_sketchMode == SketchMode.draw) {
         final worldPos = _screenToWorld(details.localFocalPoint);
-        _currentHistory.recordState(_currentSketch);
+        _currentHistory.record(_currentSketch);
         setState(() {
           _currentStroke = Stroke(
             points: [worldPos],
@@ -209,7 +209,7 @@ class _SketchViewState extends State<SketchView> {
           );
         });
       } else if (_sketchMode == SketchMode.erase) {
-        _currentHistory.recordState(_currentSketch);
+        _currentHistory.record(_currentSketch);
         _eraseAt(details.localFocalPoint);
       }
     }
