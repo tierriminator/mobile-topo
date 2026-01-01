@@ -71,7 +71,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sketchViewPlaceholder => 'Sketch View - Outline & Side View';
+  String get sketchOutline => 'Outline';
+
+  @override
+  String get sketchSideView => 'Side View';
+
+  @override
+  String sketchScale(String scale) {
+    return 'Scale: $scale';
+  }
+
+  @override
+  String get sketchModeMove => 'Move';
+
+  @override
+  String get sketchModeErase => 'Erase';
+
+  @override
+  String get undo => 'Undo';
 
   @override
   String get filesViewPlaceholder => 'Files';

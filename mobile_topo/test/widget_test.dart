@@ -32,7 +32,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.draw_outlined));
     await tester.pump();
 
-    // Verify Sketch view is shown
-    expect(find.text('Sketch View - Outline & Side View'), findsOneWidget);
+    // Verify Sketch view is shown (look for the Outline/Side View toggle)
+    expect(find.text('Outline'), findsOneWidget);
+    expect(find.text('Side View'), findsOneWidget);
   });
 }

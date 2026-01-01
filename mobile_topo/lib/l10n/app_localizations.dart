@@ -209,11 +209,41 @@ abstract class AppLocalizations {
   String mapStatusStation(
       String id, String east, String north, String altitude);
 
-  /// Placeholder text for sketch view
+  /// Label for outline (plan) view in sketch
   ///
   /// In en, this message translates to:
-  /// **'Sketch View - Outline & Side View'**
-  String get sketchViewPlaceholder;
+  /// **'Outline'**
+  String get sketchOutline;
+
+  /// Label for side view (profile) in sketch
+  ///
+  /// In en, this message translates to:
+  /// **'Side View'**
+  String get sketchSideView;
+
+  /// Scale indicator in sketch view
+  ///
+  /// In en, this message translates to:
+  /// **'Scale: {scale}'**
+  String sketchScale(String scale);
+
+  /// Tooltip for move/pan mode
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get sketchModeMove;
+
+  /// Tooltip for eraser mode
+  ///
+  /// In en, this message translates to:
+  /// **'Erase'**
+  String get sketchModeErase;
+
+  /// Undo action
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
 
   /// Placeholder text for files view
   ///

@@ -87,9 +87,32 @@
       "altitude": {"type": "String"}
     }
   },
-  "sketchViewPlaceholder": "Sketch View - Outline & Side View",
-  "@sketchViewPlaceholder": {
-    "description": "Placeholder text for sketch view"
+  "sketchOutline": "Outline",
+  "@sketchOutline": {
+    "description": "Label for outline (plan) view in sketch"
+  },
+  "sketchSideView": "Side View",
+  "@sketchSideView": {
+    "description": "Label for side view (profile) in sketch"
+  },
+  "sketchScale": "Scale: {scale}",
+  "@sketchScale": {
+    "description": "Scale indicator in sketch view",
+    "placeholders": {
+      "scale": {"type": "String"}
+    }
+  },
+  "sketchModeMove": "Move",
+  "@sketchModeMove": {
+    "description": "Tooltip for move/pan mode"
+  },
+  "sketchModeErase": "Erase",
+  "@sketchModeErase": {
+    "description": "Tooltip for eraser mode"
+  },
+  "undo": "Undo",
+  "@undo": {
+    "description": "Undo action"
   },
   "filesViewPlaceholder": "Files",
   "@filesViewPlaceholder": {
