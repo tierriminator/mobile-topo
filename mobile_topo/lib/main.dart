@@ -59,24 +59,6 @@ class _MainScreenState extends State<MainScreen> {
     const OptionsView(),
   ];
 
-  String _getTitle(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (_selectedIndex) {
-      case 0:
-        return l10n.dataViewTitle;
-      case 1:
-        return l10n.mapViewTitle;
-      case 2:
-        return l10n.sketchViewTitle;
-      case 3:
-        return l10n.explorerViewTitle;
-      case 4:
-        return l10n.optionsViewTitle;
-      default:
-        return '';
-    }
-  }
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -87,10 +69,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(_getTitle(context)),
-      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: _views,
