@@ -1,0 +1,254 @@
+Inside DistoX2
+Leica Disto X310 based DistoX, Firmware Version 2.1 - 2.5
+2015/04/26
+
+Introduction
+This document describes some internals of the DistoX upgrade board for the Leica X310.
+
+The DistoX Wire(less) Protocol
+The DistoX uses the Bluetooth Serial Port Profile (SPP) to communicate to a PDA or PC. The
+Bluetooth connection is always set up by the PDA. SPP offers a simple bidirectional byte oriented
+channel. There are two kinds of communications: Disto initiated and PDA initiated.
+Disto initiated communication consists of a data packet sent from the Disto to the PDA and an
+acknowledge packet sent from the PDA to the Disto. Data is resent continuously in intervals of 5
+seconds until a valid acknowledge is received.
+PDA initiated communication consists of a command packet sent from the PDA to the Disto
+followed by a reply packet sent from the Disto to the PDA in most cases. The PDA side should
+repeat the command if no reply is received.
+
+Data Packets
+All data packets have a length of 8 bytes.
+Measurement Data Packet:
+Byte 0: bit 7: sequence bit, bit 6: bit 16 of distance, bits 0-5: 000001 (packet type)
+Byte 1: low byte of distance
+Byte 2: high byte of distance
+Byte 3: low byte of declination
+Byte 4: high byte of declination
+Byte 5: low byte of inclination
+Byte 6: high byte of inclination
+Byte 7: high byte of roll angle
+The sequence bit is complemented for each new packet. A packet with the same contents and the
+same sequence bit as the preceding packet is a wrongly repeated packet. It should be acknowledged
+and discarded.
+The 17 bit distance is in mm for distance <= 100m. Above 100m the resolution changes to cm:
+99999 = 99.999m, 100000 = 100m, 100001 = 100.010m, 110000 = 200m.
+The angles are in radiant * 2^15 / Pi (full circle = 2^16).
+For declination: 0x0000 = north, 0x4000 = east, 0x8000 = south, 0xC000 = west.
+For inclination: 0x0000 = horizontal, 0x4000 = up, 0xC000 = down.
+Display orientation: 0x0000 = up, 0x4000 = left, 0x8000 = down, 0xC000 = right.
+
+Vector Data Packet:
+Byte 0: bit 7: sequence bit, bit 6: reverse, bits 0-5: 000100 (packet type)
+Byte 1: low byte of absolute value of the acceleration
+Byte 2: high byte of absolute value of the acceleration
+Byte 3: low byte of absolute value of the magnetic field
+Byte 4: high byte of absolute value of the magnetic field
+Byte 5: low byte of dip angle (inclination of the magnetic field)
+Byte 6: high byte of dip angle (inclination of the magnetic field)
+Byte 7: low byte of roll angle
+The Vector packet is sent after the Measurement packet to provide additional information about the
+measurement. It is primarily used for quality checking and post processing of measurement errors.
+There is no specified unit for the absolute values of the field vectors. They can only be used relative
+to each other.
+The 16 bit angles are in radiant * 2^15 / Pi (full circle = 2^16).
+The dip angle is 0 at the equator, positive in the southern hemisphere, and negative in the north.
+The full roll angle can be reconstructed by concatenation of Measurement packet byte 7 and Vector
+packet byte 7. The orientation is as stated above (display left = 0x4000).
+The reverse bit is set if the data is measured with the backsight option.
+The Vector packet must be acknowledged separately.
+
+Calibration Data Packet 1 (Acceleration Sensor):
+Byte 0: bit 7: sequence bit, bits 0-6: 0000010 (packet type)
+Byte 1: low byte of Gx sensor
+Byte 2: high byte of Gx sensor
+Byte 3: low byte of Gy sensor
+Byte 4: high byte of Gy sensor
+Byte 5: low byte of Gz sensor
+Byte 6: high byte of Gz sensor
+Byte 7: calibration measurement number (1, 2, …)
+Calibration Data Packet 2 (Magnetic Field Sensor):
+Byte 0: bit 7: sequence bit, bits 0-6: 0000011 (packet type)
+Byte 1: low byte of Mx sensor
+Byte 2: high byte of Mx sensor
+Byte 3: low byte of My sensor
+Byte 4: high byte of My sensor
+Byte 5: low byte of Mz sensor
+Byte 6: high byte of Mz sensor
+Byte 7: calibration measurement number (1, 2, …)
+For each calibration measurement an acceleration packet is sent followed by a magnetic field
+packet. The two packets must be acknowledged separately.
+
+Acknowledge Packet
+An acknowledge packet consists of a single byte:
+Byte 0: bit 7: sequence bit, bits 0-6: 1010101
+
+The sequence bit of the acknowledge byte must match the sequence bit of the corresponding data
+packet.
+
+Command Packets
+The following commands may be sent from the PDA to the Disto:
+Start Calibration (1 byte):
+Byte 0: 00110001
+Stop Calibration (1 byte):
+Byte 0: 00110000
+Start Silent Mode (1 byte):
+Byte 0: 00110011
+Stop Silent Mode (1 byte):
+Byte 0: 00110010
+Power Off (1 byte):
+Byte 0: 00110100
+Switch Laser On (1 byte):
+Byte 0: 00110110
+
+(version 2.3 & higher)
+
+Switch Laser Off (1 byte):
+Byte 0: 00110111
+
+(version 2.3 & higher)
+
+Trigger Measurement (1 byte):
+Byte 0: 00110101
+
+(version 2.3 & higher)
+
+Read Memory (3 bytes):
+Byte 0: 00111000
+Byte 1: low byte of address
+Byte 2: high byte of address
+Write Memory (7 bytes):
+Byte 0: 00111001
+Byte 1: low byte of address
+Byte 2: high byte of address
+Byte 3: data byte 0
+Byte 4: data byte 1
+Byte 5: data byte 2
+Byte 6: data byte 3
+Read and Write commands read or write 4 bytes of memory starting at the given address. For the
+interpretation of the address values see below. A memory read reply is sent by the Disto for each
+read and write command. The read reply following a write command may be used to check the
+correctness of the written data. There is no reply for the 1 byte commands.
+
+Reply Packets
+The format of read reply packets is similar to that of the data packets.
+Memory Read Reply:
+Byte 0: 00111000 (packet type)
+Byte 1: low byte of address
+Byte 2: high byte of address
+Byte 3: data byte 0
+Byte 4: data byte 1
+Byte 5: data byte 2
+Byte 6: data byte 3
+Byte 7: 0 (not used)
+
+Address Space
+The 16 bit addresses used for read and write commands allow access to the following values:
+0x0000 – 0x4BFF: Data store (read only)
+0x8008 – 0x8009: Serial number (low/high)
+0x8010 – 0x8027: G calibration coefficients
+0x8028 – 0x803F: M calibration coefficients
+0x8040 – 0x8042: non-linearity coefficients
+0xC000 – 0xDFFF: CPU RAM
+0xE000 – 0xE003: Firmware Version (Major/Minor/0/0, read only)
+0xE004 – 0xE007: Hardware Version (Major * 10 + Minor, read only)
+All other ranges: Reserved
+The Data Store contains a circular buffer to store all measured data. It consists of 19 Flash memory
+blocks of 1 Kbyte each. Each block is divided into 56 segments of 18 bytes each. The layout of the
+segments is:
+Bytes 0 to 7: first packet
+Bytes 8 to 15: second packet
+Byte 16: Hot flag for first packet
+Byte 17: Hot flag for second packet
+The layout of the packets is identical to the Data packets specified above. The sequence bit is zero.
+The Hot flags are 0xFF for new packets (not yet sent over Bluetooth) and 0 for old (already sent)
+packets. The first and last segments in the queue are separated by a range of erased segments (all
+bytes = 0xFF).
+The device writes a segment consisting of a type 1 and a type 4 packet for each distance
+measurement or a type 2 and a type 3 packet for a calibration measurement.
+
+Bootloader Command Packets
+In bootloader mode, the device allows to read and write 256 byte blocks in the whole Flash
+memory. The bootloader itself is write protected.
+
+Read Memory Block (3 bytes):
+Byte 0: 00111010
+Byte 1: bits 8..15 of address (24 bit address, 256 byte aligned)
+Byte 2: bits 16..23 of address
+Write Memory Block (259 bytes):
+Byte 0: 00111011
+Byte 1: bits 8..15 of address (24 bit address, 256 byte aligned)
+Byte 2: bits 16..23 of address
+Byte 3: data byte 0
+Byte 4: data byte 1
+…
+Byte 258: data byte 255
+Power Off (1 byte):
+Byte 0: 00110100
+A corresponding reply packet is sent by the Disto for each read and write command.
+
+Bootloader Reply Packets
+Memory Read Block Reply (264 bytes):
+Byte 0: 00111010 (packet type)
+Byte 1: bits 8..15 of address (24 bit address, 256 byte aligned)
+Byte 2: bits 16..23 of address (currently always 0)
+Byte 3-7: not used
+Byte 8: data byte 0
+Byte 9: data byte 1
+…
+Byte 263: data byte 255
+Memory Write Block Reply (8 bytes):
+Byte 0: 00111011 (packet type)
+Byte 1: bits 8..15 of address (24 bit address, 256 byte aligned)
+Byte 2: bits 16..23 of address (currently always 0)
+Byte 3: low byte of checksum (16 bit sum of all bytes)
+Byte 4: high byte of checksum
+Byte 5-7: not used
+
+Flash Memory Map
+0x000000 – 0x0007FF: Bootloader (read only)
+0x000800 – 0x00ABFF: Firmware
+0x00AC00 – 0x00AFFF: Option Store
+0x00B000 – 0x00B3FF: Configuration Store (calibration coefficients)
+0x00B400 – 0x00FFFF: Data Store (1008 segments + 1 erased block)
+
+Appendix A: Basic Communication Code
+unsigned byte input[8]; // input buffer
+int oldType, oldX, oldY, oldZ; // previous packet
+Read(input, 0, 8); // receive 8 bytes
+Byte type = input[0];
+Int op = type & 0x3F;
+if (op < 0x20) { // data packet
+Write(type & 0x80 | 0x55); // send acknowledge byte
+int x = input[1] + (input[2] << 8);
+int y = input[3] + (input[4] << 8);
+int z = input[5] + (input[6] << 8);
+if (type != oldType && x != oldX && y != oldY && z != oldZ) {
+if (op == 1) { // survey data
+// 17 bit distance
+distance = x + ((type & 0x40) << 10);
+// cm resolution above 100m
+if (distance > 100000) distance = (distance – 90000) * 10;
+azimuth = y;
+inclination = z;
+roll = input[7] << 8; // high bits of roll angle
+} else if (op == 4) { // vector data
+absG = x; // absolute value of G vector
+absM = y; // absolute value of M vector
+dip = z; // dip angle
+roll += input[7]; // low bits of roll angle
+reverse = (type >> 6) & 1;
+} else if (op == 2) { // G calibration data
+Gx = x; // acceleration x sensor
+Gy = y; // acceleration y sensor
+Gz = z; // acceleration z sensor
+} else if (op == 3) { // M calibration data
+Mx = x; // magnetic x sensor
+My = y; // magnetic y sensor
+Mz = z; // magnetic z sensor
+}
+// ignore unknown packets
+oldType = type; oldX = x; oldY = y; oldZ = z;
+}
+}
+
+
