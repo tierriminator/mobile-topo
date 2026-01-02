@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
+import 'bluetooth_channel.dart';
 import 'distox_protocol.dart';
 
 /// Connection state for DistoX device
@@ -43,6 +45,8 @@ class DistoXDevice {
 ///
 /// Uses classic Bluetooth SPP (Serial Port Profile) as specified in the
 /// DistoX protocol documentation.
+///
+/// Supported platforms: Android (flutter_bluetooth_serial), macOS (IOBluetooth).
 class DistoXService extends ChangeNotifier {
   final DistoXProtocol _protocol = DistoXProtocol();
 
@@ -69,77 +73,152 @@ class DistoXService extends ChangeNotifier {
   bool get autoReconnect => _autoReconnect;
   bool get isConnected => _connectionState == DistoXConnectionState.connected;
 
-  /// Check if Bluetooth is available on this platform
-  Future<bool> get isBluetoothAvailable async {
+  /// Whether running on Android (uses flutter_bluetooth_serial)
+  bool get _isAndroid {
     try {
-      return await FlutterBluetoothSerial.instance.isAvailable ?? false;
+      return Platform.isAndroid;
     } catch (e) {
-      debugPrint('Bluetooth not available: $e');
       return false;
     }
+  }
+
+  /// Whether running on macOS (uses platform channel)
+  bool get _isMacOS {
+    try {
+      return Platform.isMacOS;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Whether running on a platform that supports real Bluetooth
+  bool get isPlatformSupported => _isAndroid || _isMacOS;
+
+  /// Check if Bluetooth is available on this platform
+  Future<bool> get isBluetoothAvailable async {
+    if (_isMacOS) {
+      return await BluetoothChannel.instance.isAvailable();
+    }
+    if (_isAndroid) {
+      try {
+        return await FlutterBluetoothSerial.instance.isAvailable ?? false;
+      } catch (e) {
+        debugPrint('Bluetooth not available: $e');
+        return false;
+      }
+    }
+    return false; // Unsupported platform
   }
 
   /// Check if Bluetooth is enabled
   Future<bool> get isBluetoothEnabled async {
-    try {
-      return await FlutterBluetoothSerial.instance.isEnabled ?? false;
-    } catch (e) {
-      return false;
+    if (_isMacOS) {
+      return await BluetoothChannel.instance.isPoweredOn();
     }
+    if (_isAndroid) {
+      try {
+        return await FlutterBluetoothSerial.instance.isEnabled ?? false;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false; // Unsupported platform
   }
 
   /// Request to enable Bluetooth (Android only)
   Future<bool> requestEnableBluetooth() async {
-    try {
-      return await FlutterBluetoothSerial.instance.requestEnable() ?? false;
-    } catch (e) {
-      debugPrint('Failed to request Bluetooth enable: $e');
-      return false;
+    if (_isMacOS) {
+      // macOS: user must enable Bluetooth in System Preferences
+      return await BluetoothChannel.instance.isPoweredOn();
     }
+    if (_isAndroid) {
+      try {
+        return await FlutterBluetoothSerial.instance.requestEnable() ?? false;
+      } catch (e) {
+        debugPrint('Failed to request Bluetooth enable: $e');
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Get list of bonded (paired) DistoX devices
   Future<List<DistoXDevice>> getBondedDevices() async {
-    try {
-      final devices = await FlutterBluetoothSerial.instance.getBondedDevices();
-      return devices
-          .where((d) => _isDistoXDevice(d.name))
-          .map((d) => DistoXDevice(
-                name: d.name ?? 'Unknown',
-                address: d.address,
-                isBonded: d.isBonded,
-              ))
-          .toList();
-    } catch (e) {
-      debugPrint('Failed to get bonded devices: $e');
-      return [];
+    if (_isMacOS) {
+      try {
+        final devices = await BluetoothChannel.instance.getPairedDevices();
+        return devices
+            .where((d) => _isDistoXDevice(d.name))
+            .map((d) => DistoXDevice(
+                  name: d.name,
+                  address: d.address,
+                  isBonded: true,
+                ))
+            .toList();
+      } catch (e) {
+        debugPrint('Failed to get paired devices: $e');
+        return [];
+      }
     }
+    if (_isAndroid) {
+      try {
+        final devices =
+            await FlutterBluetoothSerial.instance.getBondedDevices();
+        return devices
+            .where((d) => _isDistoXDevice(d.name))
+            .map((d) => DistoXDevice(
+                  name: d.name ?? 'Unknown',
+                  address: d.address,
+                  isBonded: d.isBonded,
+                ))
+            .toList();
+      } catch (e) {
+        debugPrint('Failed to get bonded devices: $e');
+        return [];
+      }
+    }
+    return []; // Unsupported platform
   }
 
   /// Start scanning for DistoX devices
   Stream<DistoXDevice> startDiscovery() async* {
-    try {
-      await for (final result
-          in FlutterBluetoothSerial.instance.startDiscovery()) {
-        if (_isDistoXDevice(result.device.name)) {
-          yield DistoXDevice(
-            name: result.device.name ?? 'Unknown',
-            address: result.device.address,
-            isBonded: result.device.isBonded,
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Discovery error: $e');
+    if (_isMacOS) {
+      await BluetoothChannel.instance.startDiscovery();
+      // Note: discovered devices come through method channel callback
+      // For now, we just wait - the UI will update from getPairedDevices
+      return;
     }
+    if (_isAndroid) {
+      try {
+        await for (final result
+            in FlutterBluetoothSerial.instance.startDiscovery()) {
+          if (_isDistoXDevice(result.device.name)) {
+            yield DistoXDevice(
+              name: result.device.name ?? 'Unknown',
+              address: result.device.address,
+              isBonded: result.device.isBonded,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Discovery error: $e');
+      }
+    }
+    // Unsupported platform - no devices to discover
   }
 
   /// Stop scanning
   Future<void> stopDiscovery() async {
-    try {
-      await FlutterBluetoothSerial.instance.cancelDiscovery();
-    } catch (e) {
-      debugPrint('Failed to cancel discovery: $e');
+    if (_isMacOS) {
+      await BluetoothChannel.instance.stopDiscovery();
+      return;
+    }
+    if (_isAndroid) {
+      try {
+        await FlutterBluetoothSerial.instance.cancelDiscovery();
+      } catch (e) {
+        debugPrint('Failed to cancel discovery: $e');
+      }
     }
   }
 
@@ -155,6 +234,8 @@ class DistoXService extends ChangeNotifier {
     notifyListeners();
   }
 
+  StreamSubscription<Uint8List>? _macOSDataSubscription;
+
   /// Connect to a DistoX device
   Future<bool> connect(DistoXDevice device) async {
     if (_connectionState == DistoXConnectionState.connecting ||
@@ -168,6 +249,47 @@ class DistoXService extends ChangeNotifier {
     _selectedDevice = device;
     notifyListeners();
 
+    // macOS: use platform channel
+    if (_isMacOS) {
+      try {
+        final success =
+            await BluetoothChannel.instance.connect(device.address);
+        if (success) {
+          _connectedDevice = device;
+          _connectionState = DistoXConnectionState.connected;
+          _protocol.reset();
+          _buffer.clear();
+
+          // Listen for incoming data from platform channel
+          _macOSDataSubscription =
+              BluetoothChannel.instance.dataStream.listen(_onDataReceived);
+
+          debugPrint('Connected to ${device.name} via macOS');
+          notifyListeners();
+          return true;
+        } else {
+          _lastError = 'Connection failed';
+          _connectionState = DistoXConnectionState.disconnected;
+          notifyListeners();
+          if (_autoReconnect) {
+            _scheduleReconnect();
+          }
+          return false;
+        }
+      } catch (e) {
+        debugPrint('macOS connection failed: $e');
+        _lastError = e.toString();
+        _connectionState = DistoXConnectionState.disconnected;
+        _connectedDevice = null;
+        notifyListeners();
+        if (_autoReconnect) {
+          _scheduleReconnect();
+        }
+        return false;
+      }
+    }
+
+    // Android: use flutter_bluetooth_serial
     try {
       _connection = await BluetoothConnection.toAddress(device.address);
       _connectedDevice = device;
@@ -204,11 +326,17 @@ class DistoXService extends ChangeNotifier {
     _cancelReconnect();
     await _inputSubscription?.cancel();
     _inputSubscription = null;
+    await _macOSDataSubscription?.cancel();
+    _macOSDataSubscription = null;
 
-    try {
-      await _connection?.finish();
-    } catch (e) {
-      debugPrint('Disconnect error: $e');
+    if (_isMacOS) {
+      await BluetoothChannel.instance.disconnect();
+    } else {
+      try {
+        await _connection?.finish();
+      } catch (e) {
+        debugPrint('Disconnect error: $e');
+      }
     }
 
     _connection = null;
@@ -220,6 +348,13 @@ class DistoXService extends ChangeNotifier {
 
   /// Send raw data to device
   Future<void> _send(Uint8List data) async {
+    if (_isMacOS) {
+      final success = await BluetoothChannel.instance.send(data);
+      if (!success) {
+        throw StateError('Send failed');
+      }
+      return;
+    }
     if (_connection == null || !_connection!.isConnected) {
       throw StateError('Not connected');
     }
@@ -234,8 +369,11 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _onDataReceived(Uint8List data) {
+    debugPrint('DistoX: received ${data.length} bytes: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+
     // Add to buffer
     _buffer.addAll(data);
+    debugPrint('DistoX: buffer now has ${_buffer.length} bytes');
 
     // Process complete packets (8 bytes each)
     while (_buffer.length >= 8) {
@@ -243,28 +381,44 @@ class DistoXService extends ChangeNotifier {
       _buffer.removeRange(0, 8);
 
       final type = _protocol.getPacketType(packet);
+      debugPrint('DistoX: packet type = $type (0x${type?.toRadixString(16) ?? "null"})');
       if (type == DistoXPacketType.measurement) {
+        // Always send ACK for measurement packets, even duplicates
+        // DistoX will retry if it doesn't receive ACK
+        final seqBit = (packet[0] >> 7) & 0x01;
+        _send(_protocol.buildAcknowledge(seqBit)).then((_) {
+          debugPrint('Sent ACK for seq bit $seqBit');
+        }).catchError((e) {
+          debugPrint('Failed to send ack: $e');
+        });
+
         try {
           final measurement = _protocol.parseMeasurementPacket(packet);
           if (measurement != null) {
-            // Send acknowledge
-            _acknowledge(measurement).catchError((e) {
-              debugPrint('Failed to send ack: $e');
-            });
-
-            // Notify listeners
+            // Notify listeners (only for non-duplicate measurements)
             debugPrint('Received: $measurement');
             onMeasurement?.call(measurement);
+          } else {
+            debugPrint('Duplicate packet ignored (seq bit $seqBit)');
           }
         } catch (e) {
           debugPrint('Failed to parse measurement: $e');
         }
       } else if (type == DistoXPacketType.calibrationAccel ||
-          type == DistoXPacketType.calibrationMag) {
-        // Calibration packets - acknowledge but ignore for now
+          type == DistoXPacketType.calibrationMag ||
+          type == DistoXPacketType.vector) {
+        // Calibration/vector packets - acknowledge but ignore for now
         final seqBit = (packet[0] >> 7) & 0x01;
+        debugPrint('DistoX: ACKing type $type packet (seq bit $seqBit)');
         _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
-          debugPrint('Failed to send calibration ack: $e');
+          debugPrint('Failed to send ack for type $type: $e');
+        });
+      } else {
+        // Unknown packet type - still acknowledge to avoid blocking
+        final seqBit = (packet[0] >> 7) & 0x01;
+        debugPrint('DistoX: Unknown packet type $type, ACKing anyway (seq bit $seqBit)');
+        _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
+          debugPrint('Failed to send ack for unknown type: $e');
         });
       }
     }
@@ -319,6 +473,7 @@ class DistoXService extends ChangeNotifier {
   void dispose() {
     _cancelReconnect();
     _inputSubscription?.cancel();
+    _macOSDataSubscription?.cancel();
     _connection?.dispose();
     super.dispose();
   }

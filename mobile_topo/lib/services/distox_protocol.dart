@@ -1,19 +1,34 @@
 import 'dart:typed_data';
 
-/// Packet types from DistoX protocol
+/// Packet types from DistoX2 protocol (InsideDistoX2.txt)
 class DistoXPacketType {
+  /// Measurement data: distance, azimuth, inclination, roll high byte
   static const int measurement = 0x01;
+
+  /// Calibration acceleration sensor data
   static const int calibrationAccel = 0x02;
+
+  /// Calibration magnetic field sensor data
   static const int calibrationMag = 0x03;
+
+  /// Vector data: absG, absM, dip angle, roll low byte
+  /// Sent after measurement packet for quality checking
+  static const int vector = 0x04;
+
+  /// Memory read reply
   static const int memoryReply = 0x38;
 }
 
-/// Commands that can be sent to DistoX
+/// Commands that can be sent to DistoX2 (InsideDistoX2.txt)
 class DistoXCommand {
-  static const int startCalibration = 0x31;
-  static const int stopCalibration = 0x30;
-  static const int startSilentMode = 0x33;
+  static const int stopCalibration = 0x31;
+  static const int startCalibration = 0x30;
   static const int stopSilentMode = 0x32;
+  static const int startSilentMode = 0x33;
+  static const int powerOff = 0x34; // v2.3+
+  static const int triggerMeasurement = 0x35; // v2.3+
+  static const int laserOn = 0x36; // v2.3+
+  static const int laserOff = 0x37; // v2.3+
   static const int readMemory = 0x38;
   static const int writeMemory = 0x39;
 }

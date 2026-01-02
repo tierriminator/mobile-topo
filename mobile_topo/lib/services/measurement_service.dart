@@ -112,15 +112,20 @@ class MeasurementService extends ChangeNotifier {
       timestamp: DateTime.now(),
     );
 
+    debugPrint('MeasurementService: addMeasurement called, smartMode=${_settings.smartModeEnabled}, isStretch=$isStretch');
+
     if (_settings.smartModeEnabled) {
       // Use smart mode detection
       if (isStretch) {
+        debugPrint('MeasurementService: adding to stretch detector, pending=${_stretchDetector!.pendingCount}');
         _stretchDetector!.addMeasurement(raw);
+        debugPrint('MeasurementService: after add, pending=${_stretchDetector!.pendingCount}');
       } else {
         _crossSectionDetector!.addMeasurement(raw);
       }
     } else {
       // No smart mode - add measurement directly
+      debugPrint('MeasurementService: emitting directly (no smart mode)');
       if (isStretch) {
         _emitStretch(distance, azimuth, inclination);
       } else {
@@ -136,6 +141,7 @@ class MeasurementService extends ChangeNotifier {
   }
 
   void _onStretchDetected(DetectedShot shot) {
+    debugPrint('MeasurementService: _onStretchDetected called, type=${shot.type}');
     if (shot.type == ShotType.surveyShot) {
       // Triple detected - this is a confirmed survey shot
       _emitStretch(shot.distance, shot.azimuth, shot.inclination);
@@ -146,6 +152,7 @@ class MeasurementService extends ChangeNotifier {
   }
 
   void _emitCrossSection(double distance, double azimuth, double inclination) {
+    debugPrint('MeasurementService: _emitCrossSection called');
     // Cross-section: From station with empty To (Point(0,0) means empty)
     final crossSection = MeasuredDistance(
       _currentStation,
@@ -154,10 +161,12 @@ class MeasurementService extends ChangeNotifier {
       azimuth,
       inclination,
     );
+    debugPrint('MeasurementService: calling onCrossSectionReady (${onCrossSectionReady != null})');
     onCrossSectionReady?.call(crossSection);
   }
 
   void _emitStretch(double distance, double azimuth, double inclination) {
+    debugPrint('MeasurementService: _emitStretch called');
     Point from = _currentStation;
     Point to = _nextStation;
 
@@ -176,6 +185,7 @@ class MeasurementService extends ChangeNotifier {
       inclination,
     );
 
+    debugPrint('MeasurementService: calling onStretchReady (${onStretchReady != null}), stretch=$stretch');
     onStretchReady?.call(stretch);
 
     // Advance to next station

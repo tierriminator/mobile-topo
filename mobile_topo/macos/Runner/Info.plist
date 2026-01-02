@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Mobile Topo needs Bluetooth to connect to DistoX cave surveying devices.</string>
 </dict>
 </plist>
