@@ -617,12 +617,6 @@ abstract class AppLocalizations {
   /// **'About Mobile Topo'**
   String get optionsAbout;
 
-  /// Button/dialog title for adding a measurement
-  ///
-  /// In en, this message translates to:
-  /// **'Add Measurement'**
-  String get addMeasurement;
-
   /// Label for a survey stretch (From→To measurement)
   ///
   /// In en, this message translates to:

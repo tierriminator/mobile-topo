@@ -362,10 +362,6 @@
   "@optionsAbout": {
     "description": "Label for about screen"
   },
-  "addMeasurement": "Add Measurement",
-  "@addMeasurement": {
-    "description": "Button/dialog title for adding a measurement"
-  },
   "stretch": "Stretch",
   "@stretch": {
     "description": "Label for a survey stretch (From→To measurement)"

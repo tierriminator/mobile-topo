@@ -280,9 +280,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get optionsAbout => 'About Mobile Topo';
 
   @override
-  String get addMeasurement => 'Add Measurement';
-
-  @override
   String get stretch => 'Stretch';
 
   @override
