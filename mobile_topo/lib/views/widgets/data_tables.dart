@@ -123,6 +123,7 @@ class StretchesTableState extends State<StretchesTable> {
           2,
           _NumberCell(
             value: stretch.distance,
+            decimalPlaces: 2,
             isEditing: _editingRow == index && _editingCol == 2,
             onChanged: (v) => _updateStretch(index, stretch, distance: v),
             onEditingComplete: _clearEditing,
@@ -134,6 +135,7 @@ class StretchesTableState extends State<StretchesTable> {
           3,
           _NumberCell(
             value: stretch.azimut,
+            decimalPlaces: 0,
             isEditing: _editingRow == index && _editingCol == 3,
             onChanged: (v) => _updateStretch(index, stretch, azimut: v),
             onEditingComplete: _clearEditing,
@@ -146,6 +148,7 @@ class StretchesTableState extends State<StretchesTable> {
           _NumberCell(
             value: stretch.inclination,
             signed: true,
+            decimalPlaces: 0,
             isEditing: _editingRow == index && _editingCol == 4,
             onChanged: (v) => _updateStretch(index, stretch, inclination: v),
             onEditingComplete: _clearEditing,
@@ -322,6 +325,7 @@ class _PointCellState extends State<_PointCell> {
 class _NumberCell extends StatefulWidget {
   final num value;
   final bool signed;
+  final int? decimalPlaces;
   final bool isEditing;
   final void Function(num)? onChanged;
   final VoidCallback? onEditingComplete;
@@ -329,6 +333,7 @@ class _NumberCell extends StatefulWidget {
   const _NumberCell({
     required this.value,
     this.signed = false,
+    this.decimalPlaces,
     this.isEditing = false,
     this.onChanged,
     this.onEditingComplete,
@@ -368,6 +373,10 @@ class _NumberCellState extends State<_NumberCell> {
   }
 
   String _formatValue(num value) {
+    final decimals = widget.decimalPlaces;
+    if (decimals != null) {
+      return value.toDouble().toStringAsFixed(decimals);
+    }
     if (value == value.toInt()) {
       return value.toInt().toString();
     }
