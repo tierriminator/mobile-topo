@@ -23,16 +23,9 @@ void main() async {
   final settingsController = SettingsController(settings);
 
   // Create DistoX and Measurement services
-  final distoXService = DistoXService();
+  final distoXService = DistoXService(settingsController);
   final measurementService = MeasurementService(settingsController);
   measurementService.connectDistoX(distoXService);
-
-  // Wire up DistoXService to use SettingsController for autoReconnect
-  distoXService.getAutoReconnect = () => settingsController.autoConnect;
-  distoXService.setAutoReconnectCallback = (value) {
-    settingsController.autoConnect = value;
-    settingsRepository.save(settingsController.settings);
-  };
 
   // Set up callback to save device address on successful connection
   distoXService.onConnectionSuccess = (device) {

@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
+import '../controllers/settings_controller.dart';
 import 'bluetooth_channel.dart';
 import 'distox_protocol.dart';
 
@@ -48,6 +49,7 @@ class DistoXDevice {
 ///
 /// Supported platforms: Android (flutter_bluetooth_serial), macOS (IOBluetooth).
 class DistoXService extends ChangeNotifier {
+  final SettingsController _settings;
   final DistoXProtocol _protocol = DistoXProtocol();
 
   BluetoothConnection? _connection;
@@ -59,12 +61,6 @@ class DistoXService extends ChangeNotifier {
   DistoXDevice? _selectedDevice;
   String? _lastError;
 
-  /// Callback to check if auto-reconnect is enabled (reads from settings)
-  bool Function()? getAutoReconnect;
-
-  /// Callback to set auto-reconnect (writes to settings)
-  void Function(bool value)? setAutoReconnectCallback;
-
   // Buffer for incomplete packets
   final List<int> _buffer = [];
 
@@ -72,11 +68,13 @@ class DistoXService extends ChangeNotifier {
   void Function(DistoXMeasurement measurement)? onMeasurement;
   void Function(DistoXDevice device)? onConnectionSuccess;
 
+  DistoXService(this._settings);
+
   DistoXConnectionState get connectionState => _connectionState;
   DistoXDevice? get connectedDevice => _connectedDevice;
   DistoXDevice? get selectedDevice => _selectedDevice;
   String? get lastError => _lastError;
-  bool get autoReconnect => getAutoReconnect?.call() ?? false;
+  bool get autoReconnect => _settings.autoConnect;
   bool get isConnected => _connectionState == DistoXConnectionState.connected;
 
   /// Whether running on Android (uses flutter_bluetooth_serial)
@@ -283,7 +281,7 @@ class DistoXService extends ChangeNotifier {
 
   /// Set auto-reconnect option
   void setAutoReconnect(bool value) {
-    setAutoReconnectCallback?.call(value);
+    _settings.autoConnect = value;
     notifyListeners();
   }
 

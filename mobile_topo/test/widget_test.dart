@@ -28,7 +28,7 @@ class MockSettingsRepository extends SettingsRepository {
 void main() {
   Widget createTestApp() {
     final settingsController = SettingsController();
-    final distoXService = DistoXService();
+    final distoXService = DistoXService(settingsController);
     final measurementService = MeasurementService(settingsController);
     measurementService.connectDistoX(distoXService);
 

@@ -38,6 +38,7 @@ class OptionsView extends StatelessWidget {
             value: distoX.autoReconnect,
             onChanged: (value) {
               distoX.setAutoReconnect(value);
+              _saveSettings(context);
             },
           ),
 
