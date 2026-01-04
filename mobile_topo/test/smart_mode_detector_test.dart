@@ -51,8 +51,7 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result, isNotNull);
-        expect(result!.type, ShotType.surveyShot);
+        expect(result.type, ShotType.surveyShot);
       });
 
       test('rejects shots exceeding distance threshold (>= 5cm)', () {
@@ -81,8 +80,7 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result, isNotNull);
-        expect(result!.type, ShotType.surveyShot);
+        expect(result.type, ShotType.surveyShot);
       });
 
       test('rejects shots exceeding angular threshold (>= 1.7 degrees)', () {
@@ -126,7 +124,7 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result!.distance, closeTo(10.02, 0.001));
+        expect(result.distance, closeTo(10.02, 0.001));
       });
 
       test('averages direction for survey shots', () {
@@ -140,7 +138,7 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result!.type, ShotType.surveyShot);
+        expect(result.type, ShotType.surveyShot);
         expect(result.azimuth, closeTo(45.0, 0.1));
       });
 
@@ -154,7 +152,7 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result!.type, ShotType.surveyShot);
+        expect(result.type, ShotType.surveyShot);
         // Average should be around 0
         expect(result.azimuth, anyOf(closeTo(0.0, 1.0), closeTo(360.0, 1.0)));
       });
