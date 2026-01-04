@@ -3,29 +3,25 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/survey.dart';
 
-class StretchesTable extends StatefulWidget {
-  final List<MeasuredDistance> data;
+/// Base class for editable data tables with sticky headers.
+abstract class EditableDataTable<T> extends StatefulWidget {
+  final List<T> data;
   final void Function(int index)? onInsertAbove;
   final void Function(int index)? onInsertBelow;
   final void Function(int index)? onDelete;
-  final void Function(int index, MeasuredDistance stretch)? onUpdate;
-  final void Function(Point station)? onStartHere;
 
-  const StretchesTable({
+  const EditableDataTable({
     super.key,
     required this.data,
     this.onInsertAbove,
     this.onInsertBelow,
     this.onDelete,
-    this.onUpdate,
-    this.onStartHere,
   });
-
-  @override
-  StretchesTableState createState() => StretchesTableState();
 }
 
-class StretchesTableState extends State<StretchesTable> {
+/// Base state class for editable data tables.
+abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
+    extends State<W> {
   int? _selectedIndex;
   int? _editingRow;
   int? _editingCol;
@@ -38,23 +34,6 @@ class StretchesTableState extends State<StretchesTable> {
     });
   }
 
-  void _updateStretch(int index, MeasuredDistance current, {
-    Point? from,
-    Point? to,
-    num? distance,
-    num? azimut,
-    num? inclination,
-  }) {
-    final updated = MeasuredDistance(
-      from ?? current.from,
-      to ?? current.to,
-      distance ?? current.distance,
-      azimut ?? current.azimut,
-      inclination ?? current.inclination,
-    );
-    widget.onUpdate?.call(index, updated);
-  }
-
   void _clearEditing() {
     setState(() {
       _editingRow = null;
@@ -62,9 +41,23 @@ class StretchesTableState extends State<StretchesTable> {
     });
   }
 
+  /// Build the header cells for this table.
+  List<Widget> buildHeaderCells(AppLocalizations l10n);
+
+  /// Build a data row for the given index and item.
+  List<Widget> buildDataCells(int index, T item);
+
+  /// Build context menu items for the given row.
+  List<PopupMenuEntry<String>> buildContextMenuItems(
+      AppLocalizations l10n, int index, T item);
+
+  /// Handle context menu selection.
+  void handleContextMenuSelection(String? value, int index, T item);
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final headerCells = buildHeaderCells(l10n);
 
     return Column(
       children: [
@@ -75,13 +68,9 @@ class StretchesTableState extends State<StretchesTable> {
           ),
           children: [
             TableRow(
-              children: [
-                TableCell(child: _HeaderCell(text: l10n.columnFrom)),
-                TableCell(child: _HeaderCell(text: l10n.columnTo)),
-                TableCell(child: _HeaderCell(text: l10n.columnDistance)),
-                TableCell(child: _HeaderCell(text: l10n.columnAzimuth)),
-                TableCell(child: _HeaderCell(text: l10n.columnInclination)),
-              ],
+              children: headerCells
+                  .map((cell) => TableCell(child: cell))
+                  .toList(),
             ),
           ],
         ),
@@ -96,7 +85,7 @@ class StretchesTableState extends State<StretchesTable> {
               ),
               children: [
                 for (var i = 0; i < widget.data.length; i++)
-                  _buildRow(context, i, widget.data[i]),
+                  _buildRow(context, l10n, i, widget.data[i]),
               ],
             ),
           ),
@@ -107,93 +96,38 @@ class StretchesTableState extends State<StretchesTable> {
 
   TableRow _buildRow(
     BuildContext context,
+    AppLocalizations l10n,
     int index,
-    MeasuredDistance stretch,
+    T item,
   ) {
     final isSelected = index == _selectedIndex;
     final decoration = isSelected
-        ? BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5))
+        ? BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .primaryContainer
+                .withValues(alpha: 0.5))
         : null;
+
+    final cells = buildDataCells(index, item);
 
     return TableRow(
       decoration: decoration,
       children: [
-        _wrapCell(
-          context,
-          index,
-          stretch,
-          0,
-          _PointCell(
-            point: stretch.from,
-            isEditing: _editingRow == index && _editingCol == 0,
-            onChanged: (p) => _updateStretch(index, stretch, from: p),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          stretch,
-          1,
-          _PointCell(
-            point: stretch.to,
-            isEditing: _editingRow == index && _editingCol == 1,
-            onChanged: (p) => _updateStretch(index, stretch, to: p),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          stretch,
-          2,
-          _NumberCell(
-            value: stretch.distance,
-            decimalPlaces: 2,
-            isEditing: _editingRow == index && _editingCol == 2,
-            onChanged: (v) => _updateStretch(index, stretch, distance: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          stretch,
-          3,
-          _NumberCell(
-            value: stretch.azimut,
-            decimalPlaces: 0,
-            isEditing: _editingRow == index && _editingCol == 3,
-            onChanged: (v) => _updateStretch(index, stretch, azimut: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          stretch,
-          4,
-          _NumberCell(
-            value: stretch.inclination,
-            signed: true,
-            decimalPlaces: 0,
-            isEditing: _editingRow == index && _editingCol == 4,
-            onChanged: (v) => _updateStretch(index, stretch, inclination: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
+        for (var col = 0; col < cells.length; col++)
+          _wrapCell(context, l10n, index, col, item, cells[col]),
       ],
     );
   }
 
   TableCell _wrapCell(
     BuildContext context,
+    AppLocalizations l10n,
     int row,
-    MeasuredDistance stretch,
     int col,
+    T item,
     Widget child,
   ) {
-    final l10n = AppLocalizations.of(context)!;
     return TableCell(
       child: Listener(
         behavior: HitTestBehavior.opaque,
@@ -218,39 +152,263 @@ class StretchesTableState extends State<StretchesTable> {
                 details.globalPosition.dx,
                 details.globalPosition.dy,
               ),
-              items: [
-                PopupMenuItem(
-                  value: 'startHere',
-                  child: Text(l10n.startHere),
-                ),
-                PopupMenuItem(
-                  value: 'insertAbove',
-                  child: Text(l10n.insertAbove),
-                ),
-                PopupMenuItem(
-                  value: 'insertBelow',
-                  child: Text(l10n.insertBelow),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text(l10n.explorerDelete),
-                ),
-              ],
-            ).then((value) {
-              switch (value) {
-                case 'startHere':
-                  widget.onStartHere?.call(stretch.from);
-                case 'insertAbove':
-                  widget.onInsertAbove?.call(row);
-                case 'insertBelow':
-                  widget.onInsertBelow?.call(row);
-                case 'delete':
-                  widget.onDelete?.call(row);
-              }
-            });
+              items: buildContextMenuItems(l10n, row, item),
+            ).then((value) => handleContextMenuSelection(value, row, item));
           },
           child: child,
         ),
+      ),
+    );
+  }
+
+  bool isEditing(int row, int col) => _editingRow == row && _editingCol == col;
+}
+
+// =============================================================================
+// StretchesTable
+// =============================================================================
+
+class StretchesTable extends EditableDataTable<MeasuredDistance> {
+  final void Function(int index, MeasuredDistance stretch)? onUpdate;
+  final void Function(Point station)? onStartHere;
+
+  const StretchesTable({
+    super.key,
+    required super.data,
+    super.onInsertAbove,
+    super.onInsertBelow,
+    super.onDelete,
+    this.onUpdate,
+    this.onStartHere,
+  });
+
+  @override
+  StretchesTableState createState() => StretchesTableState();
+}
+
+class StretchesTableState
+    extends EditableDataTableState<MeasuredDistance, StretchesTable> {
+  void _updateStretch(
+    int index,
+    MeasuredDistance current, {
+    Point? from,
+    Point? to,
+    num? distance,
+    num? azimut,
+    num? inclination,
+  }) {
+    final updated = MeasuredDistance(
+      from ?? current.from,
+      to ?? current.to,
+      distance ?? current.distance,
+      azimut ?? current.azimut,
+      inclination ?? current.inclination,
+    );
+    widget.onUpdate?.call(index, updated);
+  }
+
+  @override
+  List<Widget> buildHeaderCells(AppLocalizations l10n) {
+    return [
+      _HeaderCell(text: l10n.columnFrom),
+      _HeaderCell(text: l10n.columnTo),
+      _HeaderCell(text: l10n.columnDistance),
+      _HeaderCell(text: l10n.columnAzimuth),
+      _HeaderCell(text: l10n.columnInclination),
+    ];
+  }
+
+  @override
+  List<Widget> buildDataCells(int index, MeasuredDistance stretch) {
+    return [
+      _PointCell(
+        point: stretch.from,
+        isEditing: isEditing(index, 0),
+        onChanged: (p) => _updateStretch(index, stretch, from: p),
+        onEditingComplete: _clearEditing,
+      ),
+      _PointCell(
+        point: stretch.to,
+        isEditing: isEditing(index, 1),
+        onChanged: (p) => _updateStretch(index, stretch, to: p),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: stretch.distance,
+        decimalPlaces: 2,
+        isEditing: isEditing(index, 2),
+        onChanged: (v) => _updateStretch(index, stretch, distance: v),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: stretch.azimut,
+        decimalPlaces: 0,
+        isEditing: isEditing(index, 3),
+        onChanged: (v) => _updateStretch(index, stretch, azimut: v),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: stretch.inclination,
+        signed: true,
+        decimalPlaces: 0,
+        isEditing: isEditing(index, 4),
+        onChanged: (v) => _updateStretch(index, stretch, inclination: v),
+        onEditingComplete: _clearEditing,
+      ),
+    ];
+  }
+
+  @override
+  List<PopupMenuEntry<String>> buildContextMenuItems(
+      AppLocalizations l10n, int index, MeasuredDistance item) {
+    return [
+      PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
+      PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
+      PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
+      PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+    ];
+  }
+
+  @override
+  void handleContextMenuSelection(
+      String? value, int index, MeasuredDistance item) {
+    switch (value) {
+      case 'startHere':
+        widget.onStartHere?.call(item.from);
+      case 'insertAbove':
+        widget.onInsertAbove?.call(index);
+      case 'insertBelow':
+        widget.onInsertBelow?.call(index);
+      case 'delete':
+        widget.onDelete?.call(index);
+    }
+  }
+}
+
+// =============================================================================
+// ReferencePointsTable
+// =============================================================================
+
+class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
+  final void Function(int index, ReferencePoint point)? onUpdate;
+
+  const ReferencePointsTable({
+    super.key,
+    required super.data,
+    super.onInsertAbove,
+    super.onInsertBelow,
+    super.onDelete,
+    this.onUpdate,
+  });
+
+  @override
+  ReferencePointsTableState createState() => ReferencePointsTableState();
+}
+
+class ReferencePointsTableState
+    extends EditableDataTableState<ReferencePoint, ReferencePointsTable> {
+  void _updatePoint(
+    int index,
+    ReferencePoint current, {
+    Point? id,
+    num? east,
+    num? north,
+    num? altitude,
+  }) {
+    final updated = ReferencePoint(
+      id ?? current.id,
+      east ?? current.east,
+      north ?? current.north,
+      altitude ?? current.altitude,
+    );
+    widget.onUpdate?.call(index, updated);
+  }
+
+  @override
+  List<Widget> buildHeaderCells(AppLocalizations l10n) {
+    return [
+      _HeaderCell(text: l10n.columnId),
+      _HeaderCell(text: l10n.columnEast),
+      _HeaderCell(text: l10n.columnNorth),
+      _HeaderCell(text: l10n.columnAltitude),
+    ];
+  }
+
+  @override
+  List<Widget> buildDataCells(int index, ReferencePoint point) {
+    return [
+      _PointCell(
+        point: point.id,
+        isEditing: isEditing(index, 0),
+        onChanged: (p) => _updatePoint(index, point, id: p),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: point.east,
+        signed: true,
+        isEditing: isEditing(index, 1),
+        onChanged: (v) => _updatePoint(index, point, east: v),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: point.north,
+        signed: true,
+        isEditing: isEditing(index, 2),
+        onChanged: (v) => _updatePoint(index, point, north: v),
+        onEditingComplete: _clearEditing,
+      ),
+      _NumberCell(
+        value: point.altitude,
+        signed: true,
+        isEditing: isEditing(index, 3),
+        onChanged: (v) => _updatePoint(index, point, altitude: v),
+        onEditingComplete: _clearEditing,
+      ),
+    ];
+  }
+
+  @override
+  List<PopupMenuEntry<String>> buildContextMenuItems(
+      AppLocalizations l10n, int index, ReferencePoint item) {
+    return [
+      PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
+      PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
+      PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+    ];
+  }
+
+  @override
+  void handleContextMenuSelection(
+      String? value, int index, ReferencePoint item) {
+    switch (value) {
+      case 'insertAbove':
+        widget.onInsertAbove?.call(index);
+      case 'insertBelow':
+        widget.onInsertBelow?.call(index);
+      case 'delete':
+        widget.onDelete?.call(index);
+    }
+  }
+}
+
+// =============================================================================
+// Cell Widgets
+// =============================================================================
+
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -493,242 +651,3 @@ class _NumberCellState extends State<_NumberCell> {
     );
   }
 }
-
-class ReferencePointsTable extends StatefulWidget {
-  final List<ReferencePoint> data;
-  final void Function(int index)? onInsertAbove;
-  final void Function(int index)? onInsertBelow;
-  final void Function(int index)? onDelete;
-  final void Function(int index, ReferencePoint point)? onUpdate;
-
-  const ReferencePointsTable({
-    super.key,
-    required this.data,
-    this.onInsertAbove,
-    this.onInsertBelow,
-    this.onDelete,
-    this.onUpdate,
-  });
-
-  @override
-  ReferencePointsTableState createState() => ReferencePointsTableState();
-}
-
-class ReferencePointsTableState extends State<ReferencePointsTable> {
-  int? _selectedIndex;
-  int? _editingRow;
-  int? _editingCol;
-
-  void clearSelection() {
-    setState(() {
-      _selectedIndex = null;
-      _editingRow = null;
-      _editingCol = null;
-    });
-  }
-
-  void _updatePoint(int index, ReferencePoint current, {
-    Point? id,
-    num? east,
-    num? north,
-    num? altitude,
-  }) {
-    final updated = ReferencePoint(
-      id ?? current.id,
-      east ?? current.east,
-      north ?? current.north,
-      altitude ?? current.altitude,
-    );
-    widget.onUpdate?.call(index, updated);
-  }
-
-  void _clearEditing() {
-    setState(() {
-      _editingRow = null;
-      _editingCol = null;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Column(
-      children: [
-        // Sticky header
-        Table(
-          border: const TableBorder(
-            verticalInside: BorderSide(),
-          ),
-          children: [
-            TableRow(
-              children: [
-                TableCell(child: _HeaderCell(text: l10n.columnId)),
-                TableCell(child: _HeaderCell(text: l10n.columnEast)),
-                TableCell(child: _HeaderCell(text: l10n.columnNorth)),
-                TableCell(child: _HeaderCell(text: l10n.columnAltitude)),
-              ],
-            ),
-          ],
-        ),
-        const Divider(height: 1, thickness: 1),
-        // Scrollable data rows
-        Expanded(
-          child: SingleChildScrollView(
-            child: Table(
-              border: const TableBorder(
-                verticalInside: BorderSide(),
-                horizontalInside: BorderSide(),
-              ),
-              children: [
-                for (var i = 0; i < widget.data.length; i++)
-                  _buildRow(context, i, widget.data[i]),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  TableRow _buildRow(
-    BuildContext context,
-    int index,
-    ReferencePoint point,
-  ) {
-    final isSelected = index == _selectedIndex;
-    final decoration = isSelected
-        ? BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5))
-        : null;
-
-    return TableRow(
-      decoration: decoration,
-      children: [
-        _wrapCell(
-          context,
-          index,
-          0,
-          _PointCell(
-            point: point.id,
-            isEditing: _editingRow == index && _editingCol == 0,
-            onChanged: (p) => _updatePoint(index, point, id: p),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          1,
-          _NumberCell(
-            value: point.east,
-            signed: true,
-            isEditing: _editingRow == index && _editingCol == 1,
-            onChanged: (v) => _updatePoint(index, point, east: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          2,
-          _NumberCell(
-            value: point.north,
-            signed: true,
-            isEditing: _editingRow == index && _editingCol == 2,
-            onChanged: (v) => _updatePoint(index, point, north: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-        _wrapCell(
-          context,
-          index,
-          3,
-          _NumberCell(
-            value: point.altitude,
-            signed: true,
-            isEditing: _editingRow == index && _editingCol == 3,
-            onChanged: (v) => _updatePoint(index, point, altitude: v),
-            onEditingComplete: _clearEditing,
-          ),
-        ),
-      ],
-    );
-  }
-
-  TableCell _wrapCell(BuildContext context, int row, int col, Widget child) {
-    final l10n = AppLocalizations.of(context)!;
-    return TableCell(
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) {
-          setState(() {
-            _selectedIndex = _selectedIndex == row ? null : row;
-          });
-        },
-        child: GestureDetector(
-          onDoubleTap: () {
-            setState(() {
-              _editingRow = row;
-              _editingCol = col;
-            });
-          },
-          onLongPressStart: (details) {
-            showMenu(
-              context: context,
-              position: RelativeRect.fromLTRB(
-                details.globalPosition.dx,
-                details.globalPosition.dy,
-                details.globalPosition.dx,
-                details.globalPosition.dy,
-              ),
-              items: [
-                PopupMenuItem(
-                  value: 'insertAbove',
-                  child: Text(l10n.insertAbove),
-                ),
-                PopupMenuItem(
-                  value: 'insertBelow',
-                  child: Text(l10n.insertBelow),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text(l10n.explorerDelete),
-                ),
-              ],
-            ).then((value) {
-              switch (value) {
-                case 'insertAbove':
-                  widget.onInsertAbove?.call(row);
-                case 'insertBelow':
-                  widget.onInsertBelow?.call(row);
-                case 'delete':
-                  widget.onDelete?.call(row);
-              }
-            });
-          },
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderCell extends StatelessWidget {
-  const _HeaderCell({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-    );
-  }
-}
-
