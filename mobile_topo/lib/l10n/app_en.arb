@@ -382,13 +382,6 @@
   "@station": {
     "description": "Label for current station"
   },
-  "pending": "{count} pending",
-  "@pending": {
-    "description": "Shows number of pending measurements",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
   "bluetoothNotAvailable": "Bluetooth is not available on this device",
   "@bluetoothNotAvailable": {
     "description": "Error message when Bluetooth is not available"

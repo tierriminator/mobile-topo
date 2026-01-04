@@ -392,27 +392,6 @@ class _DataViewState extends State<DataView> {
                 '${l10n.station}: ${measurementService.currentStation}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              if (measurementService.pendingStretches > 0 ||
-                  measurementService.pendingCrossSections > 0) ...[
-                const SizedBox(width: 16),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    l10n.pending(measurementService.pendingStretches +
-                        measurementService.pendingCrossSections),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                  ),
-                ),
-              ],
-              const Spacer(),
             ],
           ),
         ),

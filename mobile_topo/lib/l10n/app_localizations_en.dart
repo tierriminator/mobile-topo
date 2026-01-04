@@ -295,11 +295,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get station => 'Station';
 
   @override
-  String pending(int count) {
-    return '$count pending';
-  }
-
-  @override
   String get bluetoothNotAvailable =>
       'Bluetooth is not available on this device';
 

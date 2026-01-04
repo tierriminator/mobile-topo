@@ -647,12 +647,6 @@ abstract class AppLocalizations {
   /// **'Station'**
   String get station;
 
-  /// Shows number of pending measurements
-  ///
-  /// In en, this message translates to:
-  /// **'{count} pending'**
-  String pending(int count);
-
   /// Error message when Bluetooth is not available
   ///
   /// In en, this message translates to:
