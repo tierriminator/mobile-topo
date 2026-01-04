@@ -65,6 +65,7 @@ Flutter application for cave surveying using MVC architecture.
 lib/
 ├── models/           # Domain models (pure data classes)
 ├── controllers/      # State management
+├── services/         # Business logic and external device communication
 ├── data/             # Data persistence layer
 ├── views/            # UI layer
 │   └── widgets/      # Reusable UI components
@@ -96,12 +97,50 @@ Pure domain objects without serialization logic:
 
 - **`explorer_path.dart`**: Navigation path helper for cave hierarchy
 
+- **`settings.dart`**: App settings
+  - `Settings`: Configuration options (smart mode, shot direction, units, etc.)
+  - `LengthUnit`, `AngleUnit`, `ShotDirection`: Enums for measurement preferences
+
 ### Controllers (`lib/controllers/`)
 
 State management classes using `ChangeNotifier`:
 
 - **`selection_state.dart`**: Tracks currently selected section across views
 - **`explorer_state.dart`**: Holds all caves and current navigation path
+- **`settings_controller.dart`**: App settings state with change notification
+- **`history.dart`**: Generic undo/redo stack for any type (max 50 items)
+
+### Services (`lib/services/`)
+
+Business logic and external device communication:
+
+- **`distox_service.dart`**: DistoX Bluetooth connection management
+  - `DistoXService`: Handles discovery, connection, auto-reconnect
+  - `DistoXDevice`: Represents a discovered DistoX device
+  - `DistoXConnectionState`: Connection state enum
+  - Supports Android (flutter_bluetooth_serial) and macOS (platform channel)
+
+- **`distox_protocol.dart`**: DistoX binary protocol implementation
+  - `DistoXProtocol`: Parses 8-byte measurement packets, builds commands
+  - `DistoXMeasurement`: Parsed measurement (distance, azimuth, inclination)
+  - `DistoXPacketType`, `DistoXCommand`: Protocol constants
+  - Handles sequence bit tracking and duplicate detection
+
+- **`bluetooth_channel.dart`**: Platform channel for macOS Bluetooth
+  - `BluetoothChannel`: Method/event channel interface to native code
+  - Used when flutter_bluetooth_serial is unavailable
+
+- **`measurement_service.dart`**: Measurement processing and smart mode
+  - `MeasurementService`: Routes DistoX measurements to survey data
+  - Manages current/next station tracking
+  - Applies smart mode detection via SmartModeDetector
+
+- **`smart_mode_detector.dart`**: Smart mode triple detection
+  - `SmartModeDetector`: Detects 3 nearly identical measurements
+  - `RawMeasurement`: Input measurement with timestamp
+  - `DetectedShot`: Output shot (splay or survey shot)
+  - Thresholds: distance <0.05m, angular difference <1.7°
+  - Emits each measurement immediately, then notifies when triple detected
 
 ### Data Layer (`lib/data/`)
 
@@ -112,6 +151,7 @@ Persistence and serialization:
 - **`cave_file.dart`**: JSON serialization for cave metadata
 - **`section_file.dart`**: JSON serialization for section data
 - **`sketch_serialization.dart`**: Binary serialization for sketches
+- **`settings_repository.dart`**: SharedPreferences-based settings persistence
 
 **File structure on disk:**
 ```
@@ -129,11 +169,11 @@ caves/
 
 UI widgets:
 
-- **`data_view.dart`**: Table of stretches and reference points
+- **`data_view.dart`**: Table of stretches and reference points, handles DistoX measurements
 - **`map_view.dart`**: 2D overview of survey with pan/zoom
 - **`sketch_view.dart`**: Drawing canvas with outline/side view toggle
 - **`explorer_view.dart`**: Cave/section browser
-- **`options_view.dart`**: Settings (placeholder)
+- **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
 
 ### Localization (`lib/l10n/`)
@@ -151,7 +191,11 @@ Uses the `provider` package for dependency injection:
 MultiProvider(
   providers: [
     ChangeNotifierProvider(create: (_) => SelectionState()),
+    ChangeNotifierProvider.value(value: settingsController),
+    ChangeNotifierProvider.value(value: distoXService),
+    ChangeNotifierProvider.value(value: measurementService),
     Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
+    Provider<SettingsRepository>(create: (_) => settingsRepository),
   ],
   child: const MyApp(),
 )
@@ -159,6 +203,8 @@ MultiProvider(
 
 Access in views:
 - `context.watch<SelectionState>()` - Listen and rebuild on changes
+- `context.watch<DistoXService>()` - Listen to connection state changes
+- `context.read<MeasurementService>()` - Set up measurement callbacks
 - `context.read<CaveRepository>()` - One-time access without rebuilding
 
 ### Key Patterns
