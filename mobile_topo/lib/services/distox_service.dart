@@ -65,6 +65,7 @@ class DistoXService extends ChangeNotifier {
 
   // Callbacks
   void Function(DistoXMeasurement measurement)? onMeasurement;
+  void Function(DistoXDevice device)? onConnectionSuccess;
 
   DistoXConnectionState get connectionState => _connectionState;
   DistoXDevice? get connectedDevice => _connectedDevice;
@@ -228,6 +229,53 @@ class DistoXService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Attempt to auto-connect to a previously connected device.
+  ///
+  /// Returns true if connection was attempted (device found), false otherwise.
+  /// The actual connection success is indicated by [onConnectionSuccess].
+  Future<bool> tryAutoConnect(String? deviceAddress, String? deviceName) async {
+    if (deviceAddress == null) {
+      debugPrint('AutoConnect: no stored device address');
+      return false;
+    }
+
+    if (!await isBluetoothAvailable) {
+      debugPrint('AutoConnect: Bluetooth not available');
+      return false;
+    }
+
+    if (!await isBluetoothEnabled) {
+      debugPrint('AutoConnect: Bluetooth not enabled');
+      return false;
+    }
+
+    // Look for the device in bonded devices
+    final bondedDevices = await getBondedDevices();
+    DistoXDevice? targetDevice;
+
+    for (final device in bondedDevices) {
+      if (device.address == deviceAddress) {
+        targetDevice = device;
+        break;
+      }
+    }
+
+    if (targetDevice == null) {
+      // Device not found in bonded list, create one with stored info
+      debugPrint('AutoConnect: device $deviceAddress not in bonded list, trying anyway');
+      targetDevice = DistoXDevice(
+        name: deviceName ?? 'DistoX',
+        address: deviceAddress,
+        isBonded: false,
+      );
+    }
+
+    debugPrint('AutoConnect: attempting connection to ${targetDevice.name} (${targetDevice.address})');
+    _autoReconnect = true; // Enable auto-reconnect for this session
+    connect(targetDevice);
+    return true;
+  }
+
   /// Set auto-reconnect option
   void setAutoReconnect(bool value) {
     _autoReconnect = value;
@@ -266,6 +314,7 @@ class DistoXService extends ChangeNotifier {
 
           debugPrint('Connected to ${device.name} via macOS');
           notifyListeners();
+          onConnectionSuccess?.call(device);
           return true;
         } else {
           _lastError = 'Connection failed';
@@ -306,6 +355,7 @@ class DistoXService extends ChangeNotifier {
 
       debugPrint('Connected to ${device.name}');
       notifyListeners();
+      onConnectionSuccess?.call(device);
       return true;
     } catch (e) {
       debugPrint('Connection failed: $e');

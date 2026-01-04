@@ -27,6 +27,20 @@ void main() async {
   final measurementService = MeasurementService(settingsController);
   measurementService.connectDistoX(distoXService);
 
+  // Set up callback to save device address on successful connection
+  distoXService.onConnectionSuccess = (device) {
+    settingsController.setLastConnectedDevice(device.address, device.name);
+    settingsRepository.save(settingsController.settings);
+  };
+
+  // Auto-connect if enabled
+  if (settingsController.autoConnect) {
+    distoXService.tryAutoConnect(
+      settingsController.lastConnectedDeviceAddress,
+      settingsController.lastConnectedDeviceName,
+    );
+  }
+
   runApp(
     MultiProvider(
       providers: [

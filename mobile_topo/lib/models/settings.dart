@@ -13,6 +13,8 @@ class Settings {
   final AngleUnit angleUnit;
   final bool showGrid;
   final bool autoConnect;
+  final String? lastConnectedDeviceAddress;
+  final String? lastConnectedDeviceName;
 
   const Settings({
     this.smartModeEnabled = true,
@@ -21,6 +23,8 @@ class Settings {
     this.angleUnit = AngleUnit.degrees,
     this.showGrid = true,
     this.autoConnect = false,
+    this.lastConnectedDeviceAddress,
+    this.lastConnectedDeviceName,
   });
 
   Settings copyWith({
@@ -30,6 +34,8 @@ class Settings {
     AngleUnit? angleUnit,
     bool? showGrid,
     bool? autoConnect,
+    String? lastConnectedDeviceAddress,
+    String? lastConnectedDeviceName,
   }) {
     return Settings(
       smartModeEnabled: smartModeEnabled ?? this.smartModeEnabled,
@@ -38,6 +44,10 @@ class Settings {
       angleUnit: angleUnit ?? this.angleUnit,
       showGrid: showGrid ?? this.showGrid,
       autoConnect: autoConnect ?? this.autoConnect,
+      lastConnectedDeviceAddress:
+          lastConnectedDeviceAddress ?? this.lastConnectedDeviceAddress,
+      lastConnectedDeviceName:
+          lastConnectedDeviceName ?? this.lastConnectedDeviceName,
     );
   }
 
@@ -48,6 +58,8 @@ class Settings {
         'angleUnit': angleUnit.name,
         'showGrid': showGrid,
         'autoConnect': autoConnect,
+        'lastConnectedDeviceAddress': lastConnectedDeviceAddress,
+        'lastConnectedDeviceName': lastConnectedDeviceName,
       };
 
   factory Settings.fromJson(Map<String, dynamic> json) => Settings(
@@ -65,6 +77,8 @@ class Settings {
           orElse: () => AngleUnit.degrees,
         ),
         showGrid: json['showGrid'] as bool? ?? true,
-        autoConnect: json['autoConnect'] as bool? ?? false,
+        autoConnect: json['autoConnect'] as bool? ?? true,
+        lastConnectedDeviceAddress: json['lastConnectedDeviceAddress'] as String?,
+        lastConnectedDeviceName: json['lastConnectedDeviceName'] as String?,
       );
 }
