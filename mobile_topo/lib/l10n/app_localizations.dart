@@ -629,6 +629,12 @@ abstract class AppLocalizations {
   /// **'Cross-section'**
   String get crossSection;
 
+  /// Label for current station in status bar
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get currentStation;
+
   /// Error message when Bluetooth is not available
   ///
   /// In en, this message translates to:

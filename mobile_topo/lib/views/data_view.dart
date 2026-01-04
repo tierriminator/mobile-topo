@@ -292,6 +292,7 @@ class _DataViewState extends State<DataView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final selectionSection = context.watch<SelectionState>().selectedSection;
+    final measurementService = context.watch<MeasurementService>();
 
     // Clear history when section changes
     _checkSectionChange(selectionSection);
@@ -328,14 +329,38 @@ class _DataViewState extends State<DataView> {
 
     return Column(
       children: [
-        // Section name header
+        // Section name header with mode toggle
         Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.description, size: 20),
-              const SizedBox(width: 8),
+              ToggleButtons(
+                isSelected: [
+                  _mode == DataViewMode.stretches,
+                  _mode == DataViewMode.referencePoints,
+                ],
+                onPressed: (index) {
+                  setState(() {
+                    _mode = index == 0
+                        ? DataViewMode.stretches
+                        : DataViewMode.referencePoints;
+                  });
+                },
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
+                borderRadius: BorderRadius.circular(8),
+                children: [
+                  Tooltip(
+                    message: l10n.stretches,
+                    child: const Icon(Icons.straighten, size: 20),
+                  ),
+                  Tooltip(
+                    message: l10n.referencePoints,
+                    child: const Icon(Icons.location_on, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   section.name,
@@ -362,33 +387,22 @@ class _DataViewState extends State<DataView> {
             ],
           ),
         ),
-        // Mode toggle
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: SegmentedButton<DataViewMode>(
-            segments: [
-              ButtonSegment(
-                value: DataViewMode.stretches,
-                label: Text(l10n.stretches),
-                icon: const Icon(Icons.straighten),
-              ),
-              ButtonSegment(
-                value: DataViewMode.referencePoints,
-                label: Text(l10n.referencePoints),
-                icon: const Icon(Icons.location_on),
-              ),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (Set<DataViewMode> selection) {
-              setState(() {
-                _mode = selection.first;
-              });
-            },
-          ),
-        ),
         // Data table
         Expanded(
           child: _buildDataContent(section),
+        ),
+        // Status bar
+        Container(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Text(
+                '${l10n.currentStation}: ${measurementService.currentStation}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -425,17 +439,14 @@ class _DataViewState extends State<DataView> {
                 ),
               )
             : SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: StretchesTable(
-                    data: stretches,
-                    onInsertAbove: (index) => _insertStretchAt(section, index),
-                    onInsertBelow: (index) =>
-                        _insertStretchAt(section, index + 1),
-                    onUpdate: (index, stretch) =>
-                        _updateStretch(section, index, stretch),
-                    onDelete: (index) => _deleteStretch(section, index),
-                  ),
+                child: StretchesTable(
+                  data: stretches,
+                  onInsertAbove: (index) => _insertStretchAt(section, index),
+                  onInsertBelow: (index) =>
+                      _insertStretchAt(section, index + 1),
+                  onUpdate: (index, stretch) =>
+                      _updateStretch(section, index, stretch),
+                  onDelete: (index) => _deleteStretch(section, index),
                 ),
               ),
         // Reference points view
@@ -461,18 +472,15 @@ class _DataViewState extends State<DataView> {
                 ),
               )
             : SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ReferencePointsTable(
-                    data: referencePoints,
-                    onInsertAbove: (index) =>
-                        _insertReferencePointAt(section, index),
-                    onInsertBelow: (index) =>
-                        _insertReferencePointAt(section, index + 1),
-                    onUpdate: (index, point) =>
-                        _updateReferencePoint(section, index, point),
-                    onDelete: (index) => _deleteReferencePoint(section, index),
-                  ),
+                child: ReferencePointsTable(
+                  data: referencePoints,
+                  onInsertAbove: (index) =>
+                      _insertReferencePointAt(section, index),
+                  onInsertBelow: (index) =>
+                      _insertReferencePointAt(section, index + 1),
+                  onUpdate: (index, point) =>
+                      _updateReferencePoint(section, index, point),
+                  onDelete: (index) => _deleteReferencePoint(section, index),
                 ),
               ),
       ],

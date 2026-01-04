@@ -286,6 +286,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get crossSection => 'Cross-section';
 
   @override
+  String get currentStation => 'Current';
+
+  @override
   String get bluetoothNotAvailable =>
       'Bluetooth is not available on this device';
 

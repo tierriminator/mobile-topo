@@ -370,6 +370,10 @@
   "@crossSection": {
     "description": "Label for a cross-section measurement (splay shot)"
   },
+  "currentStation": "Current",
+  "@currentStation": {
+    "description": "Label for current station in status bar"
+  },
   "bluetoothNotAvailable": "Bluetooth is not available on this device",
   "@bluetoothNotAvailable": {
     "description": "Error message when Bluetooth is not available"
