@@ -66,20 +66,41 @@ class StretchesTableState extends State<StretchesTable> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Table(
-      border: TableBorder.all(),
+    return Column(
       children: [
-        TableRow(
+        // Sticky header
+        Table(
+          border: const TableBorder(
+            verticalInside: BorderSide(),
+          ),
           children: [
-            TableCell(child: _HeaderCell(text: l10n.columnFrom)),
-            TableCell(child: _HeaderCell(text: l10n.columnTo)),
-            TableCell(child: _HeaderCell(text: l10n.columnDistance)),
-            TableCell(child: _HeaderCell(text: l10n.columnAzimuth)),
-            TableCell(child: _HeaderCell(text: l10n.columnInclination)),
+            TableRow(
+              children: [
+                TableCell(child: _HeaderCell(text: l10n.columnFrom)),
+                TableCell(child: _HeaderCell(text: l10n.columnTo)),
+                TableCell(child: _HeaderCell(text: l10n.columnDistance)),
+                TableCell(child: _HeaderCell(text: l10n.columnAzimuth)),
+                TableCell(child: _HeaderCell(text: l10n.columnInclination)),
+              ],
+            ),
           ],
         ),
-        for (var i = 0; i < widget.data.length; i++)
-          _buildRow(context, i, widget.data[i]),
+        const Divider(height: 1, thickness: 1),
+        // Scrollable data rows
+        Expanded(
+          child: SingleChildScrollView(
+            child: Table(
+              border: const TableBorder(
+                verticalInside: BorderSide(),
+                horizontalInside: BorderSide(),
+              ),
+              children: [
+                for (var i = 0; i < widget.data.length; i++)
+                  _buildRow(context, i, widget.data[i]),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -532,19 +553,40 @@ class ReferencePointsTableState extends State<ReferencePointsTable> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Table(
-      border: TableBorder.all(),
+    return Column(
       children: [
-        TableRow(
+        // Sticky header
+        Table(
+          border: const TableBorder(
+            verticalInside: BorderSide(),
+          ),
           children: [
-            TableCell(child: _HeaderCell(text: l10n.columnId)),
-            TableCell(child: _HeaderCell(text: l10n.columnEast)),
-            TableCell(child: _HeaderCell(text: l10n.columnNorth)),
-            TableCell(child: _HeaderCell(text: l10n.columnAltitude)),
+            TableRow(
+              children: [
+                TableCell(child: _HeaderCell(text: l10n.columnId)),
+                TableCell(child: _HeaderCell(text: l10n.columnEast)),
+                TableCell(child: _HeaderCell(text: l10n.columnNorth)),
+                TableCell(child: _HeaderCell(text: l10n.columnAltitude)),
+              ],
+            ),
           ],
         ),
-        for (var i = 0; i < widget.data.length; i++)
-          _buildRow(context, i, widget.data[i]),
+        const Divider(height: 1, thickness: 1),
+        // Scrollable data rows
+        Expanded(
+          child: SingleChildScrollView(
+            child: Table(
+              border: const TableBorder(
+                verticalInside: BorderSide(),
+                horizontalInside: BorderSide(),
+              ),
+              children: [
+                for (var i = 0; i < widget.data.length; i++)
+                  _buildRow(context, i, widget.data[i]),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

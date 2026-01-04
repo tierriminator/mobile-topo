@@ -468,17 +468,15 @@ class _DataViewState extends State<DataView> {
                   ],
                 ),
               )
-            : SingleChildScrollView(
-                child: StretchesTable(
-                  data: stretches,
-                  onInsertAbove: (index) => _insertStretchAt(section, index),
-                  onInsertBelow: (index) =>
-                      _insertStretchAt(section, index + 1),
-                  onUpdate: (index, stretch) =>
-                      _updateStretch(section, index, stretch),
-                  onDelete: (index) => _deleteStretch(section, index),
-                  onStartHere: (station) => _startNewSeries(section, station),
-                ),
+            : StretchesTable(
+                data: stretches,
+                onInsertAbove: (index) => _insertStretchAt(section, index),
+                onInsertBelow: (index) =>
+                    _insertStretchAt(section, index + 1),
+                onUpdate: (index, stretch) =>
+                    _updateStretch(section, index, stretch),
+                onDelete: (index) => _deleteStretch(section, index),
+                onStartHere: (station) => _startNewSeries(section, station),
               ),
         // Reference points view
         referencePoints.isEmpty
@@ -502,17 +500,15 @@ class _DataViewState extends State<DataView> {
                   ],
                 ),
               )
-            : SingleChildScrollView(
-                child: ReferencePointsTable(
-                  data: referencePoints,
-                  onInsertAbove: (index) =>
-                      _insertReferencePointAt(section, index),
-                  onInsertBelow: (index) =>
-                      _insertReferencePointAt(section, index + 1),
-                  onUpdate: (index, point) =>
-                      _updateReferencePoint(section, index, point),
-                  onDelete: (index) => _deleteReferencePoint(section, index),
-                ),
+            : ReferencePointsTable(
+                data: referencePoints,
+                onInsertAbove: (index) =>
+                    _insertReferencePointAt(section, index),
+                onInsertBelow: (index) =>
+                    _insertReferencePointAt(section, index + 1),
+                onUpdate: (index, point) =>
+                    _updateReferencePoint(section, index, point),
+                onDelete: (index) => _deleteReferencePoint(section, index),
               ),
       ],
     );
