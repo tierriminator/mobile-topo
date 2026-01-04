@@ -286,15 +286,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get crossSection => 'Cross-section';
 
   @override
-  String get smartModeOn => 'Smart mode';
-
-  @override
-  String get smartModeOff => 'Manual mode';
-
-  @override
-  String get station => 'Station';
-
-  @override
   String get bluetoothNotAvailable =>
       'Bluetooth is not available on this device';
 

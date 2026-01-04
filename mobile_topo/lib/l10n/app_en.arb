@@ -370,18 +370,6 @@
   "@crossSection": {
     "description": "Label for a cross-section measurement (splay shot)"
   },
-  "smartModeOn": "Smart mode",
-  "@smartModeOn": {
-    "description": "Status text when smart mode is enabled"
-  },
-  "smartModeOff": "Manual mode",
-  "@smartModeOff": {
-    "description": "Status text when smart mode is disabled"
-  },
-  "station": "Station",
-  "@station": {
-    "description": "Label for current station"
-  },
   "bluetoothNotAvailable": "Bluetooth is not available on this device",
   "@bluetoothNotAvailable": {
     "description": "Error message when Bluetooth is not available"

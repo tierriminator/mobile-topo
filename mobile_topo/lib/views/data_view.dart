@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
-import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -293,8 +292,6 @@ class _DataViewState extends State<DataView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final selectionSection = context.watch<SelectionState>().selectedSection;
-    final measurementService = context.watch<MeasurementService>();
-    final settingsController = context.watch<SettingsController>();
 
     // Clear history when section changes
     _checkSectionChange(selectionSection);
@@ -361,36 +358,6 @@ class _DataViewState extends State<DataView> {
                     ? _addStretch(section)
                     : _addReferencePoint(section),
                 tooltip: l10n.addStretch,
-              ),
-            ],
-          ),
-        ),
-        // Smart mode status bar
-        Container(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              Icon(
-                settingsController.smartModeEnabled
-                    ? Icons.auto_awesome
-                    : Icons.auto_awesome_outlined,
-                size: 16,
-                color: settingsController.smartModeEnabled
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                settingsController.smartModeEnabled
-                    ? l10n.smartModeOn
-                    : l10n.smartModeOff,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '${l10n.station}: ${measurementService.currentStation}',
-                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),

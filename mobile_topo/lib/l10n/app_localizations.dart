@@ -629,24 +629,6 @@ abstract class AppLocalizations {
   /// **'Cross-section'**
   String get crossSection;
 
-  /// Status text when smart mode is enabled
-  ///
-  /// In en, this message translates to:
-  /// **'Smart mode'**
-  String get smartModeOn;
-
-  /// Status text when smart mode is disabled
-  ///
-  /// In en, this message translates to:
-  /// **'Manual mode'**
-  String get smartModeOff;
-
-  /// Label for current station
-  ///
-  /// In en, this message translates to:
-  /// **'Station'**
-  String get station;
-
   /// Error message when Bluetooth is not available
   ///
   /// In en, this message translates to:
