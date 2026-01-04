@@ -365,14 +365,38 @@ class _SketchViewState extends State<SketchView> {
 
     return Column(
       children: [
-        // Section name header
+        // Header with view mode toggle
         Container(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.description, size: 20),
-              const SizedBox(width: 8),
+              ToggleButtons(
+                isSelected: [
+                  _viewMode == SketchViewMode.outline,
+                  _viewMode == SketchViewMode.sideView,
+                ],
+                onPressed: (index) {
+                  setState(() {
+                    _viewMode = index == 0
+                        ? SketchViewMode.outline
+                        : SketchViewMode.sideView;
+                  });
+                },
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
+                borderRadius: BorderRadius.circular(8),
+                children: [
+                  Tooltip(
+                    message: l10n.sketchOutline,
+                    child: const Icon(Icons.polyline, size: 20),
+                  ),
+                  Tooltip(
+                    message: l10n.sketchSideView,
+                    child: const Icon(Icons.terrain, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   section.name,
@@ -380,34 +404,6 @@ class _SketchViewState extends State<SketchView> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
-          ),
-        ),
-        // View mode toggle bar
-        Container(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              SegmentedButton<SketchViewMode>(
-                segments: [
-                  ButtonSegment(
-                    value: SketchViewMode.outline,
-                    label: Text(l10n.sketchOutline),
-                  ),
-                  ButtonSegment(
-                    value: SketchViewMode.sideView,
-                    label: Text(l10n.sketchSideView),
-                  ),
-                ],
-                selected: {_viewMode},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _viewMode = selection.first;
-                  });
-                },
-              ),
-              const Spacer(),
               IconButton(
                 icon: const Icon(Icons.undo),
                 onPressed: _currentHistory.canUndo ? _undo : null,
@@ -424,7 +420,7 @@ class _SketchViewState extends State<SketchView> {
         // Drawing tools
         Container(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: Row(
             children: [
               _buildModeButton(
@@ -432,12 +428,10 @@ class _SketchViewState extends State<SketchView> {
                 mode: SketchMode.move,
                 tooltip: l10n.sketchModeMove,
               ),
-              const SizedBox(width: 8),
               for (final color in SketchColors.all)
                 _buildColorButton(color),
-              const SizedBox(width: 8),
               _buildModeButton(
-                icon: Icons.auto_fix_high,
+                icon: Icons.cleaning_services,
                 mode: SketchMode.erase,
                 tooltip: l10n.sketchModeErase,
               ),
@@ -526,6 +520,9 @@ class _SketchViewState extends State<SketchView> {
 
   Widget _buildColorButton(Color color) {
     final isSelected = _sketchMode == SketchMode.draw && _currentColor == color;
+    // Use light outline for dark colors, dark outline for light colors
+    final isDark = color.computeLuminance() < 0.5;
+    final selectedBorderColor = isDark ? Colors.white : Colors.black;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -534,15 +531,13 @@ class _SketchViewState extends State<SketchView> {
         });
       },
       child: Container(
-        width: 28,
-        height: 28,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
+        width: 24,
+        height: 24,
+        margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
           color: color,
           border: Border.all(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey,
+            color: isSelected ? selectedBorderColor : Colors.grey.shade400,
             width: isSelected ? 3 : 1,
           ),
           borderRadius: BorderRadius.circular(4),
