@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +12,7 @@ import 'package:mobile_topo/data/local_cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
 import 'package:mobile_topo/models/settings.dart';
+import 'package:mobile_topo/services/bluetooth_adapter.dart';
 import 'package:mobile_topo/services/distox_service.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 
@@ -25,10 +29,54 @@ class MockSettingsRepository extends SettingsRepository {
   }
 }
 
+/// Mock Bluetooth adapter for testing (no actual Bluetooth operations)
+class MockBluetoothAdapter implements BluetoothAdapter {
+  @override
+  Future<bool> isAvailable() async => false;
+
+  @override
+  Future<bool> isEnabled() async => false;
+
+  @override
+  Future<bool> requestEnable() async => false;
+
+  @override
+  Future<List<DistoXDevice>> getBondedDevices() async => [];
+
+  @override
+  Stream<DistoXDevice> startDiscovery() => const Stream.empty();
+
+  @override
+  Future<void> stopDiscovery() async {}
+
+  @override
+  Future<void> connect(String address) async {
+    throw Exception('Mock adapter cannot connect');
+  }
+
+  @override
+  Future<void> disconnect() async {}
+
+  @override
+  Future<void> send(Uint8List data) async {
+    throw Exception('Mock adapter cannot send');
+  }
+
+  @override
+  Stream<Uint8List> get dataStream => const Stream.empty();
+
+  @override
+  Stream<bool> get connectionStateStream => const Stream.empty();
+
+  @override
+  void dispose() {}
+}
+
 void main() {
   Widget createTestApp() {
     final settingsController = SettingsController();
-    final distoXService = DistoXService(settingsController);
+    final bluetoothAdapter = MockBluetoothAdapter();
+    final distoXService = DistoXService(settingsController, bluetoothAdapter);
     final measurementService = MeasurementService(settingsController);
     measurementService.connectDistoX(distoXService);
 

@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/selection_state.dart';
@@ -6,6 +8,9 @@ import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
+import 'services/bluetooth_adapter.dart';
+import 'services/bluetooth_adapter_android.dart';
+import 'services/bluetooth_adapter_macos.dart';
 import 'services/distox_service.dart';
 import 'services/measurement_service.dart';
 import 'views/data_view.dart';
@@ -13,6 +18,15 @@ import 'views/map_view.dart';
 import 'views/sketch_view.dart';
 import 'views/explorer_view.dart';
 import 'views/options_view.dart';
+
+/// Create the appropriate BluetoothAdapter for the current platform
+BluetoothAdapter createBluetoothAdapter() {
+  if (Platform.isMacOS) {
+    return MacOSBluetoothAdapter();
+  } else {
+    return AndroidBluetoothAdapter();
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,8 +36,11 @@ void main() async {
   final settings = await settingsRepository.load();
   final settingsController = SettingsController(settings);
 
+  // Create platform-specific Bluetooth adapter
+  final bluetoothAdapter = createBluetoothAdapter();
+
   // Create DistoX and Measurement services
-  final distoXService = DistoXService(settingsController);
+  final distoXService = DistoXService(settingsController, bluetoothAdapter);
   final measurementService = MeasurementService(settingsController);
   measurementService.connectDistoX(distoXService);
 

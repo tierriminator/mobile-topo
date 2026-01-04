@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 import '../controllers/settings_controller.dart';
-import 'bluetooth_channel.dart';
+import 'bluetooth_adapter.dart';
 import 'distox_protocol.dart';
 
 /// Connection state for DistoX device
@@ -47,14 +45,15 @@ class DistoXDevice {
 /// Uses classic Bluetooth SPP (Serial Port Profile) as specified in the
 /// DistoX protocol documentation.
 ///
-/// Supported platforms: Android (flutter_bluetooth_serial), macOS (IOBluetooth).
+/// Platform-specific Bluetooth operations are delegated to [BluetoothAdapter].
 class DistoXService extends ChangeNotifier {
   final SettingsController _settings;
+  final BluetoothAdapter _adapter;
   final DistoXProtocol _protocol = DistoXProtocol();
 
-  BluetoothConnection? _connection;
-  StreamSubscription<Uint8List>? _inputSubscription;
   Timer? _reconnectTimer;
+  StreamSubscription<Uint8List>? _dataSubscription;
+  StreamSubscription<bool>? _stateSubscription;
 
   DistoXConnectionState _connectionState = DistoXConnectionState.disconnected;
   DistoXDevice? _connectedDevice;
@@ -68,7 +67,7 @@ class DistoXService extends ChangeNotifier {
   void Function(DistoXMeasurement measurement)? onMeasurement;
   void Function(DistoXDevice device)? onConnectionSuccess;
 
-  DistoXService(this._settings);
+  DistoXService(this._settings, this._adapter);
 
   DistoXConnectionState get connectionState => _connectionState;
   DistoXDevice? get connectedDevice => _connectedDevice;
@@ -77,154 +76,23 @@ class DistoXService extends ChangeNotifier {
   bool get autoReconnect => _settings.autoConnect;
   bool get isConnected => _connectionState == DistoXConnectionState.connected;
 
-  /// Whether running on Android (uses flutter_bluetooth_serial)
-  bool get _isAndroid {
-    try {
-      return Platform.isAndroid;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Whether running on macOS (uses platform channel)
-  bool get _isMacOS {
-    try {
-      return Platform.isMacOS;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Whether running on a platform that supports real Bluetooth
-  bool get isPlatformSupported => _isAndroid || _isMacOS;
-
   /// Check if Bluetooth is available on this platform
-  Future<bool> get isBluetoothAvailable async {
-    if (_isMacOS) {
-      return await BluetoothChannel.instance.isAvailable();
-    }
-    if (_isAndroid) {
-      try {
-        return await FlutterBluetoothSerial.instance.isAvailable ?? false;
-      } catch (e) {
-        debugPrint('Bluetooth not available: $e');
-        return false;
-      }
-    }
-    return false; // Unsupported platform
-  }
+  Future<bool> get isBluetoothAvailable => _adapter.isAvailable();
 
   /// Check if Bluetooth is enabled
-  Future<bool> get isBluetoothEnabled async {
-    if (_isMacOS) {
-      return await BluetoothChannel.instance.isPoweredOn();
-    }
-    if (_isAndroid) {
-      try {
-        return await FlutterBluetoothSerial.instance.isEnabled ?? false;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false; // Unsupported platform
-  }
+  Future<bool> get isBluetoothEnabled => _adapter.isEnabled();
 
-  /// Request to enable Bluetooth (Android only)
-  Future<bool> requestEnableBluetooth() async {
-    if (_isMacOS) {
-      // macOS: user must enable Bluetooth in System Preferences
-      return await BluetoothChannel.instance.isPoweredOn();
-    }
-    if (_isAndroid) {
-      try {
-        return await FlutterBluetoothSerial.instance.requestEnable() ?? false;
-      } catch (e) {
-        debugPrint('Failed to request Bluetooth enable: $e');
-        return false;
-      }
-    }
-    return true;
-  }
+  /// Request to enable Bluetooth
+  Future<bool> requestEnableBluetooth() => _adapter.requestEnable();
 
   /// Get list of bonded (paired) DistoX devices
-  Future<List<DistoXDevice>> getBondedDevices() async {
-    if (_isMacOS) {
-      try {
-        final devices = await BluetoothChannel.instance.getPairedDevices();
-        return devices
-            .where((d) => _isDistoXDevice(d.name))
-            .map((d) => DistoXDevice(
-                  name: d.name,
-                  address: d.address,
-                  isBonded: true,
-                ))
-            .toList();
-      } catch (e) {
-        debugPrint('Failed to get paired devices: $e');
-        return [];
-      }
-    }
-    if (_isAndroid) {
-      try {
-        final devices =
-            await FlutterBluetoothSerial.instance.getBondedDevices();
-        return devices
-            .where((d) => _isDistoXDevice(d.name))
-            .map((d) => DistoXDevice(
-                  name: d.name ?? 'Unknown',
-                  address: d.address,
-                  isBonded: d.isBonded,
-                ))
-            .toList();
-      } catch (e) {
-        debugPrint('Failed to get bonded devices: $e');
-        return [];
-      }
-    }
-    return []; // Unsupported platform
-  }
+  Future<List<DistoXDevice>> getBondedDevices() => _adapter.getBondedDevices();
 
   /// Start scanning for DistoX devices
-  Stream<DistoXDevice> startDiscovery() async* {
-    if (_isMacOS) {
-      await BluetoothChannel.instance.startDiscovery();
-      // Note: discovered devices come through method channel callback
-      // For now, we just wait - the UI will update from getPairedDevices
-      return;
-    }
-    if (_isAndroid) {
-      try {
-        await for (final result
-            in FlutterBluetoothSerial.instance.startDiscovery()) {
-          if (_isDistoXDevice(result.device.name)) {
-            yield DistoXDevice(
-              name: result.device.name ?? 'Unknown',
-              address: result.device.address,
-              isBonded: result.device.isBonded,
-            );
-          }
-        }
-      } catch (e) {
-        debugPrint('Discovery error: $e');
-      }
-    }
-    // Unsupported platform - no devices to discover
-  }
+  Stream<DistoXDevice> startDiscovery() => _adapter.startDiscovery();
 
   /// Stop scanning
-  Future<void> stopDiscovery() async {
-    if (_isMacOS) {
-      await BluetoothChannel.instance.stopDiscovery();
-      return;
-    }
-    if (_isAndroid) {
-      try {
-        await FlutterBluetoothSerial.instance.cancelDiscovery();
-      } catch (e) {
-        debugPrint('Failed to cancel discovery: $e');
-      }
-    }
-  }
+  Future<void> stopDiscovery() => _adapter.stopDiscovery();
 
   /// Select a device (stores for auto-reconnect)
   void selectDevice(DistoXDevice? device) {
@@ -236,7 +104,8 @@ class DistoXService extends ChangeNotifier {
   ///
   /// Returns true if connection was attempted (device found), false otherwise.
   /// The actual connection success is indicated by [onConnectionSuccess].
-  Future<bool> tryAutoConnect(String? deviceAddress, String? deviceName) async {
+  Future<bool> tryAutoConnect(
+      String? deviceAddress, String? deviceName) async {
     if (deviceAddress == null) {
       debugPrint('AutoConnect: no stored device address');
       return false;
@@ -265,7 +134,8 @@ class DistoXService extends ChangeNotifier {
 
     if (targetDevice == null) {
       // Device not found in bonded list, create one with stored info
-      debugPrint('AutoConnect: device $deviceAddress not in bonded list, trying anyway');
+      debugPrint(
+          'AutoConnect: device $deviceAddress not in bonded list, trying anyway');
       targetDevice = DistoXDevice(
         name: deviceName ?? 'DistoX',
         address: deviceAddress,
@@ -273,7 +143,8 @@ class DistoXService extends ChangeNotifier {
       );
     }
 
-    debugPrint('AutoConnect: attempting connection to ${targetDevice.name} (${targetDevice.address})');
+    debugPrint(
+        'AutoConnect: attempting connection to ${targetDevice.name} (${targetDevice.address})');
     setAutoReconnect(true); // Enable auto-reconnect for this session
     connect(targetDevice);
     return true;
@@ -285,12 +156,9 @@ class DistoXService extends ChangeNotifier {
     notifyListeners();
   }
 
-  StreamSubscription<Uint8List>? _macOSDataSubscription;
-  StreamSubscription<BluetoothChannelState>? _macOSStateSubscription;
-
   /// Connect to a DistoX device
   Future<bool> connect(DistoXDevice device) async {
-    // Only block if already actively connecting (not reconnecting - that's our trigger)
+    // Only block if already actively connecting
     if (_connectionState == DistoXConnectionState.connecting) {
       return false;
     }
@@ -301,115 +169,68 @@ class DistoXService extends ChangeNotifier {
     _selectedDevice = device;
     notifyListeners();
 
-    // macOS: use platform channel
-    if (_isMacOS) {
-      try {
-        final success =
-            await BluetoothChannel.instance.connect(device.address);
-        if (success) {
-          _connectedDevice = device;
-          _connectionState = DistoXConnectionState.connected;
-          _protocol.reset();
-          _buffer.clear();
-
-          // Listen for incoming data from platform channel
-          _macOSDataSubscription =
-              BluetoothChannel.instance.dataStream.listen(
-            _onDataReceived,
-            onDone: _onDisconnected,
-            onError: _onError,
-          );
-
-          // Listen for connection state changes (disconnect detection)
-          _macOSStateSubscription =
-              BluetoothChannel.instance.connectionState.listen((state) {
-            if (state == BluetoothChannelState.disconnected &&
-                _connectionState == DistoXConnectionState.connected) {
-              debugPrint('macOS: connection state changed to disconnected');
-              _onDisconnected();
-            }
-          });
-
-          debugPrint('Connected to ${device.name} via macOS');
-          notifyListeners();
-          onConnectionSuccess?.call(device);
-          return true;
-        } else {
-          _lastError = 'Connection failed';
-          _connectionState = DistoXConnectionState.disconnected;
-          notifyListeners();
-          if (autoReconnect) {
-            _scheduleReconnect();
-          }
-          return false;
-        }
-      } catch (e) {
-        debugPrint('macOS connection failed: $e');
-        _lastError = e.toString();
-        _connectionState = DistoXConnectionState.disconnected;
-        _connectedDevice = null;
-        notifyListeners();
-        if (autoReconnect) {
-          _scheduleReconnect();
-        }
-        return false;
-      }
-    }
-
-    // Android: use flutter_bluetooth_serial
     try {
-      _connection = await BluetoothConnection.toAddress(device.address);
-      _connectedDevice = device;
-      _connectionState = DistoXConnectionState.connected;
-      _protocol.reset();
-      _buffer.clear();
-
-      // Listen for incoming data
-      _inputSubscription = _connection!.input?.listen(
-        _onDataReceived,
-        onDone: _onDisconnected,
-        onError: _onError,
-      );
-
-      debugPrint('Connected to ${device.name}');
-      notifyListeners();
-      onConnectionSuccess?.call(device);
+      await _adapter.connect(device.address);
+      _setupDataSubscription();
+      _finishConnectionSuccess(device);
       return true;
-    } catch (e) {
-      debugPrint('Connection failed: $e');
-      _lastError = e.toString();
-      _connectionState = DistoXConnectionState.disconnected;
-      _connectedDevice = null;
-      notifyListeners();
-
-      if (autoReconnect) {
-        _scheduleReconnect();
-      }
+    } on TimeoutException {
+      _finishConnectionFailed('Connection timeout');
       return false;
+    } catch (e) {
+      _finishConnectionFailed(e.toString());
+      return false;
+    }
+  }
+
+  void _setupDataSubscription() {
+    // Listen for incoming data
+    _dataSubscription = _adapter.dataStream.listen(
+      _onDataReceived,
+      onDone: _onDisconnected,
+      onError: _onError,
+    );
+
+    // Listen for connection state changes (disconnect detection)
+    _stateSubscription = _adapter.connectionStateStream.listen((connected) {
+      if (!connected && _connectionState == DistoXConnectionState.connected) {
+        debugPrint('Bluetooth: connection state changed to disconnected');
+        _onDisconnected();
+      }
+    });
+  }
+
+  void _finishConnectionSuccess(DistoXDevice device) {
+    _connectedDevice = device;
+    _connectionState = DistoXConnectionState.connected;
+    _protocol.reset();
+    _buffer.clear();
+    debugPrint('Connected to ${device.name}');
+    notifyListeners();
+    onConnectionSuccess?.call(device);
+  }
+
+  void _finishConnectionFailed(String error) {
+    debugPrint('Connection failed: $error');
+    _lastError = error;
+    _connectionState = DistoXConnectionState.disconnected;
+    _connectedDevice = null;
+    notifyListeners();
+    if (autoReconnect) {
+      _scheduleReconnect();
     }
   }
 
   /// Disconnect from current device
   Future<void> disconnect() async {
     _cancelReconnect();
-    await _inputSubscription?.cancel();
-    _inputSubscription = null;
-    await _macOSDataSubscription?.cancel();
-    _macOSDataSubscription = null;
-    await _macOSStateSubscription?.cancel();
-    _macOSStateSubscription = null;
+    await _dataSubscription?.cancel();
+    _dataSubscription = null;
+    await _stateSubscription?.cancel();
+    _stateSubscription = null;
 
-    if (_isMacOS) {
-      await BluetoothChannel.instance.disconnect();
-    } else {
-      try {
-        await _connection?.finish();
-      } catch (e) {
-        debugPrint('Disconnect error: $e');
-      }
-    }
+    await _adapter.disconnect();
 
-    _connection = null;
     _connectedDevice = null;
     _connectionState = DistoXConnectionState.disconnected;
     _buffer.clear();
@@ -418,28 +239,12 @@ class DistoXService extends ChangeNotifier {
 
   /// Send raw data to device
   Future<void> _send(Uint8List data) async {
-    if (_isMacOS) {
-      final success = await BluetoothChannel.instance.send(data);
-      if (!success) {
-        throw StateError('Send failed');
-      }
-      return;
-    }
-    if (_connection == null || !_connection!.isConnected) {
-      throw StateError('Not connected');
-    }
-    _connection!.output.add(data);
-    await _connection!.output.allSent;
-  }
-
-  /// Send acknowledge for a measurement
-  Future<void> _acknowledge(DistoXMeasurement measurement) async {
-    final ack = _protocol.buildAcknowledgeFor(measurement);
-    await _send(ack);
+    await _adapter.send(data);
   }
 
   void _onDataReceived(Uint8List data) {
-    debugPrint('DistoX: received ${data.length} bytes: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+    debugPrint(
+        'DistoX: received ${data.length} bytes: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
     // Add to buffer
     _buffer.addAll(data);
@@ -451,7 +256,8 @@ class DistoXService extends ChangeNotifier {
       _buffer.removeRange(0, 8);
 
       final type = _protocol.getPacketType(packet);
-      debugPrint('DistoX: packet type = $type (0x${type?.toRadixString(16) ?? "null"})');
+      debugPrint(
+          'DistoX: packet type = $type (0x${type?.toRadixString(16) ?? "null"})');
       if (type == DistoXPacketType.measurement) {
         // Always send ACK for measurement packets, even duplicates
         // DistoX will retry if it doesn't receive ACK
@@ -486,7 +292,8 @@ class DistoXService extends ChangeNotifier {
       } else {
         // Unknown packet type - still acknowledge to avoid blocking
         final seqBit = (packet[0] >> 7) & 0x01;
-        debugPrint('DistoX: Unknown packet type $type, ACKing anyway (seq bit $seqBit)');
+        debugPrint(
+            'DistoX: Unknown packet type $type, ACKing anyway (seq bit $seqBit)');
         _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
           debugPrint('Failed to send ack for unknown type: $e');
         });
@@ -496,7 +303,6 @@ class DistoXService extends ChangeNotifier {
 
   void _onDisconnected() {
     debugPrint('DistoX disconnected');
-    _connection = null;
     _connectedDevice = null;
     _connectionState = DistoXConnectionState.disconnected;
     _buffer.clear();
@@ -514,7 +320,8 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    debugPrint('_scheduleReconnect: timer=${_reconnectTimer != null}, device=$_selectedDevice');
+    debugPrint(
+        '_scheduleReconnect: timer=${_reconnectTimer != null}, device=$_selectedDevice');
     if (_reconnectTimer != null) return;
     if (_selectedDevice == null) return;
 
@@ -524,12 +331,14 @@ class DistoXService extends ChangeNotifier {
     debugPrint('_scheduleReconnect: scheduling reconnect in 5 seconds');
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       _reconnectTimer = null;
-      debugPrint('_scheduleReconnect: timer fired, autoReconnect=$autoReconnect, device=$_selectedDevice');
+      debugPrint(
+          '_scheduleReconnect: timer fired, autoReconnect=$autoReconnect, device=$_selectedDevice');
       if (autoReconnect && _selectedDevice != null) {
         debugPrint('_scheduleReconnect: calling connect()');
         connect(_selectedDevice!);
       } else {
-        debugPrint('_scheduleReconnect: skipping connect (autoReconnect=$autoReconnect)');
+        debugPrint(
+            '_scheduleReconnect: skipping connect (autoReconnect=$autoReconnect)');
         _connectionState = DistoXConnectionState.disconnected;
         notifyListeners();
       }
@@ -541,19 +350,12 @@ class DistoXService extends ChangeNotifier {
     _reconnectTimer = null;
   }
 
-  /// Check if device name matches DistoX pattern (DistoX-nnnn)
-  bool _isDistoXDevice(String? name) {
-    if (name == null) return false;
-    return name.startsWith('DistoX') || name.startsWith('Disto');
-  }
-
   @override
   void dispose() {
     _cancelReconnect();
-    _inputSubscription?.cancel();
-    _macOSDataSubscription?.cancel();
-    _macOSStateSubscription?.cancel();
-    _connection?.dispose();
+    _dataSubscription?.cancel();
+    _stateSubscription?.cancel();
+    _adapter.dispose();
     super.dispose();
   }
 }
