@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
@@ -84,6 +85,26 @@ class _MapViewState extends State<MapView> {
       final focalPointDelta = details.focalPoint - _startFocalPoint;
       _offset = _startOffset + focalPointDelta;
     });
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+      final newScale = (_scale * zoomFactor).clamp(5.0, 200.0);
+
+      if (newScale != _scale) {
+        // Zoom towards cursor position
+        final cursorPos = event.localPosition;
+        final center = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
+        final cursorFromCenter = cursorPos - center;
+
+        setState(() {
+          // Adjust offset to keep cursor position stable
+          _offset = cursorFromCenter - (cursorFromCenter - _offset) * (newScale / _scale);
+          _scale = newScale;
+        });
+      }
+    }
   }
 
   void _handleTapUp(TapUpDetails details) {
@@ -194,20 +215,23 @@ class _MapViewState extends State<MapView> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    return GestureDetector(
-                      onScaleStart: _onScaleStart,
-                      onScaleUpdate: _onScaleUpdate,
-                      onTapUp: _handleTapUp,
-                      child: ClipRect(
-                        child: CustomPaint(
-                          painter: _MapPainter(
-                            survey: survey,
-                            positions: _positions,
-                            scale: _scale,
-                            offset: _offset,
-                            selectedStation: _selectedStation,
+                    return Listener(
+                      onPointerSignal: _onPointerSignal,
+                      child: GestureDetector(
+                        onScaleStart: _onScaleStart,
+                        onScaleUpdate: _onScaleUpdate,
+                        onTapUp: _handleTapUp,
+                        child: ClipRect(
+                          child: CustomPaint(
+                            painter: _MapPainter(
+                              survey: survey,
+                              positions: _positions,
+                              scale: _scale,
+                              offset: _offset,
+                              selectedStation: _selectedStation,
+                            ),
+                            size: Size.infinite,
                           ),
-                          size: Size.infinite,
                         ),
                       ),
                     );

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
@@ -241,6 +242,26 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+      final newScale = (_scale * zoomFactor).clamp(5.0, 200.0);
+
+      if (newScale != _scale) {
+        // Zoom towards cursor position
+        final cursorPos = event.localPosition;
+        final center = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
+        final cursorFromCenter = cursorPos - center;
+
+        setState(() {
+          // Adjust offset to keep cursor position stable
+          _offset = cursorFromCenter - (cursorFromCenter - _offset) * (newScale / _scale);
+          _scale = newScale;
+        });
+      }
+    }
+  }
+
   void _eraseAt(Offset screenPos) {
     final worldPos = _screenToWorld(screenPos);
     final newSketch = _currentSketch.eraseAt(worldPos, 15 / _scale);
@@ -437,24 +458,27 @@ class _SketchViewState extends State<SketchView> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    return GestureDetector(
-                      onScaleStart: _onScaleStart,
-                      onScaleUpdate: _onScaleUpdate,
-                      onScaleEnd: _onScaleEnd,
-                      child: ClipRect(
-                        child: CustomPaint(
-                          painter: _SketchPainter(
-                            survey: section.survey,
-                            stationPositions: _viewMode == SketchViewMode.outline
-                                ? _positions.map((k, v) => MapEntry(k, Offset(v.east, -v.north)))
-                                : _sideViewPositions,
-                            sketch: _currentSketch,
-                            currentStroke: _currentStroke,
-                            scale: _scale,
-                            offset: _offset,
-                            isOutlineView: _viewMode == SketchViewMode.outline,
+                    return Listener(
+                      onPointerSignal: _onPointerSignal,
+                      child: GestureDetector(
+                        onScaleStart: _onScaleStart,
+                        onScaleUpdate: _onScaleUpdate,
+                        onScaleEnd: _onScaleEnd,
+                        child: ClipRect(
+                          child: CustomPaint(
+                            painter: _SketchPainter(
+                              survey: section.survey,
+                              stationPositions: _viewMode == SketchViewMode.outline
+                                  ? _positions.map((k, v) => MapEntry(k, Offset(v.east, -v.north)))
+                                  : _sideViewPositions,
+                              sketch: _currentSketch,
+                              currentStroke: _currentStroke,
+                              scale: _scale,
+                              offset: _offset,
+                              isOutlineView: _viewMode == SketchViewMode.outline,
+                            ),
+                            size: Size.infinite,
                           ),
-                          size: Size.infinite,
                         ),
                       ),
                     );
