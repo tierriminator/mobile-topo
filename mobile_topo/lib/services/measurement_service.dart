@@ -158,10 +158,10 @@ class MeasurementService extends ChangeNotifier {
 
   void _emitCrossSection(double distance, double azimuth, double inclination) {
     debugPrint('MeasurementService: _emitCrossSection called');
-    // Cross-section: From station with empty To (Point(0,0) means empty)
+    // Cross-section/splay: From station with null To
     final crossSection = MeasuredDistance(
       _currentStation,
-      const Point(0, 0), // Empty "To" indicates cross-section
+      null, // null "To" indicates splay shot
       distance,
       azimuth,
       inclination,

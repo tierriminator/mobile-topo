@@ -217,9 +217,9 @@ class StretchesTableState extends State<StretchesTable> {
 }
 
 class _PointCell extends StatefulWidget {
-  final Point point;
+  final Point? point;
   final bool isEditing;
-  final void Function(Point)? onChanged;
+  final void Function(Point?)? onChanged;
   final VoidCallback? onEditingComplete;
 
   const _PointCell({
@@ -237,10 +237,12 @@ class _PointCellState extends State<_PointCell> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
 
+  String _pointToString(Point? point) => point?.toString() ?? '';
+
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.point.toString());
+    _controller = TextEditingController(text: _pointToString(widget.point));
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
   }
@@ -249,7 +251,7 @@ class _PointCellState extends State<_PointCell> {
   void didUpdateWidget(_PointCell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.point != widget.point && !_focusNode.hasFocus) {
-      _controller.text = widget.point.toString();
+      _controller.text = _pointToString(widget.point);
     }
     if (widget.isEditing && !oldWidget.isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -278,7 +280,12 @@ class _PointCellState extends State<_PointCell> {
   }
 
   void _saveValue() {
-    final value = _controller.text;
+    final value = _controller.text.trim();
+    // Empty input means no destination (splay shot)
+    if (value.isEmpty) {
+      widget.onChanged?.call(null);
+      return;
+    }
     final parts = value.split('.');
     if (parts.length == 2) {
       final corridor = num.tryParse(parts[0]);
@@ -288,7 +295,7 @@ class _PointCellState extends State<_PointCell> {
         return;
       }
     }
-    _controller.text = widget.point.toString();
+    _controller.text = _pointToString(widget.point);
   }
 
   @override
@@ -297,7 +304,7 @@ class _PointCellState extends State<_PointCell> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Text(
-          widget.point.toString(),
+          _pointToString(widget.point),
           style: Theme.of(context).textTheme.bodySmall,
         ),
       );

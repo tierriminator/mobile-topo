@@ -28,14 +28,15 @@ class Point {
 }
 
 class MeasuredDistance {
-  final Point from, to;
+  final Point from;
+  final Point? to; // null for splay shots
   final num distance, azimut, inclination;
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination);
 
   Map<String, dynamic> toJson() => {
         'from': from.toJson(),
-        'to': to.toJson(),
+        if (to != null) 'to': to!.toJson(),
         'distance': distance,
         'azimut': azimut,
         'inclination': inclination,
@@ -44,7 +45,9 @@ class MeasuredDistance {
   factory MeasuredDistance.fromJson(Map<String, dynamic> json) =>
       MeasuredDistance(
         Point.fromJson(json['from'] as Map<String, dynamic>),
-        Point.fromJson(json['to'] as Map<String, dynamic>),
+        json['to'] != null
+            ? Point.fromJson(json['to'] as Map<String, dynamic>)
+            : null,
         json['distance'] as num,
         json['azimut'] as num,
         json['inclination'] as num,
@@ -122,22 +125,23 @@ class Survey {
     while (changed) {
       changed = false;
       for (final stretch in stretches) {
-        // Skip if 'to' is empty (cross-section measurement)
-        if (stretch.to.corridorId == 0 && stretch.to.pointId == 0) continue;
+        // Skip splay shots (no destination)
+        final to = stretch.to;
+        if (to == null) continue;
 
         // Try to compute position from 'from' station
         if (positions.containsKey(stretch.from) &&
-            !positions.containsKey(stretch.to)) {
+            !positions.containsKey(to)) {
           final fromPos = positions[stretch.from]!;
-          final toPos = _computeToPosition(fromPos, stretch);
-          positions[stretch.to] = toPos;
+          final toPos = _computeToPosition(fromPos, stretch, to);
+          positions[to] = toPos;
           changed = true;
         }
 
         // Try to compute position from 'to' station (backward shot)
-        if (positions.containsKey(stretch.to) &&
+        if (positions.containsKey(to) &&
             !positions.containsKey(stretch.from)) {
-          final toPos = positions[stretch.to]!;
+          final toPos = positions[to]!;
           final fromPos = _computeFromPosition(toPos, stretch);
           positions[stretch.from] = fromPos;
           changed = true;
@@ -149,7 +153,7 @@ class Survey {
   }
 
   StationPosition _computeToPosition(
-      StationPosition from, MeasuredDistance stretch) {
+      StationPosition from, MeasuredDistance stretch, Point to) {
     // Convert angles to radians
     final azimuthRad = stretch.azimut * math.pi / 180.0;
     final inclinationRad = stretch.inclination * math.pi / 180.0;
@@ -165,7 +169,7 @@ class Survey {
     final northOffset = horizDist * math.cos(azimuthRad);
 
     return StationPosition(
-      stretch.to,
+      to,
       from.east + eastOffset,
       from.north + northOffset,
       from.altitude + vertDist,

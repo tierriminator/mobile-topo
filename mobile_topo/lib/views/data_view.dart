@@ -49,8 +49,8 @@ class _DataViewState extends State<DataView> {
           if (stretches.isNotEmpty) {
             final lastStretch = stretches.last;
             // If last stretch has a "To" station, continue from there
-            if (lastStretch.to.corridorId != 0 || lastStretch.to.pointId != 0) {
-              measurementService.continueFrom(lastStretch.to);
+            if (lastStretch.to != null) {
+              measurementService.continueFrom(lastStretch.to!);
             } else {
               measurementService.continueFrom(lastStretch.from);
             }
@@ -205,13 +205,13 @@ class _DataViewState extends State<DataView> {
   Future<void> _addStretch(Section section) async {
     final stretches = section.survey.stretches;
     Point from;
-    Point to;
+    Point? to;
     if (stretches.isEmpty) {
       from = const Point(1, 0);
       to = const Point(1, 1);
     } else {
       final lastStretch = stretches.last;
-      from = lastStretch.to;
+      from = lastStretch.to ?? lastStretch.from;
       to = Point(from.corridorId, from.pointId.toInt() + 1);
     }
 
@@ -222,7 +222,7 @@ class _DataViewState extends State<DataView> {
   Future<void> _insertStretchAt(Section section, int index) async {
     final stretches = section.survey.stretches;
     Point from;
-    Point to;
+    Point? to;
     if (stretches.isEmpty) {
       from = const Point(1, 0);
       to = const Point(1, 1);
@@ -232,7 +232,7 @@ class _DataViewState extends State<DataView> {
       to = refStretch.from;
     } else {
       final lastStretch = stretches.last;
-      from = lastStretch.to;
+      from = lastStretch.to ?? lastStretch.from;
       to = Point(from.corridorId, from.pointId.toInt() + 1);
     }
 

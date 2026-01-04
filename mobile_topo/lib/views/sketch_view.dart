@@ -159,9 +159,13 @@ class _SketchViewState extends State<SketchView> {
       double inclination = stretch.inclination.toDouble();
       bool forward = true;
 
-      if (stretch.from == station && !visited.contains(stretch.to)) {
-        nextStation = stretch.to;
-      } else if (stretch.to == station && !visited.contains(stretch.from)) {
+      // Skip splay shots (no destination)
+      final stretchTo = stretch.to;
+      if (stretchTo == null) continue;
+
+      if (stretch.from == station && !visited.contains(stretchTo)) {
+        nextStation = stretchTo;
+      } else if (stretchTo == station && !visited.contains(stretch.from)) {
         nextStation = stretch.from;
         forward = false;
       }
@@ -548,11 +552,39 @@ class _SketchPainter extends CustomPainter {
     );
   }
 
+  /// Calculate splay shot endpoint in world coordinates
+  Offset _calculateSplayEndpoint(Offset from, MeasuredDistance stretch) {
+    final azimuthRad = stretch.azimut.toDouble() * math.pi / 180.0;
+    final inclinationRad = stretch.inclination.toDouble() * math.pi / 180.0;
+    final distance = stretch.distance.toDouble();
+
+    // Horizontal distance (plan view) and vertical distance
+    final horizDist = distance * math.cos(inclinationRad);
+    final vertDist = distance * math.sin(inclinationRad);
+
+    if (isOutlineView) {
+      // Plan view: X is east, Y is -north
+      // Azimuth 0 = north (negative Y), 90 = east (positive X)
+      final eastOffset = horizDist * math.sin(azimuthRad);
+      final northOffset = horizDist * math.cos(azimuthRad);
+      return Offset(from.dx + eastOffset, from.dy - northOffset);
+    } else {
+      // Side view: X is horizontal distance, Y is -altitude
+      // Show splay extending horizontally with altitude change
+      return Offset(from.dx + horizDist, from.dy - vertDist);
+    }
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final shotPaint = Paint()
       ..color = Colors.red
       ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final splayPaint = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
     final stationPaint = Paint()
@@ -561,12 +593,21 @@ class _SketchPainter extends CustomPainter {
 
     for (final stretch in survey.stretches) {
       final fromPos = stationPositions[stretch.from];
-      final toPos = stationPositions[stretch.to];
 
-      if (fromPos != null && toPos != null) {
+      if (stretch.to != null) {
+        // Survey shot - draw line to destination station
+        final toPos = stationPositions[stretch.to];
+        if (fromPos != null && toPos != null) {
+          final from = _worldToScreen(fromPos, size);
+          final to = _worldToScreen(toPos, size);
+          canvas.drawLine(from, to, shotPaint);
+        }
+      } else if (fromPos != null) {
+        // Splay shot - calculate endpoint from measurement
+        final splayEnd = _calculateSplayEndpoint(fromPos, stretch);
         final from = _worldToScreen(fromPos, size);
-        final to = _worldToScreen(toPos, size);
-        canvas.drawLine(from, to, shotPaint);
+        final to = _worldToScreen(splayEnd, size);
+        canvas.drawLine(from, to, splayPaint);
       }
     }
 
