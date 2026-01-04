@@ -87,10 +87,12 @@ class _SketchViewState extends State<SketchView> {
       return;
     }
 
-    // Only recompute if section changed
+    // Always recompute positions (survey data may have changed)
+    _positions = section.survey.computeStationPositions();
+    _sideViewPositions = _computeSideViewPositions(section.survey);
+
+    // Only reset sketches and recenter when switching to a different section
     if (section.id != _currentSectionId) {
-      _positions = section.survey.computeStationPositions();
-      _sideViewPositions = _computeSideViewPositions(section.survey);
       _outlineSketch = section.outlineSketch;
       _sideViewSketch = section.sideViewSketch;
       _outlineHistory.clear();

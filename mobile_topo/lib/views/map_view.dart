@@ -41,9 +41,11 @@ class _MapViewState extends State<MapView> {
       return;
     }
 
-    // Only recompute and recenter if section changed
+    // Always recompute positions (survey data may have changed)
+    _positions = survey.computeStationPositions();
+
+    // Only recenter when switching to a different section
     if (sectionId != _currentSectionId) {
-      _positions = survey.computeStationPositions();
       _currentSectionId = sectionId;
       _centerView();
     }

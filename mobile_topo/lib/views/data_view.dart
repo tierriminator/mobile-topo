@@ -146,12 +146,13 @@ class _DataViewState extends State<DataView> {
 
     // Update local state SYNCHRONOUSLY so subsequent measurements see our changes
     _localSection = updatedSection;
+    // Update SelectionState immediately so other views (map, sketch) see changes
+    selectionState.updateSection(updatedSection);
     if (mounted) setState(() {}); // Update UI immediately
 
     // Chain saves to prevent concurrent writes that can corrupt files
     Future<void> doSave() async {
       await repository.saveSection(caveId, updatedSection);
-      selectionState.updateSection(updatedSection);
     }
     _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
     await _pendingSave;
@@ -177,13 +178,14 @@ class _DataViewState extends State<DataView> {
       modifiedAt: DateTime.now(),
     );
 
+    // Update state immediately so all views see changes
+    _localSection = null;
+    selectionState.updateSection(updatedSection);
+    if (mounted) setState(() {});
+
     // Chain saves to prevent concurrent writes that can corrupt files
     Future<void> doSave() async {
       await repository.saveSection(caveId, updatedSection);
-      selectionState.updateSection(updatedSection);
-      // Clear local section so UI uses the updated selectionState
-      _localSection = null;
-      if (mounted) setState(() {});
     }
     _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
     await _pendingSave;
