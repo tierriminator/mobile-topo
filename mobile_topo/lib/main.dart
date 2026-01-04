@@ -27,13 +27,20 @@ void main() async {
   final measurementService = MeasurementService(settingsController);
   measurementService.connectDistoX(distoXService);
 
+  // Wire up DistoXService to use SettingsController for autoReconnect
+  distoXService.getAutoReconnect = () => settingsController.autoConnect;
+  distoXService.setAutoReconnectCallback = (value) {
+    settingsController.autoConnect = value;
+    settingsRepository.save(settingsController.settings);
+  };
+
   // Set up callback to save device address on successful connection
   distoXService.onConnectionSuccess = (device) {
     settingsController.setLastConnectedDevice(device.address, device.name);
     settingsRepository.save(settingsController.settings);
   };
 
-  // Auto-connect if enabled
+  // Attempt auto-connect if enabled
   if (settingsController.autoConnect) {
     distoXService.tryAutoConnect(
       settingsController.lastConnectedDeviceAddress,

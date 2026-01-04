@@ -58,7 +58,12 @@ class DistoXService extends ChangeNotifier {
   DistoXDevice? _connectedDevice;
   DistoXDevice? _selectedDevice;
   String? _lastError;
-  bool _autoReconnect = false;
+
+  /// Callback to check if auto-reconnect is enabled (reads from settings)
+  bool Function()? getAutoReconnect;
+
+  /// Callback to set auto-reconnect (writes to settings)
+  void Function(bool value)? setAutoReconnectCallback;
 
   // Buffer for incomplete packets
   final List<int> _buffer = [];
@@ -71,7 +76,7 @@ class DistoXService extends ChangeNotifier {
   DistoXDevice? get connectedDevice => _connectedDevice;
   DistoXDevice? get selectedDevice => _selectedDevice;
   String? get lastError => _lastError;
-  bool get autoReconnect => _autoReconnect;
+  bool get autoReconnect => getAutoReconnect?.call() ?? false;
   bool get isConnected => _connectionState == DistoXConnectionState.connected;
 
   /// Whether running on Android (uses flutter_bluetooth_serial)
@@ -271,14 +276,14 @@ class DistoXService extends ChangeNotifier {
     }
 
     debugPrint('AutoConnect: attempting connection to ${targetDevice.name} (${targetDevice.address})');
-    _autoReconnect = true; // Enable auto-reconnect for this session
+    setAutoReconnect(true); // Enable auto-reconnect for this session
     connect(targetDevice);
     return true;
   }
 
   /// Set auto-reconnect option
   void setAutoReconnect(bool value) {
-    _autoReconnect = value;
+    setAutoReconnectCallback?.call(value);
     notifyListeners();
   }
 
@@ -320,7 +325,7 @@ class DistoXService extends ChangeNotifier {
           _lastError = 'Connection failed';
           _connectionState = DistoXConnectionState.disconnected;
           notifyListeners();
-          if (_autoReconnect) {
+          if (autoReconnect) {
             _scheduleReconnect();
           }
           return false;
@@ -331,7 +336,7 @@ class DistoXService extends ChangeNotifier {
         _connectionState = DistoXConnectionState.disconnected;
         _connectedDevice = null;
         notifyListeners();
-        if (_autoReconnect) {
+        if (autoReconnect) {
           _scheduleReconnect();
         }
         return false;
@@ -364,7 +369,7 @@ class DistoXService extends ChangeNotifier {
       _connectedDevice = null;
       notifyListeners();
 
-      if (_autoReconnect) {
+      if (autoReconnect) {
         _scheduleReconnect();
       }
       return false;
@@ -482,7 +487,7 @@ class DistoXService extends ChangeNotifier {
     _buffer.clear();
     notifyListeners();
 
-    if (_autoReconnect && _selectedDevice != null) {
+    if (autoReconnect && _selectedDevice != null) {
       _scheduleReconnect();
     }
   }
@@ -502,7 +507,7 @@ class DistoXService extends ChangeNotifier {
 
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       _reconnectTimer = null;
-      if (_autoReconnect && _selectedDevice != null) {
+      if (autoReconnect && _selectedDevice != null) {
         connect(_selectedDevice!);
       }
     });
