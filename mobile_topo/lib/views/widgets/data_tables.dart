@@ -171,6 +171,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
 class StretchesTable extends EditableDataTable<MeasuredDistance> {
   final void Function(int index, MeasuredDistance stretch)? onUpdate;
   final void Function(Point station)? onStartHere;
+  final void Function(num corridorId)? onContinueHere;
 
   const StretchesTable({
     super.key,
@@ -180,6 +181,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onDelete,
     this.onUpdate,
     this.onStartHere,
+    this.onContinueHere,
   });
 
   @override
@@ -263,6 +265,7 @@ class StretchesTableState
       AppLocalizations l10n, int index, MeasuredDistance item) {
     return [
       PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
+      PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
       PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
       PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
       PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
@@ -275,6 +278,8 @@ class StretchesTableState
     switch (value) {
       case 'startHere':
         widget.onStartHere?.call(item.from);
+      case 'continueHere':
+        widget.onContinueHere?.call(item.from.corridorId);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

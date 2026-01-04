@@ -260,7 +260,11 @@
   },
   "startHere": "Start here",
   "@startHere": {
-    "description": "Context menu option to set current station for new measurements"
+    "description": "Context menu option to start a new series from this station"
+  },
+  "continueHere": "Continue here",
+  "@continueHere": {
+    "description": "Context menu option to continue surveying from the last station of this corridor"
   },
   "optionsBluetoothSection": "Bluetooth / Device",
   "@optionsBluetoothSection": {

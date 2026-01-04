@@ -202,6 +202,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startHere => 'Start here';
 
   @override
+  String get continueHere => 'Continue here';
+
+  @override
   String get optionsBluetoothSection => 'Bluetooth / Device';
 
   @override

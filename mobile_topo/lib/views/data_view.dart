@@ -318,6 +318,34 @@ class _DataViewState extends State<DataView> {
     measurementService.continueFrom(newStation);
   }
 
+  void _continueHere(Section section, num corridorId) {
+    final measurementService = context.read<MeasurementService>();
+
+    // Find the last station (highest pointId) in the given corridor
+    Point? lastStation;
+    int maxPointId = -1;
+
+    for (final stretch in section.survey.stretches) {
+      // Check "from" station
+      if (stretch.from.corridorId == corridorId &&
+          stretch.from.pointId.toInt() > maxPointId) {
+        maxPointId = stretch.from.pointId.toInt();
+        lastStation = stretch.from;
+      }
+      // Check "to" station (if not a splay)
+      if (stretch.to != null &&
+          stretch.to!.corridorId == corridorId &&
+          stretch.to!.pointId.toInt() > maxPointId) {
+        maxPointId = stretch.to!.pointId.toInt();
+        lastStation = stretch.to;
+      }
+    }
+
+    if (lastStation != null) {
+      measurementService.continueFrom(lastStation);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -477,6 +505,8 @@ class _DataViewState extends State<DataView> {
                     _updateStretch(section, index, stretch),
                 onDelete: (index) => _deleteStretch(section, index),
                 onStartHere: (station) => _startNewSeries(section, station),
+                onContinueHere: (corridorId) =>
+                    _continueHere(section, corridorId),
               ),
         // Reference points view
         referencePoints.isEmpty
