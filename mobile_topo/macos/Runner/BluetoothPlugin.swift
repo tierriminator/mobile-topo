@@ -162,6 +162,7 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     }
 
     private var pendingConnectResult: FlutterResult?
+    private var connectTimeoutTimer: Timer?
 
     private func connectToDevice(device: IOBluetoothDevice, channelID: BluetoothRFCOMMChannelID, result: @escaping FlutterResult) {
         var channel: IOBluetoothRFCOMMChannel?
@@ -178,7 +179,19 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
             self.connectedDevice = device
             self.pendingConnectResult = result
             NSLog("BluetoothPlugin: RFCOMM channel opening async...")
-            // Result will be returned in rfcommChannelOpenComplete
+
+            // Set connection timeout (10 seconds)
+            connectTimeoutTimer?.invalidate()
+            connectTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
+                guard let self = self, self.pendingConnectResult != nil else { return }
+                NSLog("BluetoothPlugin: connection timeout")
+                self.pendingConnectResult?(false)
+                self.pendingConnectResult = nil
+                self.rfcommChannel?.close()
+                self.rfcommChannel = nil
+                self.connectedDevice = nil
+                self.stateSink?("disconnected")
+            }
         } else {
             NSLog("BluetoothPlugin: RFCOMM channel open failed with status \(status)")
             result(false)
@@ -187,6 +200,9 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     }
 
     private func disconnect() {
+        connectTimeoutTimer?.invalidate()
+        connectTimeoutTimer = nil
+        pendingConnectResult = nil
         rfcommChannel?.close()
         rfcommChannel = nil
         connectedDevice?.closeConnection()
@@ -215,6 +231,9 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
 
     func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
         NSLog("BluetoothPlugin: rfcommChannelOpenComplete, status: \(error)")
+        connectTimeoutTimer?.invalidate()
+        connectTimeoutTimer = nil
+
         if error == kIOReturnSuccess {
             NSLog("BluetoothPlugin: channel opened successfully, isOpen: \(rfcommChannel?.isOpen() ?? false)")
             pendingConnectResult?(true)

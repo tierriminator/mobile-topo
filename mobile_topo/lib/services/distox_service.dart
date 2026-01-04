@@ -286,11 +286,12 @@ class DistoXService extends ChangeNotifier {
   }
 
   StreamSubscription<Uint8List>? _macOSDataSubscription;
+  StreamSubscription<BluetoothChannelState>? _macOSStateSubscription;
 
   /// Connect to a DistoX device
   Future<bool> connect(DistoXDevice device) async {
-    if (_connectionState == DistoXConnectionState.connecting ||
-        _connectionState == DistoXConnectionState.reconnecting) {
+    // Only block if already actively connecting (not reconnecting - that's our trigger)
+    if (_connectionState == DistoXConnectionState.connecting) {
       return false;
     }
 
@@ -313,7 +314,21 @@ class DistoXService extends ChangeNotifier {
 
           // Listen for incoming data from platform channel
           _macOSDataSubscription =
-              BluetoothChannel.instance.dataStream.listen(_onDataReceived);
+              BluetoothChannel.instance.dataStream.listen(
+            _onDataReceived,
+            onDone: _onDisconnected,
+            onError: _onError,
+          );
+
+          // Listen for connection state changes (disconnect detection)
+          _macOSStateSubscription =
+              BluetoothChannel.instance.connectionState.listen((state) {
+            if (state == BluetoothChannelState.disconnected &&
+                _connectionState == DistoXConnectionState.connected) {
+              debugPrint('macOS: connection state changed to disconnected');
+              _onDisconnected();
+            }
+          });
 
           debugPrint('Connected to ${device.name} via macOS');
           notifyListeners();
@@ -381,6 +396,8 @@ class DistoXService extends ChangeNotifier {
     _inputSubscription = null;
     await _macOSDataSubscription?.cancel();
     _macOSDataSubscription = null;
+    await _macOSStateSubscription?.cancel();
+    _macOSStateSubscription = null;
 
     if (_isMacOS) {
       await BluetoothChannel.instance.disconnect();
@@ -497,16 +514,24 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
+    debugPrint('_scheduleReconnect: timer=${_reconnectTimer != null}, device=$_selectedDevice');
     if (_reconnectTimer != null) return;
     if (_selectedDevice == null) return;
 
     _connectionState = DistoXConnectionState.reconnecting;
     notifyListeners();
 
+    debugPrint('_scheduleReconnect: scheduling reconnect in 5 seconds');
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       _reconnectTimer = null;
+      debugPrint('_scheduleReconnect: timer fired, autoReconnect=$autoReconnect, device=$_selectedDevice');
       if (autoReconnect && _selectedDevice != null) {
+        debugPrint('_scheduleReconnect: calling connect()');
         connect(_selectedDevice!);
+      } else {
+        debugPrint('_scheduleReconnect: skipping connect (autoReconnect=$autoReconnect)');
+        _connectionState = DistoXConnectionState.disconnected;
+        notifyListeners();
       }
     });
   }
@@ -527,6 +552,7 @@ class DistoXService extends ChangeNotifier {
     _cancelReconnect();
     _inputSubscription?.cancel();
     _macOSDataSubscription?.cancel();
+    _macOSStateSubscription?.cancel();
     _connection?.dispose();
     super.dispose();
   }
