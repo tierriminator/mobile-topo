@@ -23,6 +23,7 @@ class _DataViewState extends State<DataView> {
   final History<Survey> _history = History<Survey>();
   String? _currentSectionId;
   bool _measurementServiceBound = false;
+  bool _cellEditMode = false;
 
   // Save lock to prevent concurrent writes that can corrupt files
   Future<void>? _pendingSave;
@@ -435,6 +436,20 @@ class _DataViewState extends State<DataView> {
                 onPressed: _history.canRedo ? () => _redo(section) : null,
                 tooltip: l10n.redo,
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.edit,
+                  color: _cellEditMode
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _cellEditMode = !_cellEditMode;
+                  });
+                },
+                tooltip: l10n.cellEditMode,
+              ),
             ],
           ),
         ),
@@ -491,6 +506,7 @@ class _DataViewState extends State<DataView> {
               )
             : StretchesTable(
                 data: stretches,
+                editMode: _cellEditMode,
                 onInsertAbove: (index) => _insertStretchAt(section, index),
                 onInsertBelow: (index) =>
                     _insertStretchAt(section, index + 1),
@@ -526,6 +542,7 @@ class _DataViewState extends State<DataView> {
               )
             : ReferencePointsTable(
                 data: referencePoints,
+                editMode: _cellEditMode,
                 onInsertAbove: (index) =>
                     _insertReferencePointAt(section, index),
                 onInsertBelow: (index) =>

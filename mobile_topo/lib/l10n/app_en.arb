@@ -436,5 +436,9 @@
     "placeholders": {
       "error": {"type": "String"}
     }
+  },
+  "cellEditMode": "Edit cells",
+  "@cellEditMode": {
+    "description": "Tooltip for cell edit mode toggle button"
   }
 }

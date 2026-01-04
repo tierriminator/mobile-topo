@@ -724,6 +724,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to connect: {error}'**
   String connectionFailed(String error);
+
+  /// Tooltip for cell edit mode toggle button
+  ///
+  /// In en, this message translates to:
+  /// **'Edit cells'**
+  String get cellEditMode;
 }
 
 class _AppLocalizationsDelegate

@@ -10,6 +10,7 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   final void Function(int index)? onInsertBelow;
   final void Function(int index)? onDelete;
   final VoidCallback? onAdd;
+  final bool editMode;
 
   const EditableDataTable({
     super.key,
@@ -18,6 +19,7 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.onInsertBelow,
     this.onDelete,
     this.onAdd,
+    this.editMode = false,
   });
 }
 
@@ -27,6 +29,21 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   int? _selectedIndex;
   int? _editingRow;
   int? _editingCol;
+  bool _wasSelectedBeforeTouch = false;
+
+  @override
+  void didUpdateWidget(W oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Clear editing state when switching out of edit mode
+    if (oldWidget.editMode && !widget.editMode) {
+      _editingRow = null;
+      _editingCol = null;
+    }
+    // Clear selection when switching to edit mode
+    if (!oldWidget.editMode && widget.editMode) {
+      _selectedIndex = null;
+    }
+  }
 
   void clearSelection() {
     setState(() {
@@ -132,7 +149,8 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     int index,
     T item,
   ) {
-    final isSelected = index == _selectedIndex;
+    // Don't show selection highlight in edit mode
+    final isSelected = !widget.editMode && index == _selectedIndex;
     final decoration = isSelected
         ? BoxDecoration(
             color: Theme.of(context)
@@ -160,35 +178,55 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     T item,
     Widget child,
   ) {
-    return TableCell(
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) {
-          setState(() {
-            _selectedIndex = _selectedIndex == row ? null : row;
-          });
-        },
+    if (widget.editMode) {
+      // Edit mode: tap to edit cell, no selection or context menu
+      return TableCell(
         child: GestureDetector(
-          onDoubleTap: () {
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
             setState(() {
               _editingRow = row;
               _editingCol = col;
             });
           },
-          onLongPressStart: (details) {
-            showMenu(
-              context: context,
-              position: RelativeRect.fromLTRB(
-                details.globalPosition.dx,
-                details.globalPosition.dy,
-                details.globalPosition.dx,
-                details.globalPosition.dy,
-              ),
-              items: buildContextMenuItems(l10n, row, item),
-            ).then((value) => handleContextMenuSelection(value, row, item));
-          },
           child: child,
         ),
+      );
+    }
+
+    // Normal mode: tap to select/deselect, long-tap for context menu
+    return TableCell(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          // Remember if row was already selected, then select it
+          _wasSelectedBeforeTouch = _selectedIndex == row;
+          setState(() {
+            _selectedIndex = row;
+          });
+        },
+        onTap: () {
+          // If it was already selected before touch, deselect it
+          if (_wasSelectedBeforeTouch) {
+            setState(() {
+              _selectedIndex = null;
+            });
+          }
+        },
+        onLongPressStart: (details) {
+          // Show context menu (row already selected from onTapDown)
+          showMenu(
+            context: context,
+            position: RelativeRect.fromLTRB(
+              details.globalPosition.dx,
+              details.globalPosition.dy,
+              details.globalPosition.dx,
+              details.globalPosition.dy,
+            ),
+            items: buildContextMenuItems(l10n, row, item),
+          ).then((value) => handleContextMenuSelection(value, row, item));
+        },
+        child: child,
       ),
     );
   }
@@ -212,6 +250,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onInsertBelow,
     super.onDelete,
     super.onAdd,
+    super.editMode,
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
@@ -337,6 +376,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onInsertBelow,
     super.onDelete,
     super.onAdd,
+    super.editMode,
     this.onUpdate,
   });
 

@@ -335,4 +335,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String connectionFailed(String error) {
     return 'Failed to connect: $error';
   }
+
+  @override
+  String get cellEditMode => 'Edit cells';
 }
