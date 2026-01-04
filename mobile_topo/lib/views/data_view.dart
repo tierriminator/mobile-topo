@@ -435,13 +435,6 @@ class _DataViewState extends State<DataView> {
                 onPressed: _history.canRedo ? () => _redo(section) : null,
                 tooltip: l10n.redo,
               ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () => _mode == DataViewMode.stretches
-                    ? _addStretch(section)
-                    : _addReferencePoint(section),
-                tooltip: l10n.addStretch,
-              ),
             ],
           ),
         ),
@@ -507,6 +500,7 @@ class _DataViewState extends State<DataView> {
                 onStartHere: (station) => _startNewSeries(section, station),
                 onContinueHere: (corridorId) =>
                     _continueHere(section, corridorId),
+                onAdd: () => _addStretch(section),
               ),
         // Reference points view
         referencePoints.isEmpty
@@ -539,6 +533,7 @@ class _DataViewState extends State<DataView> {
                 onUpdate: (index, point) =>
                     _updateReferencePoint(section, index, point),
                 onDelete: (index) => _deleteReferencePoint(section, index),
+                onAdd: () => _addReferencePoint(section),
               ),
       ],
     );

@@ -9,6 +9,7 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   final void Function(int index)? onInsertAbove;
   final void Function(int index)? onInsertBelow;
   final void Function(int index)? onDelete;
+  final VoidCallback? onAdd;
 
   const EditableDataTable({
     super.key,
@@ -16,6 +17,7 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.onInsertAbove,
     this.onInsertBelow,
     this.onDelete,
+    this.onAdd,
   });
 }
 
@@ -78,19 +80,49 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
         // Scrollable data rows
         Expanded(
           child: SingleChildScrollView(
-            child: Table(
-              border: const TableBorder(
-                verticalInside: BorderSide(),
-                horizontalInside: BorderSide(),
-              ),
+            child: Column(
               children: [
-                for (var i = 0; i < widget.data.length; i++)
-                  _buildRow(context, l10n, i, widget.data[i]),
+                Table(
+                  border: const TableBorder(
+                    verticalInside: BorderSide(),
+                    horizontalInside: BorderSide(),
+                  ),
+                  children: [
+                    for (var i = 0; i < widget.data.length; i++)
+                      _buildRow(context, l10n, i, widget.data[i]),
+                  ],
+                ),
+                // Add row button
+                if (widget.onAdd != null)
+                  _buildAddRow(context),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAddRow(BuildContext context) {
+    return InkWell(
+      onTap: widget.onAdd,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: widget.data.isEmpty
+                ? BorderSide.none
+                : const BorderSide(),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: Icon(
+            Icons.add,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -179,6 +211,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onInsertAbove,
     super.onInsertBelow,
     super.onDelete,
+    super.onAdd,
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
@@ -303,6 +336,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onInsertAbove,
     super.onInsertBelow,
     super.onDelete,
+    super.onAdd,
     this.onUpdate,
   });
 
