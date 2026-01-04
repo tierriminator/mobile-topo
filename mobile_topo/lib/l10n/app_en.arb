@@ -258,6 +258,10 @@
   "@insertBelow": {
     "description": "Context menu option to insert row below"
   },
+  "startHere": "Start here",
+  "@startHere": {
+    "description": "Context menu option to set current station for new measurements"
+  },
   "optionsBluetoothSection": "Bluetooth / Device",
   "@optionsBluetoothSection": {
     "description": "Section header for Bluetooth settings"

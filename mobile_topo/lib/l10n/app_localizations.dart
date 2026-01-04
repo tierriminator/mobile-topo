@@ -461,6 +461,12 @@ abstract class AppLocalizations {
   /// **'Insert below'**
   String get insertBelow;
 
+  /// Context menu option to set current station for new measurements
+  ///
+  /// In en, this message translates to:
+  /// **'Start here'**
+  String get startHere;
+
   /// Section header for Bluetooth settings
   ///
   /// In en, this message translates to:

@@ -179,12 +179,20 @@ class _DataViewState extends State<DataView> {
 
     // Chain saves to prevent concurrent writes that can corrupt files
     Future<void> doSave() async {
+      debugPrint('_applySurveyChange: saving section with ${updatedSection.survey.stretches.length} stretches');
       await repository.saveSection(caveId, updatedSection);
+      debugPrint('_applySurveyChange: updating selectionState');
       selectionState.updateSection(updatedSection);
-      if (mounted) setState(() {}); // Refresh undo/redo button states
+      // Clear local section so UI uses the updated selectionState
+      _localSection = null;
+      if (mounted) {
+        debugPrint('_applySurveyChange: calling setState');
+        setState(() {});
+      }
     }
     _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
     await _pendingSave;
+    debugPrint('_applySurveyChange: completed');
   }
 
   Future<void> _undo(Section section) async {
@@ -285,6 +293,44 @@ class _DataViewState extends State<DataView> {
     await _applySurveyChange(
       section,
       section.survey.removeReferencePointAt(index),
+    );
+  }
+
+  Future<void> _startNewSeries(Section section, Point fromStation) async {
+    debugPrint('_startNewSeries called: fromStation=$fromStation');
+    final measurementService = context.read<MeasurementService>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // Find the maximum corridor ID used in the survey
+    int maxCorridorId = 0;
+    for (final stretch in section.survey.stretches) {
+      if (stretch.from.corridorId.toInt() > maxCorridorId) {
+        maxCorridorId = stretch.from.corridorId.toInt();
+      }
+      if (stretch.to != null && stretch.to!.corridorId.toInt() > maxCorridorId) {
+        maxCorridorId = stretch.to!.corridorId.toInt();
+      }
+    }
+
+    // New series starts at (maxCorridorId + 1).0
+    final newCorridorId = maxCorridorId + 1;
+    final newStation = Point(newCorridorId, 0);
+    debugPrint('_startNewSeries: maxCorridorId=$maxCorridorId, newStation=$newStation');
+
+    // Create empty stretch connecting the selected station to the new series
+    final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0);
+    debugPrint('_startNewSeries: adding stretch $fromStation -> $newStation');
+    final newSurvey = section.survey.addStretch(emptyStretch);
+    debugPrint('_startNewSeries: newSurvey has ${newSurvey.stretches.length} stretches');
+    await _applySurveyChange(section, newSurvey);
+    debugPrint('_startNewSeries: _applySurveyChange completed');
+
+    // Update measurement service to continue from the new station
+    measurementService.continueFrom(newStation);
+
+    // Show feedback
+    scaffoldMessenger.showSnackBar(
+      SnackBar(content: Text('Started new series at $newStation')),
     );
   }
 
@@ -447,6 +493,7 @@ class _DataViewState extends State<DataView> {
                   onUpdate: (index, stretch) =>
                       _updateStretch(section, index, stretch),
                   onDelete: (index) => _deleteStretch(section, index),
+                  onStartHere: (station) => _startNewSeries(section, station),
                 ),
               ),
         // Reference points view

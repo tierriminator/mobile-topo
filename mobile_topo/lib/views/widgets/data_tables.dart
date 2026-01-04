@@ -9,6 +9,7 @@ class StretchesTable extends StatefulWidget {
   final void Function(int index)? onInsertBelow;
   final void Function(int index)? onDelete;
   final void Function(int index, MeasuredDistance stretch)? onUpdate;
+  final void Function(Point station)? onStartHere;
 
   const StretchesTable({
     super.key,
@@ -17,6 +18,7 @@ class StretchesTable extends StatefulWidget {
     this.onInsertBelow,
     this.onDelete,
     this.onUpdate,
+    this.onStartHere,
   });
 
   @override
@@ -98,6 +100,7 @@ class StretchesTableState extends State<StretchesTable> {
         _wrapCell(
           context,
           index,
+          stretch,
           0,
           _PointCell(
             point: stretch.from,
@@ -109,6 +112,7 @@ class StretchesTableState extends State<StretchesTable> {
         _wrapCell(
           context,
           index,
+          stretch,
           1,
           _PointCell(
             point: stretch.to,
@@ -120,6 +124,7 @@ class StretchesTableState extends State<StretchesTable> {
         _wrapCell(
           context,
           index,
+          stretch,
           2,
           _NumberCell(
             value: stretch.distance,
@@ -132,6 +137,7 @@ class StretchesTableState extends State<StretchesTable> {
         _wrapCell(
           context,
           index,
+          stretch,
           3,
           _NumberCell(
             value: stretch.azimut,
@@ -144,6 +150,7 @@ class StretchesTableState extends State<StretchesTable> {
         _wrapCell(
           context,
           index,
+          stretch,
           4,
           _NumberCell(
             value: stretch.inclination,
@@ -158,7 +165,13 @@ class StretchesTableState extends State<StretchesTable> {
     );
   }
 
-  TableCell _wrapCell(BuildContext context, int row, int col, Widget child) {
+  TableCell _wrapCell(
+    BuildContext context,
+    int row,
+    MeasuredDistance stretch,
+    int col,
+    Widget child,
+  ) {
     final l10n = AppLocalizations.of(context)!;
     return TableCell(
       child: Listener(
@@ -186,6 +199,10 @@ class StretchesTableState extends State<StretchesTable> {
               ),
               items: [
                 PopupMenuItem(
+                  value: 'startHere',
+                  child: Text(l10n.startHere),
+                ),
+                PopupMenuItem(
                   value: 'insertAbove',
                   child: Text(l10n.insertAbove),
                 ),
@@ -199,7 +216,11 @@ class StretchesTableState extends State<StretchesTable> {
                 ),
               ],
             ).then((value) {
+              debugPrint('Menu selected: $value');
               switch (value) {
+                case 'startHere':
+                  debugPrint('Calling onStartHere with ${stretch.from}');
+                  widget.onStartHere?.call(stretch.from);
                 case 'insertAbove':
                   widget.onInsertAbove?.call(row);
                 case 'insertBelow':
