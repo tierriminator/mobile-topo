@@ -277,12 +277,12 @@ void main() {
     group('mode commands', () {
       test('buildStartCalibrationCommand returns correct byte', () {
         final cmd = protocol.buildStartCalibrationCommand();
-        expect(cmd, [0x31]);
+        expect(cmd, [0x30]); // DistoXCommand.startCalibration = 0x30
       });
 
       test('buildStopCalibrationCommand returns correct byte', () {
         final cmd = protocol.buildStopCalibrationCommand();
-        expect(cmd, [0x30]);
+        expect(cmd, [0x31]); // DistoXCommand.stopCalibration = 0x31
       });
 
       test('buildStartSilentModeCommand returns correct byte', () {

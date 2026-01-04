@@ -29,13 +29,17 @@ void main() {
         final m2 = createMeasurement();
         final m3 = createMeasurement();
 
-        expect(detector.addMeasurement(m1), isNull);
-        expect(detector.addMeasurement(m2), isNull);
+        // Each measurement is immediately emitted as a splay
+        final result1 = detector.addMeasurement(m1);
+        expect(result1.type, ShotType.splay);
 
-        final result = detector.addMeasurement(m3);
-        expect(result, isNotNull);
-        expect(result!.type, ShotType.surveyShot);
-        expect(result.rawMeasurements.length, 3);
+        final result2 = detector.addMeasurement(m2);
+        expect(result2.type, ShotType.splay);
+
+        // Third measurement triggers triple detection, returns survey shot
+        final result3 = detector.addMeasurement(m3);
+        expect(result3.type, ShotType.surveyShot);
+        expect(result3.rawMeasurements.length, 3);
       });
 
       test('detects shots within distance threshold (< 5cm)', () {
@@ -56,14 +60,16 @@ void main() {
         final m2 = createMeasurement(distance: 10.03);
         final m3 = createMeasurement(distance: 10.06); // 6cm diff from m1
 
-        detector.addMeasurement(m1);
-        final result2 = detector.addMeasurement(m2);
-        expect(result2, isNull);
+        // All measurements are immediately emitted as splays
+        final result1 = detector.addMeasurement(m1);
+        expect(result1.type, ShotType.splay);
 
+        final result2 = detector.addMeasurement(m2);
+        expect(result2.type, ShotType.splay);
+
+        // Third doesn't form a triple (distance > 5cm from m1), so still a splay
         final result3 = detector.addMeasurement(m3);
-        // First measurement should be emitted as splay
-        expect(result3, isNotNull);
-        expect(result3!.type, ShotType.splay);
+        expect(result3.type, ShotType.splay);
       });
 
       test('detects shots within angular threshold (< 1.7 degrees)', () {
@@ -84,13 +90,16 @@ void main() {
         final m2 = createMeasurement(azimuth: 45.5);
         final m3 = createMeasurement(azimuth: 47.0); // 2° diff from m1
 
-        detector.addMeasurement(m1);
-        detector.addMeasurement(m2);
-        final result = detector.addMeasurement(m3);
+        // All measurements are immediately emitted as splays
+        final result1 = detector.addMeasurement(m1);
+        expect(result1.type, ShotType.splay);
 
-        // First measurement emitted as splay since it's not part of a triple
-        expect(result, isNotNull);
-        expect(result!.type, ShotType.splay);
+        final result2 = detector.addMeasurement(m2);
+        expect(result2.type, ShotType.splay);
+
+        // Third doesn't form a triple (angular diff > 1.7°), so still a splay
+        final result3 = detector.addMeasurement(m3);
+        expect(result3.type, ShotType.splay);
       });
 
       test('inclination differences also count for angular threshold', () {
@@ -102,7 +111,8 @@ void main() {
         detector.addMeasurement(m2);
         final result = detector.addMeasurement(m3);
 
-        expect(result!.type, ShotType.splay);
+        // Third doesn't form a triple (inclination diff > 1.7°), so still a splay
+        expect(result.type, ShotType.splay);
       });
     });
 
@@ -151,35 +161,41 @@ void main() {
     });
 
     group('splay detection', () {
-      test('emits splay when third shot breaks the pattern', () {
+      test('emits splay immediately for each measurement', () {
         final m1 = createMeasurement(distance: 10.0);
         final m2 = createMeasurement(distance: 15.0); // Very different
         final m3 = createMeasurement(distance: 10.0);
 
-        // First three don't form a triple
-        expect(detector.addMeasurement(m1), isNull);
-        expect(detector.addMeasurement(m2), isNull);
-        // Third measurement causes first to be emitted as splay
+        // All measurements are immediately emitted as splays
+        final result1 = detector.addMeasurement(m1);
+        expect(result1.type, ShotType.splay);
+        expect(result1.distance, 10.0);
+
+        final result2 = detector.addMeasurement(m2);
+        expect(result2.type, ShotType.splay);
+        expect(result2.distance, 15.0);
+
+        // Third doesn't form a triple with diverse measurements
         final result3 = detector.addMeasurement(m3);
-        expect(result3, isNotNull);
-        expect(result3!.type, ShotType.splay);
+        expect(result3.type, ShotType.splay);
         expect(result3.distance, 10.0);
       });
     });
 
     group('flush', () {
-      test('flushes pending measurements as splays', () {
+      test('flush returns empty list (measurements already emitted)', () {
         final m1 = createMeasurement();
         final m2 = createMeasurement();
 
+        // Measurements are emitted immediately
         detector.addMeasurement(m1);
         detector.addMeasurement(m2);
 
+        // Flush now returns empty since measurements are already emitted
         final flushed = detector.flush();
-        expect(flushed.length, 2);
-        expect(flushed[0].type, ShotType.splay);
-        expect(flushed[1].type, ShotType.splay);
-        expect(detector.pendingCount, 0);
+        expect(flushed.length, 0);
+        // But pending count tracks measurements for triple detection
+        expect(detector.pendingCount, 2);
       });
     });
 
@@ -195,9 +211,11 @@ void main() {
     });
 
     group('callback', () {
-      test('calls onShotDetected callback', () {
+      test('calls onShotDetected for each measurement and onTripleDetected for survey shot', () {
         final detectedShots = <DetectedShot>[];
+        final tripleShots = <DetectedShot>[];
         detector.onShotDetected = detectedShots.add;
+        detector.onTripleDetected = tripleShots.add;
 
         final m1 = createMeasurement();
         final m2 = createMeasurement();
@@ -207,8 +225,15 @@ void main() {
         detector.addMeasurement(m2);
         detector.addMeasurement(m3);
 
-        expect(detectedShots.length, 1);
-        expect(detectedShots[0].type, ShotType.surveyShot);
+        // Each measurement triggers onShotDetected (as splay)
+        expect(detectedShots.length, 3);
+        expect(detectedShots[0].type, ShotType.splay);
+        expect(detectedShots[1].type, ShotType.splay);
+        expect(detectedShots[2].type, ShotType.splay);
+
+        // Triple detection triggers onTripleDetected (survey shot)
+        expect(tripleShots.length, 1);
+        expect(tripleShots[0].type, ShotType.surveyShot);
       });
     });
   });
