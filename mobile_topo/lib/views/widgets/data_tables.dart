@@ -216,10 +216,8 @@ class StretchesTableState extends State<StretchesTable> {
                 ),
               ],
             ).then((value) {
-              debugPrint('Menu selected: $value');
               switch (value) {
                 case 'startHere':
-                  debugPrint('Calling onStartHere with ${stretch.from}');
                   widget.onStartHere?.call(stretch.from);
                 case 'insertAbove':
                   widget.onInsertAbove?.call(row);
