@@ -49,6 +49,9 @@ class _SketchViewState extends State<SketchView> {
   Offset _startOffset = Offset.zero;
   Offset _startFocalPoint = Offset.zero;
 
+  // Save lock to prevent concurrent writes
+  Future<void>? _pendingSave;
+
   Size _canvasSize = Size.zero;
 
   // Track current section to detect changes
@@ -253,7 +256,12 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  Future<void> _saveSketch() async {
+  void _saveSketch() {
+    // Chain saves to prevent concurrent writes that can corrupt files
+    _pendingSave = _pendingSave?.then((_) => _doSave()) ?? _doSave();
+  }
+
+  Future<void> _doSave() async {
     final selectionState = context.read<SelectionState>();
     final repository = context.read<CaveRepository>();
     final section = selectionState.selectedSection;

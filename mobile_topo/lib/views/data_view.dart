@@ -25,9 +25,18 @@ class _DataViewState extends State<DataView> {
   String? _currentSectionId;
   bool _measurementServiceBound = false;
 
+  // Save lock to prevent concurrent writes that can corrupt files
+  Future<void>? _pendingSave;
+
+  // Local section state that gets updated synchronously when measurements
+  // come in. This prevents race conditions where multiple measurements arrive
+  // before the async save completes and SelectionState gets updated.
+  Section? _localSection;
+
   void _checkSectionChange(Section? section) {
     if (section?.id != _currentSectionId) {
       _history.clear();
+      _localSection = null; // Clear local state when section changes
       _currentSectionId = section?.id;
 
       // Update measurement service with current station from survey
@@ -51,30 +60,102 @@ class _DataViewState extends State<DataView> {
     }
   }
 
+  /// Get the current effective section, preferring local state over SelectionState.
+  /// This ensures we see our own pending changes that haven't been saved yet.
+  Section? _getEffectiveSection(String expectedSectionId) {
+    // If we have local state for this section, use it
+    if (_localSection != null && _localSection!.id == expectedSectionId) {
+      return _localSection;
+    }
+    // Otherwise fall back to SelectionState
+    final selectionSection = context.read<SelectionState>().selectedSection;
+    if (selectionSection?.id == expectedSectionId) {
+      return selectionSection;
+    }
+    return null;
+  }
+
   void _bindMeasurementService(Section section) {
     if (_measurementServiceBound) return;
 
     final measurementService = context.read<MeasurementService>();
+    final sectionId = section.id;
 
     measurementService.onStretchReady = (stretch) {
-      _addMeasuredStretch(section, stretch);
+      _addMeasuredStretch(sectionId, stretch);
     };
 
     measurementService.onCrossSectionReady = (crossSection) {
-      _addMeasuredStretch(section, crossSection);
+      _addMeasuredStretch(sectionId, crossSection);
+    };
+
+    measurementService.onTripleReplace = (removeCount, stretch) {
+      _replaceWithSurveyShot(sectionId, removeCount, stretch);
     };
 
     _measurementServiceBound = true;
   }
 
   Future<void> _addMeasuredStretch(
-      Section section, MeasuredDistance stretch) async {
-    // Re-fetch the current section to avoid stale data
-    final currentSection = context.read<SelectionState>().selectedSection;
-    if (currentSection == null || currentSection.id != section.id) return;
+      String sectionId, MeasuredDistance stretch) async {
+    // Get effective section (local state if available, otherwise SelectionState)
+    final currentSection = _getEffectiveSection(sectionId);
+    if (currentSection == null) return;
 
-    await _applySurveyChange(
-        currentSection, currentSection.survey.addStretch(stretch));
+    final newSurvey = currentSection.survey.addStretch(stretch);
+    await _applySurveyChangeWithLocalState(currentSection, newSurvey);
+  }
+
+  Future<void> _replaceWithSurveyShot(
+      String sectionId, int removeCount, MeasuredDistance stretch) async {
+    debugPrint('DataView._replaceWithSurveyShot: removeCount=$removeCount, stretch=$stretch');
+
+    // Get effective section (local state if available, otherwise SelectionState)
+    final currentSection = _getEffectiveSection(sectionId);
+    if (currentSection == null) {
+      debugPrint('DataView._replaceWithSurveyShot: section not found, aborting');
+      return;
+    }
+
+    debugPrint('DataView._replaceWithSurveyShot: current stretches count=${currentSection.survey.stretches.length}');
+
+    // Replace last N splays with the survey shot
+    final newSurvey = currentSection.survey.replaceLastNWithStretch(removeCount, stretch);
+    debugPrint('DataView._replaceWithSurveyShot: new stretches count=${newSurvey.stretches.length}');
+
+    await _applySurveyChangeWithLocalState(currentSection, newSurvey);
+  }
+
+  /// Apply survey change with local state tracking for measurements.
+  /// Updates _localSection synchronously so subsequent measurements see our changes.
+  Future<void> _applySurveyChangeWithLocalState(
+    Section section,
+    Survey newSurvey,
+  ) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final caveId = selectionState.selectedCaveId;
+
+    if (caveId == null) return;
+
+    _history.record(section.survey);
+
+    final updatedSection = section.copyWith(
+      survey: newSurvey,
+      modifiedAt: DateTime.now(),
+    );
+
+    // Update local state SYNCHRONOUSLY so subsequent measurements see our changes
+    _localSection = updatedSection;
+    if (mounted) setState(() {}); // Update UI immediately
+
+    // Chain saves to prevent concurrent writes that can corrupt files
+    Future<void> doSave() async {
+      await repository.saveSection(caveId, updatedSection);
+      selectionState.updateSection(updatedSection);
+    }
+    _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
+    await _pendingSave;
   }
 
   Future<void> _applySurveyChange(
@@ -97,9 +178,14 @@ class _DataViewState extends State<DataView> {
       modifiedAt: DateTime.now(),
     );
 
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
-    setState(() {}); // Refresh undo/redo button states
+    // Chain saves to prevent concurrent writes that can corrupt files
+    Future<void> doSave() async {
+      await repository.saveSection(caveId, updatedSection);
+      selectionState.updateSection(updatedSection);
+      if (mounted) setState(() {}); // Refresh undo/redo button states
+    }
+    _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
+    await _pendingSave;
   }
 
   Future<void> _undo(Section section) async {
@@ -342,14 +428,14 @@ class _DataViewState extends State<DataView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = context.watch<SelectionState>().selectedSection;
+    final selectionSection = context.watch<SelectionState>().selectedSection;
     final measurementService = context.watch<MeasurementService>();
     final settingsController = context.watch<SettingsController>();
 
     // Clear history when section changes
-    _checkSectionChange(section);
+    _checkSectionChange(selectionSection);
 
-    if (section == null) {
+    if (selectionSection == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -371,8 +457,13 @@ class _DataViewState extends State<DataView> {
       );
     }
 
+    // Use local section for display if available (shows pending changes immediately)
+    final section = _localSection?.id == selectionSection.id
+        ? _localSection!
+        : selectionSection;
+
     // Bind measurement service callbacks
-    _bindMeasurementService(section);
+    _bindMeasurementService(selectionSection);
 
     return Column(
       children: [

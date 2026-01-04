@@ -36,6 +36,10 @@ class MeasurementService extends ChangeNotifier {
   /// Callback when a stretch (survey shot) is ready to be added
   void Function(MeasuredDistance stretch)? onStretchReady;
 
+  /// Callback when last 3 cross-sections should be replaced with a survey shot
+  /// The int is the number of cross-sections to remove (always 3)
+  void Function(int removeCount, MeasuredDistance stretch)? onTripleReplace;
+
   MeasurementService(this._settings) {
     _initDetectors();
   }
@@ -70,7 +74,8 @@ class MeasurementService extends ChangeNotifier {
     _stretchDetector = SmartModeDetector();
 
     _crossSectionDetector!.onShotDetected = _onCrossSectionDetected;
-    _stretchDetector!.onShotDetected = _onStretchDetected;
+    _stretchDetector!.onShotDetected = _onStretchSplayDetected;
+    _stretchDetector!.onTripleDetected = _onTripleDetected;
   }
 
   /// Current station where measurements originate
@@ -135,20 +140,20 @@ class MeasurementService extends ChangeNotifier {
   }
 
   void _onCrossSectionDetected(DetectedShot shot) {
-    // Cross-sections are always added (both splays and detected triples)
-    // The difference is that triples are averaged
+    // Cross-sections are always added immediately
     _emitCrossSection(shot.distance, shot.azimuth, shot.inclination);
   }
 
-  void _onStretchDetected(DetectedShot shot) {
-    debugPrint('MeasurementService: _onStretchDetected called, type=${shot.type}');
-    if (shot.type == ShotType.surveyShot) {
-      // Triple detected - this is a confirmed survey shot
-      _emitStretch(shot.distance, shot.azimuth, shot.inclination);
-    } else {
-      // Splay - in stretch mode, this becomes a cross-section
-      _emitCrossSection(shot.distance, shot.azimuth, shot.inclination);
-    }
+  void _onStretchSplayDetected(DetectedShot shot) {
+    // In smart mode, every measurement is first added as a cross-section (splay)
+    debugPrint('MeasurementService: _onStretchSplayDetected called');
+    _emitCrossSection(shot.distance, shot.azimuth, shot.inclination);
+  }
+
+  void _onTripleDetected(DetectedShot shot) {
+    // Triple detected - replace last 3 cross-sections with a survey shot
+    debugPrint('MeasurementService: _onTripleDetected called');
+    _emitTripleReplacement(shot.distance, shot.azimuth, shot.inclination);
   }
 
   void _emitCrossSection(double distance, double azimuth, double inclination) {
@@ -187,6 +192,35 @@ class MeasurementService extends ChangeNotifier {
 
     debugPrint('MeasurementService: calling onStretchReady (${onStretchReady != null}), stretch=$stretch');
     onStretchReady?.call(stretch);
+
+    // Advance to next station
+    _currentStation = to;
+    _nextStation = Point(to.corridorId, to.pointId.toInt() + 1);
+    notifyListeners();
+  }
+
+  void _emitTripleReplacement(double distance, double azimuth, double inclination) {
+    debugPrint('MeasurementService: _emitTripleReplacement called');
+    Point from = _currentStation;
+    Point to = _nextStation;
+
+    // Handle shot direction (backward shots swap from/to)
+    if (_settings.shotDirection == ShotDirection.backward) {
+      final temp = from;
+      from = to;
+      to = temp;
+    }
+
+    final stretch = MeasuredDistance(
+      from,
+      to,
+      distance,
+      azimuth,
+      inclination,
+    );
+
+    debugPrint('MeasurementService: calling onTripleReplace (${onTripleReplace != null}), remove 3, add $stretch');
+    onTripleReplace?.call(3, stretch);
 
     // Advance to next station
     _currentStation = to;

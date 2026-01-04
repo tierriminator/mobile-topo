@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 
 /// A raw measurement from the DistoX device
 class RawMeasurement {
@@ -62,6 +63,10 @@ class DetectedShot {
 
 /// Detects survey shots by identifying 3 nearly identical measurements.
 ///
+/// Every measurement is emitted immediately as a splay. When 3 consecutive
+/// measurements form a triple, onTripleDetected is called so the UI can
+/// replace the 3 splays with a single survey shot.
+///
 /// According to DistoX specs, shots are "nearly identical" if:
 /// - Distance difference < 5cm (0.05m)
 /// - Directional difference < 3% (1.7°)
@@ -72,93 +77,116 @@ class SmartModeDetector {
   /// Maximum angular difference for shots to be considered identical (in degrees)
   static const double maxAngularDifference = 1.7;
 
-  final List<RawMeasurement> _pendingMeasurements = [];
+  /// Ring buffer of last 3 measurements for triple detection
+  final List<RawMeasurement> _recentMeasurements = [];
 
-  /// Callback when a shot is detected
+  /// Callback when any shot is detected (splay or survey shot)
   void Function(DetectedShot shot)? onShotDetected;
 
-  SmartModeDetector({this.onShotDetected});
+  /// Callback when a triple is detected - the last 3 splays should be
+  /// replaced with this survey shot
+  void Function(DetectedShot surveyShot)? onTripleDetected;
 
-  /// Add a new measurement and check for triple detection
+  SmartModeDetector({this.onShotDetected, this.onTripleDetected});
+
+  /// Add a new measurement.
   ///
-  /// Returns the detected shot if a complete shot is detected, null otherwise.
-  /// When smart mode detects a survey shot (3 identical), it consumes all 3
-  /// measurements. For splay shots, measurements are emitted individually
-  /// once we know they're not part of a triple.
-  DetectedShot? addMeasurement(RawMeasurement measurement) {
-    _pendingMeasurements.add(measurement);
+  /// The measurement is immediately emitted as a splay via onShotDetected.
+  /// If this forms a triple with the previous 2 measurements, onTripleDetected
+  /// is also called so the UI can replace the 3 splays with 1 survey shot.
+  DetectedShot addMeasurement(RawMeasurement measurement) {
+    debugPrint('SmartModeDetector.addMeasurement: dist=${measurement.distance.toStringAsFixed(3)}, azi=${measurement.azimuth.toStringAsFixed(1)}, inc=${measurement.inclination.toStringAsFixed(1)}');
+    debugPrint('SmartModeDetector: buffer size before add: ${_recentMeasurements.length}');
 
-    // Check if we have 3 measurements that form a triple
-    if (_pendingMeasurements.length >= 3) {
-      final last3 = _pendingMeasurements.sublist(_pendingMeasurements.length - 3);
+    // Always emit the measurement immediately as a splay
+    final splay = DetectedShot(
+      type: ShotType.splay,
+      distance: measurement.distance,
+      azimuth: measurement.azimuth,
+      inclination: measurement.inclination,
+      rawMeasurements: [measurement],
+    );
+    debugPrint('SmartModeDetector: calling onShotDetected (${onShotDetected != null})');
+    onShotDetected?.call(splay);
 
-      if (_isTriple(last3[0], last3[1], last3[2])) {
-        // Survey shot detected - consume all 3 measurements
-        _pendingMeasurements.removeRange(
-          _pendingMeasurements.length - 3,
-          _pendingMeasurements.length,
-        );
+    // Add to recent measurements (keep only last 3)
+    _recentMeasurements.add(measurement);
+    if (_recentMeasurements.length > 3) {
+      _recentMeasurements.removeAt(0);
+    }
+    debugPrint('SmartModeDetector: buffer size after add: ${_recentMeasurements.length}');
 
-        final shot = _createSurveyShot(last3);
-        onShotDetected?.call(shot);
-        return shot;
-      } else {
-        // Not a triple - emit the oldest measurement as a splay
-        final oldest = _pendingMeasurements.removeAt(0);
-        final shot = DetectedShot(
-          type: ShotType.splay,
-          distance: oldest.distance,
-          azimuth: oldest.azimuth,
-          inclination: oldest.inclination,
-          rawMeasurements: [oldest],
-        );
-        onShotDetected?.call(shot);
-        return shot;
+    // Check if last 3 form a triple
+    if (_recentMeasurements.length == 3) {
+      debugPrint('SmartModeDetector: checking for triple...');
+      if (_isTriple(_recentMeasurements[0], _recentMeasurements[1], _recentMeasurements[2])) {
+        // Triple detected - notify so UI can replace last 3 splays
+        final surveyShot = _createSurveyShot(_recentMeasurements.toList());
+        debugPrint('SmartModeDetector: calling onTripleDetected (${onTripleDetected != null})');
+        onTripleDetected?.call(surveyShot);
+        // Clear buffer so we don't detect overlapping triples
+        _recentMeasurements.clear();
+        return surveyShot;
       }
     }
 
-    return null;
+    return splay;
   }
 
-  /// Force flush any pending measurements as splay shots
+  /// Force flush - no longer needed since measurements are emitted immediately
   List<DetectedShot> flush() {
-    final shots = <DetectedShot>[];
-    while (_pendingMeasurements.isNotEmpty) {
-      final m = _pendingMeasurements.removeAt(0);
-      shots.add(DetectedShot(
-        type: ShotType.splay,
-        distance: m.distance,
-        azimuth: m.azimuth,
-        inclination: m.inclination,
-        rawMeasurements: [m],
-      ));
-    }
-    for (final shot in shots) {
-      onShotDetected?.call(shot);
-    }
-    return shots;
+    return [];
   }
 
-  /// Clear all pending measurements
+  /// Clear recent measurements buffer
   void clear() {
-    _pendingMeasurements.clear();
+    _recentMeasurements.clear();
   }
 
-  /// Number of measurements waiting to be processed
-  int get pendingCount => _pendingMeasurements.length;
+  /// Number of measurements in the recent buffer (0-3)
+  int get pendingCount => _recentMeasurements.length;
 
   /// Check if three measurements form a "triple" (nearly identical)
   bool _isTriple(RawMeasurement a, RawMeasurement b, RawMeasurement c) {
+    debugPrint('SmartModeDetector._isTriple: checking 3 measurements');
+    debugPrint('  a: dist=${a.distance.toStringAsFixed(3)}, azi=${a.azimuth.toStringAsFixed(1)}, inc=${a.inclination.toStringAsFixed(1)}');
+    debugPrint('  b: dist=${b.distance.toStringAsFixed(3)}, azi=${b.azimuth.toStringAsFixed(1)}, inc=${b.inclination.toStringAsFixed(1)}');
+    debugPrint('  c: dist=${c.distance.toStringAsFixed(3)}, azi=${c.azimuth.toStringAsFixed(1)}, inc=${c.inclination.toStringAsFixed(1)}');
+
     // Check all pairwise distance differences
-    if (!_distancesMatch(a.distance, b.distance)) return false;
-    if (!_distancesMatch(b.distance, c.distance)) return false;
-    if (!_distancesMatch(a.distance, c.distance)) return false;
+    final distAB = (a.distance - b.distance).abs();
+    final distBC = (b.distance - c.distance).abs();
+    final distAC = (a.distance - c.distance).abs();
+    debugPrint('  distance diffs: AB=${distAB.toStringAsFixed(3)}, BC=${distBC.toStringAsFixed(3)}, AC=${distAC.toStringAsFixed(3)} (max=$maxDistanceDifference)');
+
+    if (!_distancesMatch(a.distance, b.distance)) {
+      debugPrint('  FAIL: distance A-B');
+      return false;
+    }
+    if (!_distancesMatch(b.distance, c.distance)) {
+      debugPrint('  FAIL: distance B-C');
+      return false;
+    }
+    if (!_distancesMatch(a.distance, c.distance)) {
+      debugPrint('  FAIL: distance A-C');
+      return false;
+    }
 
     // Check all pairwise directional differences
-    if (!_directionsMatch(a, b)) return false;
-    if (!_directionsMatch(b, c)) return false;
-    if (!_directionsMatch(a, c)) return false;
+    if (!_directionsMatch(a, b)) {
+      debugPrint('  FAIL: direction A-B');
+      return false;
+    }
+    if (!_directionsMatch(b, c)) {
+      debugPrint('  FAIL: direction B-C');
+      return false;
+    }
+    if (!_directionsMatch(a, c)) {
+      debugPrint('  FAIL: direction A-C');
+      return false;
+    }
 
+    debugPrint('  SUCCESS: triple detected!');
     return true;
   }
 

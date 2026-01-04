@@ -245,6 +245,19 @@ class Survey {
     return copyWith(stretches: newStretches);
   }
 
+  /// Remove last N stretches and add a new stretch.
+  /// Used by smart mode to replace 3 splays with 1 survey shot.
+  Survey replaceLastNWithStretch(int n, MeasuredDistance stretch) {
+    final newStretches = List<MeasuredDistance>.from(stretches);
+    // Remove last n items
+    for (int i = 0; i < n && newStretches.isNotEmpty; i++) {
+      newStretches.removeLast();
+    }
+    // Add the new stretch
+    newStretches.add(stretch);
+    return copyWith(stretches: newStretches);
+  }
+
   Survey addReferencePoint(ReferencePoint point) {
     return copyWith(referencePoints: [...referencePoints, point]);
   }
