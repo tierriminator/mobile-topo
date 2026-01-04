@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../controllers/explorer_state.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
+import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/explorer_path.dart';
@@ -57,6 +59,95 @@ class _ExplorerViewState extends State<ExplorerView> {
       _explorerState = ExplorerState(caves: caves);
       _isLoading = false;
     });
+
+    // Restore previously selected section
+    _restoreSelection(caves);
+  }
+
+  /// Restore the previously selected section from settings
+  void _restoreSelection(List<Cave> caves) {
+    final settingsController = context.read<SettingsController>();
+    final caveId = settingsController.lastSelectedCaveId;
+    final sectionId = settingsController.lastSelectedSectionId;
+
+    if (caveId == null || sectionId == null) return;
+
+    // Find the cave
+    final cave = caves.where((c) => c.id == caveId).firstOrNull;
+    if (cave == null) return;
+
+    // Find the section and path to it
+    final result = _findSectionInCave(cave, sectionId);
+    if (result == null) return;
+
+    final (section, path, expandIds) = result;
+
+    setState(() {
+      _explorerState = _explorerState.copyWith(currentPath: path);
+      _expandedIds.addAll(expandIds);
+    });
+
+    // Update shared selection state
+    context.read<SelectionState>().selectSection(caveId, section);
+  }
+
+  /// Find a section in a cave, returning the section, path, and IDs to expand
+  (Section, ExplorerPath, Set<String>)? _findSectionInCave(
+    Cave cave,
+    String sectionId,
+  ) {
+    final expandIds = <String>{cave.id};
+
+    // Check direct sections
+    for (final section in cave.sections) {
+      if (section.id == sectionId) {
+        return (section, ExplorerPath.cave(cave.id).toSection(section.id), expandIds);
+      }
+    }
+
+    // Check sections in areas recursively
+    for (final area in cave.areas) {
+      final result = _findSectionInArea(
+        area,
+        sectionId,
+        ExplorerPath.cave(cave.id),
+        expandIds,
+      );
+      if (result != null) return result;
+    }
+
+    return null;
+  }
+
+  /// Find a section in an area recursively
+  (Section, ExplorerPath, Set<String>)? _findSectionInArea(
+    Area area,
+    String sectionId,
+    ExplorerPath parentPath,
+    Set<String> expandIds,
+  ) {
+    final currentPath = parentPath.enterArea(area.id);
+    final currentExpandIds = {...expandIds, area.id};
+
+    // Check direct sections
+    for (final section in area.sections) {
+      if (section.id == sectionId) {
+        return (section, currentPath.toSection(section.id), currentExpandIds);
+      }
+    }
+
+    // Check sub-areas recursively
+    for (final subArea in area.subAreas) {
+      final result = _findSectionInArea(
+        subArea,
+        sectionId,
+        currentPath,
+        currentExpandIds,
+      );
+      if (result != null) return result;
+    }
+
+    return null;
   }
 
   Future<void> _createNewCave() async {
@@ -145,6 +236,11 @@ class _ExplorerViewState extends State<ExplorerView> {
 
     // Update shared selection state
     context.read<SelectionState>().selectSection(path.caveId, section);
+
+    // Persist the selection
+    final settingsController = context.read<SettingsController>();
+    settingsController.setLastSelectedSection(path.caveId, section.id);
+    context.read<SettingsRepository>().save(settingsController.settings);
   }
 
   @override

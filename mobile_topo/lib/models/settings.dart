@@ -15,6 +15,8 @@ class Settings {
   final bool autoConnect;
   final String? lastConnectedDeviceAddress;
   final String? lastConnectedDeviceName;
+  final String? lastSelectedCaveId;
+  final String? lastSelectedSectionId;
 
   const Settings({
     this.smartModeEnabled = true,
@@ -25,6 +27,8 @@ class Settings {
     this.autoConnect = false,
     this.lastConnectedDeviceAddress,
     this.lastConnectedDeviceName,
+    this.lastSelectedCaveId,
+    this.lastSelectedSectionId,
   });
 
   Settings copyWith({
@@ -36,6 +40,8 @@ class Settings {
     bool? autoConnect,
     String? lastConnectedDeviceAddress,
     String? lastConnectedDeviceName,
+    String? lastSelectedCaveId,
+    String? lastSelectedSectionId,
   }) {
     return Settings(
       smartModeEnabled: smartModeEnabled ?? this.smartModeEnabled,
@@ -48,6 +54,9 @@ class Settings {
           lastConnectedDeviceAddress ?? this.lastConnectedDeviceAddress,
       lastConnectedDeviceName:
           lastConnectedDeviceName ?? this.lastConnectedDeviceName,
+      lastSelectedCaveId: lastSelectedCaveId ?? this.lastSelectedCaveId,
+      lastSelectedSectionId:
+          lastSelectedSectionId ?? this.lastSelectedSectionId,
     );
   }
 
@@ -60,6 +69,8 @@ class Settings {
         'autoConnect': autoConnect,
         'lastConnectedDeviceAddress': lastConnectedDeviceAddress,
         'lastConnectedDeviceName': lastConnectedDeviceName,
+        'lastSelectedCaveId': lastSelectedCaveId,
+        'lastSelectedSectionId': lastSelectedSectionId,
       };
 
   factory Settings.fromJson(Map<String, dynamic> json) => Settings(
@@ -80,5 +91,7 @@ class Settings {
         autoConnect: json['autoConnect'] as bool? ?? true,
         lastConnectedDeviceAddress: json['lastConnectedDeviceAddress'] as String?,
         lastConnectedDeviceName: json['lastConnectedDeviceName'] as String?,
+        lastSelectedCaveId: json['lastSelectedCaveId'] as String?,
+        lastSelectedSectionId: json['lastSelectedSectionId'] as String?,
       );
 }

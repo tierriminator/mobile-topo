@@ -73,6 +73,21 @@ class SettingsController extends ChangeNotifier {
     }
   }
 
+  String? get lastSelectedCaveId => _settings.lastSelectedCaveId;
+  String? get lastSelectedSectionId => _settings.lastSelectedSectionId;
+
+  /// Store the last selected section for restoring on startup
+  void setLastSelectedSection(String? caveId, String? sectionId) {
+    if (_settings.lastSelectedCaveId != caveId ||
+        _settings.lastSelectedSectionId != sectionId) {
+      _settings = _settings.copyWith(
+        lastSelectedCaveId: caveId,
+        lastSelectedSectionId: sectionId,
+      );
+      notifyListeners();
+    }
+  }
+
   /// Update all settings at once
   void updateSettings(Settings newSettings) {
     if (_settings != newSettings) {
