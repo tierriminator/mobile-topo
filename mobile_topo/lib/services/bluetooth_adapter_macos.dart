@@ -56,7 +56,11 @@ class MacOSBluetoothAdapter implements BluetoothAdapter {
 
   @override
   Future<void> connect(String address) async {
-    final success = await BluetoothChannel.instance.connect(address);
+    // Add Dart-side timeout as fallback (native timeout is 5s, this is 7s)
+    // Fail fast - rely on reconnect to keep trying
+    final success = await BluetoothChannel.instance
+        .connect(address)
+        .timeout(const Duration(seconds: 7));
     if (!success) {
       throw Exception('Connection failed');
     }

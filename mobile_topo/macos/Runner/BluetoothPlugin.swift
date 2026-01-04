@@ -162,7 +162,6 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     }
 
     private var pendingConnectResult: FlutterResult?
-    private var connectTimeoutTimer: Timer?
 
     private func connectToDevice(device: IOBluetoothDevice, channelID: BluetoothRFCOMMChannelID, result: @escaping FlutterResult) {
         var channel: IOBluetoothRFCOMMChannel?
@@ -180,17 +179,17 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
             self.pendingConnectResult = result
             NSLog("BluetoothPlugin: RFCOMM channel opening async...")
 
-            // Set connection timeout (10 seconds)
-            connectTimeoutTimer?.invalidate()
-            connectTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: false) { [weak self] _ in
-                guard let self = self, self.pendingConnectResult != nil else { return }
-                NSLog("BluetoothPlugin: connection timeout")
-                self.pendingConnectResult?(false)
+            // Connection timeout (5 seconds - fail fast, rely on reconnect to retry)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                guard let self = self,
+                      let pendingResult = self.pendingConnectResult else { return }
                 self.pendingConnectResult = nil
                 self.rfcommChannel?.close()
                 self.rfcommChannel = nil
+                self.connectedDevice?.closeConnection()
                 self.connectedDevice = nil
                 self.stateSink?("disconnected")
+                pendingResult(false)
             }
         } else {
             NSLog("BluetoothPlugin: RFCOMM channel open failed with status \(status)")
@@ -200,9 +199,11 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     }
 
     private func disconnect() {
-        connectTimeoutTimer?.invalidate()
-        connectTimeoutTimer = nil
-        pendingConnectResult = nil
+        // Complete any pending connect with failure before clearing
+        if let pendingResult = pendingConnectResult {
+            pendingConnectResult = nil
+            pendingResult(false)
+        }
         rfcommChannel?.close()
         rfcommChannel = nil
         connectedDevice?.closeConnection()
@@ -230,20 +231,27 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     // MARK: - IOBluetoothRFCOMMChannelDelegate
 
     func rfcommChannelOpenComplete(_ rfcommChannel: IOBluetoothRFCOMMChannel!, status error: IOReturn) {
-        NSLog("BluetoothPlugin: rfcommChannelOpenComplete, status: \(error)")
-        connectTimeoutTimer?.invalidate()
-        connectTimeoutTimer = nil
+        // Get and clear the pending result atomically to prevent timeout from also calling it
+        guard let pendingResult = self.pendingConnectResult else {
+            // Dart already timed out - close this orphaned connection
+            if error == kIOReturnSuccess {
+                rfcommChannel?.close()
+                self.rfcommChannel = nil
+                self.connectedDevice?.closeConnection()
+                self.connectedDevice = nil
+            }
+            return
+        }
+        self.pendingConnectResult = nil
 
         if error == kIOReturnSuccess {
-            NSLog("BluetoothPlugin: channel opened successfully, isOpen: \(rfcommChannel?.isOpen() ?? false)")
-            pendingConnectResult?(true)
-            pendingConnectResult = nil
             stateSink?("connected")
+            pendingResult(true)
         } else {
-            NSLog("BluetoothPlugin: channel open failed with error \(error)")
-            pendingConnectResult?(false)
-            pendingConnectResult = nil
+            self.rfcommChannel = nil
+            self.connectedDevice = nil
             stateSink?("disconnected")
+            pendingResult(false)
         }
     }
 

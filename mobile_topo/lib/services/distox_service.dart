@@ -158,7 +158,6 @@ class DistoXService extends ChangeNotifier {
 
   /// Connect to a DistoX device
   Future<bool> connect(DistoXDevice device) async {
-    // Only block if already actively connecting
     if (_connectionState == DistoXConnectionState.connecting) {
       return false;
     }
@@ -211,12 +210,11 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _finishConnectionFailed(String error) {
-    debugPrint('Connection failed: $error');
     _lastError = error;
     _connectionState = DistoXConnectionState.disconnected;
     _connectedDevice = null;
     notifyListeners();
-    if (autoReconnect) {
+    if (autoReconnect && _selectedDevice != null) {
       _scheduleReconnect();
     }
   }
@@ -320,25 +318,17 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    debugPrint(
-        '_scheduleReconnect: timer=${_reconnectTimer != null}, device=$_selectedDevice');
     if (_reconnectTimer != null) return;
     if (_selectedDevice == null) return;
 
     _connectionState = DistoXConnectionState.reconnecting;
     notifyListeners();
 
-    debugPrint('_scheduleReconnect: scheduling reconnect in 5 seconds');
-    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+    _reconnectTimer = Timer(const Duration(seconds: 2), () {
       _reconnectTimer = null;
-      debugPrint(
-          '_scheduleReconnect: timer fired, autoReconnect=$autoReconnect, device=$_selectedDevice');
       if (autoReconnect && _selectedDevice != null) {
-        debugPrint('_scheduleReconnect: calling connect()');
         connect(_selectedDevice!);
       } else {
-        debugPrint(
-            '_scheduleReconnect: skipping connect (autoReconnect=$autoReconnect)');
         _connectionState = DistoXConnectionState.disconnected;
         notifyListeners();
       }
