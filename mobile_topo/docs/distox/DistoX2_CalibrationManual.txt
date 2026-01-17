@@ -1,0 +1,85 @@
+DistoX2 Calibration Manual
+Leica Disto X310 based DistoX
+2013/12/20
+
+Why a Calibration?
+The DistoX consists of three magnetic field sensors and three accelerometers. They allow to
+determine the precise orientation of the device in space and the direction relative to the earth
+magnetic field. Due to manufacturing tolerances and external influences, such a system
+inevitably reveals certain errors. Among them are:
+- Offset and gain errors of the sensors.
+- Sensors mounted under incorrect angles.
+- Angular errors between the sensors and the Laser beam.
+- Influences of metal parts (in particular the battery) on the magnetic field.
+Fortunately all these errors can be eliminated relatively easily by a bunch of calibration
+measurements and the corrections calculated from them. This calibration process has to be
+done on a readily built device. It should be repeated regularly to compensate drift and aging
+effects.
+
+Requirements
+The following prerequisites must be fulfilled:
+- The device must be readily built and working.
+- The PocketTopo Program must be running (on a PC or PDA)
+- There has to be a working Bluetooth connection to the device.
+IMPORTANT:
+The calibration measurements must be done in an undisturbed magnetic environment. It is
+practically impossible to do a precise calibration in a house or near buildings. Even metal
+screws in wooden constructions have an influence! The best environment is either a cave or a
+forest.
+A calibrated reference stretch is NOT needed!
+
+Procedure
+For a full calibration the following steps should be done:
+1) Start the PocketTopo program.
+2) If not already done, set the Bluetooth port under "Menu:Options:Port".
+3) Use "Menu:Calibration..." to start the calibration application.
+4) Use “Menu:Start” on the calibration screen to put the Disto into calibration mode. The
+display of the Disto shows “CAL” in the first line.
+5) Execute the calibration measurements (see below).
+6) Transfer the results to the application. This starts automatically when a connection to the
+Disto is set up. The results are shown in a chart on the screen.
+7) Use "Menu:Stop" to leave the calibration mode on the device.
+
+8) Use "Evaluate" to analyze the calibration. The third value given in the lower part of the
+screen is a measure of quality. It should be smaller than 0.5.
+9) Use "Menu:Update" to transfer the calculated calibration coefficient to the Disto.
+10) As a quick check measure an arbitrary sketch four times with for different orientations of
+the device (display up, right, down, and left). The values shown should be consistent to a
+few tenth of a degree.
+
+Calibration Measurements
+The recommended sequence of measurements consists of 56 shots in 14 distinct directions.
+Each direction is measured four times with different orientations of the device (display up,
+right, down, and left). To get a good distribution of the directions, it is best to imagine being
+in the center of a large cube. The first six directions are taken to the middle of the six faces,
+that means four of them are horizontal and two are vertical (up and down). The remaining
+directions are taken to the 8 vertices of the cube. The precise directions are not important as
+long as they are reasonably spread.
+To correct a potential error between the Laser and the sensors, a few directed measurements
+are needed. Therefore, for the first four (horizontal) directions, the four measurements
+(display up, right, down, and left) made in each case are measured precisely in the same
+direction. This can easily be done between two points marked for instance on two trees or
+cave walls.
+In summary, you have to measure 4 precise directions with 4 measurements each and then
+another 40 measurements in 10 directions without bearing. The precise number, direction, and
+sequence of these remaining measurements are not important. However, it is still
+recommended to use a target point and to take some time for each measurement to allow the
+reading to stabilize.
+The device may be switched on and off any time in calibration mode without data loss. So the
+values can be acquired in the field and analyzed at home.
+
+DistoX Operation in Calibration Mode
+The handling of the Disto is essentially the same as usual. The display shows “CAL” in the
+first line to indicate the calibration mode. The second line contains a counter which reflects
+the number of measurements already made.
+Instead of getting the directional angles from the sensor values, the values itself are saved in
+calibration mode. The sensor values can be retrieved after each measurement with the
+SMART key.
+Calibration mode can be switched on or off on the device by pressing CLR and SMART for 2
+seconds.
+
+The 56 Measurements
+
+And so on for the remaining seven cube vertices.
+
+
