@@ -441,4 +441,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calibrationNotConnected => 'Connect to DistoX first';
+
+  @override
+  String get calibrationMeasurement => 'Measurement';
+
+  @override
+  String get calibrationHighError => 'High error';
+
+  @override
+  String get calibrationGood => 'Good';
+
+  @override
+  String get calibrationRawValues => 'Raw sensor values';
+
+  @override
+  String get calibrationComputedValues => 'Computed values';
+
+  @override
+  String get calibrationError => 'Error';
+
+  @override
+  String get calibrationAzimuth => 'Azimuth';
+
+  @override
+  String get calibrationInclination => 'Inclination';
+
+  @override
+  String get calibrationRoll => 'Roll';
+
+  @override
+  String get calibrationDisable => 'Disable';
+
+  @override
+  String get calibrationEnable => 'Enable';
+
+  @override
+  String get delete => 'Delete';
 }

@@ -916,6 +916,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to DistoX first'**
   String get calibrationNotConnected;
+
+  /// Label for a calibration measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement'**
+  String get calibrationMeasurement;
+
+  /// Badge shown when measurement has high error
+  ///
+  /// In en, this message translates to:
+  /// **'High error'**
+  String get calibrationHighError;
+
+  /// Badge shown when measurement is good
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get calibrationGood;
+
+  /// Section header for raw sensor values
+  ///
+  /// In en, this message translates to:
+  /// **'Raw sensor values'**
+  String get calibrationRawValues;
+
+  /// Section header for computed calibration values
+  ///
+  /// In en, this message translates to:
+  /// **'Computed values'**
+  String get calibrationComputedValues;
+
+  /// Label for calibration error value
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get calibrationError;
+
+  /// Label for azimuth value
+  ///
+  /// In en, this message translates to:
+  /// **'Azimuth'**
+  String get calibrationAzimuth;
+
+  /// Label for inclination value
+  ///
+  /// In en, this message translates to:
+  /// **'Inclination'**
+  String get calibrationInclination;
+
+  /// Label for roll value
+  ///
+  /// In en, this message translates to:
+  /// **'Roll'**
+  String get calibrationRoll;
+
+  /// Button to disable a measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get calibrationDisable;
+
+  /// Button to enable a measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get calibrationEnable;
+
+  /// Delete button text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
 }
 
 class _AppLocalizationsDelegate

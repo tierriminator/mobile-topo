@@ -350,17 +350,18 @@ class CalibrationService extends ChangeNotifier {
   }
 
   /// Write computed coefficients to device memory.
-  Future<void> writeCoefficients() async {
+  /// Returns true if successful, false otherwise.
+  Future<bool> writeCoefficients() async {
     if (_coefficients == null) {
       _error = 'No coefficients to write';
       notifyListeners();
-      return;
+      return false;
     }
 
     if (!isConnected) {
       _error = 'Not connected to DistoX';
       notifyListeners();
-      return;
+      return false;
     }
 
     _state = CalibrationState.writing;
@@ -391,13 +392,19 @@ class CalibrationService extends ChangeNotifier {
         debugPrint('Write confirmation timeout (may still have succeeded)');
       });
 
-      _state = CalibrationState.idle;
+      // Exit calibration mode on the device
+      await _distoX.sendCommand(_protocol.buildStopCalibrationCommand());
+
+      // Clear measurements after successful write
+      clear();
+
       debugPrint('Calibration coefficients written to device');
-      notifyListeners();
+      return true;
     } catch (e) {
       _error = 'Failed to write coefficients: $e';
       _state = CalibrationState.idle;
       notifyListeners();
+      return false;
     }
   }
 

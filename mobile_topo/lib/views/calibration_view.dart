@@ -279,9 +279,12 @@ class _ControlBar extends StatelessWidget {
             child: Text(l10n.cancel),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              calibration.writeCoefficients();
+              final success = await calibration.writeCoefficients();
+              if (success && context.mounted) {
+                Navigator.pop(context);
+              }
             },
             child: Text(l10n.calibrationUpdate),
           ),
@@ -375,8 +378,28 @@ class _CalibrationTable extends StatelessWidget {
           index: index,
           measurement: m,
           result: r,
+          onTap: () => _showMeasurementDetails(context, index, m, r),
         );
       },
+    );
+  }
+
+  void _showMeasurementDetails(
+    BuildContext context,
+    int index,
+    CalibrationMeasurement m,
+    CalibrationResult? r,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => _MeasurementDetailsView(
+          index: index,
+          measurement: m,
+          result: r,
+          calibration: calibration,
+        ),
+      ),
     );
   }
 }
@@ -386,22 +409,46 @@ class _MeasurementRow extends StatelessWidget {
   final int index;
   final CalibrationMeasurement measurement;
   final CalibrationResult? result;
+  final VoidCallback? onTap;
 
   const _MeasurementRow({
     required this.index,
     required this.measurement,
     required this.result,
+    this.onTap,
   });
 
-  // Directions (same as _CalibrationGuidance)
+  // Direction labels and icons
   static const _directions = [
-    'Forward', 'Backward', 'Left', 'Right', 'Up', 'Down',
-    'Forward-Left-Up', 'Forward-Right-Up', 'Forward-Left-Down', 'Forward-Right-Down',
-    'Backward-Left-Up', 'Backward-Right-Up', 'Backward-Left-Down', 'Backward-Right-Down',
+    ('Fwd', Icons.arrow_upward),
+    ('Back', Icons.arrow_downward),
+    ('Left', Icons.arrow_back),
+    ('Right', Icons.arrow_forward),
+    ('Up', Icons.north),
+    ('Down', Icons.south),
+    ('Fwd-L-Up', Icons.north_west),
+    ('Fwd-R-Up', Icons.north_east),
+    ('Fwd-L-Dn', Icons.south_west),
+    ('Fwd-R-Dn', Icons.south_east),
+    ('Back-L-Up', Icons.north_west),
+    ('Back-R-Up', Icons.north_east),
+    ('Back-L-Dn', Icons.south_west),
+    ('Back-R-Dn', Icons.south_east),
   ];
 
-  static const _horizontalOrientations = ['Display up', 'Display right', 'Display down', 'Display left'];
-  static const _verticalOrientations = ['Display forward', 'Display right', 'Display backward', 'Display left'];
+  // Orientation: (label, icon, rotation in quarter turns)
+  static const _horizontalOrientations = [
+    ('up', Icons.stay_current_portrait, 0),
+    ('right', Icons.stay_current_landscape, 0),
+    ('down', Icons.stay_current_portrait, 2),
+    ('left', Icons.stay_current_landscape, 2),
+  ];
+  static const _verticalOrientations = [
+    ('fwd', Icons.stay_current_portrait, 0),
+    ('right', Icons.stay_current_landscape, 0),
+    ('back', Icons.stay_current_portrait, 2),
+    ('left', Icons.stay_current_landscape, 2),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -410,68 +457,280 @@ class _MeasurementRow extends StatelessWidget {
     // Calculate direction and orientation from index
     final directionIndex = index ~/ 4;
     final orientationIndex = index % 4;
-    final direction = directionIndex < _directions.length ? _directions[directionIndex] : _directions.last;
+    final (dirLabel, dirIcon) = directionIndex < _directions.length
+        ? _directions[directionIndex]
+        : _directions.last;
     final isVertical = directionIndex == 4 || directionIndex == 5;
-    final orientation = isVertical ? _verticalOrientations[orientationIndex] : _horizontalOrientations[orientationIndex];
+    final (orientLabel, orientIcon, orientRotation) = isVertical
+        ? _verticalOrientations[orientationIndex]
+        : _horizontalOrientations[orientationIndex];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: !measurement.enabled
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-            : hasError
-                ? Colors.orange.withValues(alpha: 0.08)
-                : null,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+    final disabledColor = Theme.of(context).colorScheme.outline;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: !measurement.enabled
+              ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              : hasError
+                  ? Colors.orange.withValues(alpha: 0.08)
+                  : null,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+            ),
           ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
           children: [
-            // Direction and orientation
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    direction,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    orientation,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                  ),
-                ],
+            // Direction icon and label
+            Icon(
+              dirIcon,
+              size: 16,
+              color: measurement.enabled ? null : disabledColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              dirLabel,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                color: measurement.enabled ? null : disabledColor,
               ),
             ),
+
+            const SizedBox(width: 12),
+
+            // Orientation icon and label
+            RotatedBox(
+              quarterTurns: orientRotation,
+              child: Icon(
+                orientIcon,
+                size: 14,
+                color: measurement.enabled
+                    ? Theme.of(context).colorScheme.outline
+                    : disabledColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              orientLabel,
+              style: TextStyle(
+                fontSize: 12,
+                color: measurement.enabled
+                    ? Theme.of(context).colorScheme.outline
+                    : disabledColor,
+              ),
+            ),
+
+            const Spacer(),
 
             // Status icon
             if (hasError)
               const Icon(
                 Icons.warning_amber_rounded,
                 color: Colors.orange,
-                size: 20,
+                size: 18,
               )
             else if (result != null)
               Icon(
                 Icons.check_circle_outline,
                 color: Colors.green.withValues(alpha: 0.7),
-                size: 20,
+                size: 18,
               ),
           ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Full-screen view showing measurement details.
+class _MeasurementDetailsView extends StatelessWidget {
+  final int index;
+  final CalibrationMeasurement measurement;
+  final CalibrationResult? result;
+  final CalibrationService calibration;
+
+  const _MeasurementDetailsView({
+    required this.index,
+    required this.measurement,
+    required this.result,
+    required this.calibration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final hasError = result != null && result!.error >= 0.5;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${l10n.calibrationMeasurement} #${index + 1}'),
+        actions: [
+          // Toggle enabled
+          IconButton(
+            onPressed: () {
+              calibration.toggleEnabled(index);
+              Navigator.pop(context);
+            },
+            icon: Icon(
+              measurement.enabled ? Icons.visibility_off : Icons.visibility,
+            ),
+            tooltip: measurement.enabled ? l10n.calibrationDisable : l10n.calibrationEnable,
+          ),
+          // Delete
+          IconButton(
+            onPressed: () {
+              calibration.deleteMeasurement(index);
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.delete_outline),
+            tooltip: l10n.delete,
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Status badge
+          if (hasError)
+            _buildStatusBadge(context, l10n.calibrationHighError, Colors.orange)
+          else if (result != null)
+            _buildStatusBadge(context, l10n.calibrationGood, Colors.green),
+
+          const SizedBox(height: 24),
+
+          // Raw sensor values
+          Text(
+            l10n.calibrationRawValues,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+          ),
+          const SizedBox(height: 8),
+          _buildDataCard(context, [
+            _DataRow('Gx', measurement.gx.toString()),
+            _DataRow('Gy', measurement.gy.toString()),
+            _DataRow('Gz', measurement.gz.toString()),
+          ]),
+          const SizedBox(height: 8),
+          _buildDataCard(context, [
+            _DataRow('Mx', measurement.mx.toString()),
+            _DataRow('My', measurement.my.toString()),
+            _DataRow('Mz', measurement.mz.toString()),
+          ]),
+
+          // Computed results if available
+          if (result != null) ...[
+            const SizedBox(height: 24),
+            Text(
+              l10n.calibrationComputedValues,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            _buildDataCard(context, [
+              _DataRow(l10n.calibrationError, '${result!.error.toStringAsFixed(3)}°',
+                  highlight: hasError),
+              _DataRow(l10n.calibrationAzimuth, '${result!.azimuth.toStringAsFixed(1)}°'),
+              _DataRow(l10n.calibrationInclination, '${result!.inclination.toStringAsFixed(1)}°'),
+              _DataRow(l10n.calibrationRoll, '${result!.roll.toStringAsFixed(1)}°'),
+            ]),
+            const SizedBox(height: 8),
+            _buildDataCard(context, [
+              _DataRow('|G|', result!.gMagnitude.toStringAsFixed(4)),
+              _DataRow('|M|', result!.mMagnitude.toStringAsFixed(4)),
+              _DataRow('α (dip)', '${result!.alpha.toStringAsFixed(2)}°'),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(BuildContext context, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            color == Colors.green ? Icons.check_circle : Icons.warning_amber_rounded,
+            color: color,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataCard(BuildContext context, List<_DataRow> rows) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: rows.map((row) => _buildRow(context, row)).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRow(BuildContext context, _DataRow row) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              row.label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              row.value,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 15,
+                fontWeight: row.highlight ? FontWeight.bold : null,
+                color: row.highlight ? Colors.orange : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DataRow {
+  final String label;
+  final String value;
+  final bool highlight;
+
+  const _DataRow(this.label, this.value, {this.highlight = false});
 }
 
 /// Guidance widget showing what measurement to take next.

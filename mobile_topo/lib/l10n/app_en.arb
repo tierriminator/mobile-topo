@@ -573,5 +573,53 @@
   "calibrationNotConnected": "Connect to DistoX first",
   "@calibrationNotConnected": {
     "description": "Error when trying to calibrate without connection"
+  },
+  "calibrationMeasurement": "Measurement",
+  "@calibrationMeasurement": {
+    "description": "Label for a calibration measurement"
+  },
+  "calibrationHighError": "High error",
+  "@calibrationHighError": {
+    "description": "Badge shown when measurement has high error"
+  },
+  "calibrationGood": "Good",
+  "@calibrationGood": {
+    "description": "Badge shown when measurement is good"
+  },
+  "calibrationRawValues": "Raw sensor values",
+  "@calibrationRawValues": {
+    "description": "Section header for raw sensor values"
+  },
+  "calibrationComputedValues": "Computed values",
+  "@calibrationComputedValues": {
+    "description": "Section header for computed calibration values"
+  },
+  "calibrationError": "Error",
+  "@calibrationError": {
+    "description": "Label for calibration error value"
+  },
+  "calibrationAzimuth": "Azimuth",
+  "@calibrationAzimuth": {
+    "description": "Label for azimuth value"
+  },
+  "calibrationInclination": "Inclination",
+  "@calibrationInclination": {
+    "description": "Label for inclination value"
+  },
+  "calibrationRoll": "Roll",
+  "@calibrationRoll": {
+    "description": "Label for roll value"
+  },
+  "calibrationDisable": "Disable",
+  "@calibrationDisable": {
+    "description": "Button to disable a measurement"
+  },
+  "calibrationEnable": "Enable",
+  "@calibrationEnable": {
+    "description": "Button to enable a measurement"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
   }
 }
