@@ -277,12 +277,12 @@ void main() {
     group('mode commands', () {
       test('buildStartCalibrationCommand returns correct byte', () {
         final cmd = protocol.buildStartCalibrationCommand();
-        expect(cmd, [0x30]); // DistoXCommand.startCalibration = 0x30
+        expect(cmd, [0x31]); // DistoXCommand.startCalibration = 0x31
       });
 
       test('buildStopCalibrationCommand returns correct byte', () {
         final cmd = protocol.buildStopCalibrationCommand();
-        expect(cmd, [0x31]); // DistoXCommand.stopCalibration = 0x31
+        expect(cmd, [0x30]); // DistoXCommand.stopCalibration = 0x30
       });
 
       test('buildStartSilentModeCommand returns correct byte', () {
@@ -317,6 +317,94 @@ void main() {
         protocol.reset();
         final third = protocol.parseMeasurementPacket(packet1);
         expect(third, isNotNull);
+      });
+    });
+  });
+
+  group('CalibrationPacket parsing', () {
+    late DistoXProtocol protocol;
+
+    setUp(() {
+      protocol = DistoXProtocol();
+    });
+
+    group('parseCalibrationAccelPacket', () {
+      test('parses valid acceleration packet', () {
+        // Type 0x02, seq bit 0, Gx=1000, Gy=-2000, Gz=3000, index=5
+        final packet = Uint8List.fromList([
+          0x02, // type
+          0xE8, 0x03, // Gx: 1000
+          0x30, 0xF8, // Gy: -2000 (0xF830 = -2000)
+          0xB8, 0x0B, // Gz: 3000
+          0x05, // measurement number
+        ]);
+
+        final parsed = protocol.parseCalibrationAccelPacket(packet);
+        expect(parsed, isNotNull);
+        expect(parsed!.gx, 1000);
+        expect(parsed.gy, -2000);
+        expect(parsed.gz, 3000);
+        expect(parsed.measurementNumber, 5);
+        expect(parsed.sequenceBit, 0);
+      });
+
+      test('parses packet with seq bit 1', () {
+        final packet = Uint8List.fromList([
+          0x82, // type with seq bit = 1
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+          0x01,
+        ]);
+
+        final parsed = protocol.parseCalibrationAccelPacket(packet);
+        expect(parsed, isNotNull);
+        expect(parsed!.sequenceBit, 1);
+      });
+
+      test('returns null for wrong packet type', () {
+        final packet = Uint8List.fromList([
+          0x01, // measurement type, not calibration
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ]);
+
+        final parsed = protocol.parseCalibrationAccelPacket(packet);
+        expect(parsed, isNull);
+      });
+
+      test('returns null for wrong length', () {
+        final packet = Uint8List.fromList([0x02, 0x00, 0x00]);
+        final parsed = protocol.parseCalibrationAccelPacket(packet);
+        expect(parsed, isNull);
+      });
+    });
+
+    group('parseCalibrationMagPacket', () {
+      test('parses valid magnetic packet', () {
+        // Type 0x03, seq bit 0, Mx=500, My=-1500, Mz=2500, index=10
+        final packet = Uint8List.fromList([
+          0x03, // type
+          0xF4, 0x01, // Mx: 500
+          0x24, 0xFA, // My: -1500 (0xFA24 = -1500)
+          0xC4, 0x09, // Mz: 2500
+          0x0A, // measurement number
+        ]);
+
+        final parsed = protocol.parseCalibrationMagPacket(packet);
+        expect(parsed, isNotNull);
+        expect(parsed!.mx, 500);
+        expect(parsed.my, -1500);
+        expect(parsed.mz, 2500);
+        expect(parsed.measurementNumber, 10);
+        expect(parsed.sequenceBit, 0);
+      });
+
+      test('returns null for wrong packet type', () {
+        final packet = Uint8List.fromList([
+          0x02, // accel type, not mag
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ]);
+
+        final parsed = protocol.parseCalibrationMagPacket(packet);
+        expect(parsed, isNull);
       });
     });
   });
