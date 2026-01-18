@@ -66,6 +66,9 @@ class DistoXService extends ChangeNotifier {
   // Callbacks
   void Function(DistoXMeasurement measurement)? onMeasurement;
   void Function(DistoXDevice device)? onConnectionSuccess;
+  void Function(CalibrationAccelPacket packet)? onCalibrationAccel;
+  void Function(CalibrationMagPacket packet)? onCalibrationMag;
+  void Function(DistoXMemoryReply reply)? onMemoryReply;
 
   DistoXService(this._settings, this._adapter);
 
@@ -240,6 +243,17 @@ class DistoXService extends ChangeNotifier {
     await _adapter.send(data);
   }
 
+  /// Send a command to the device.
+  ///
+  /// This is used by CalibrationService for sending calibration commands
+  /// and memory read/write commands.
+  Future<void> sendCommand(Uint8List data) async {
+    if (!isConnected) {
+      throw StateError('Not connected to device');
+    }
+    await _send(data);
+  }
+
   void _onDataReceived(Uint8List data) {
     debugPrint(
         'DistoX: received ${data.length} bytes: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
@@ -278,15 +292,39 @@ class DistoXService extends ChangeNotifier {
         } catch (e) {
           debugPrint('Failed to parse measurement: $e');
         }
-      } else if (type == DistoXPacketType.calibrationAccel ||
-          type == DistoXPacketType.calibrationMag ||
-          type == DistoXPacketType.vector) {
-        // Calibration/vector packets - acknowledge but ignore for now
+      } else if (type == DistoXPacketType.calibrationAccel) {
         final seqBit = (packet[0] >> 7) & 0x01;
-        debugPrint('DistoX: ACKing type $type packet (seq bit $seqBit)');
+        debugPrint('DistoX: received calibration accel packet (seq bit $seqBit)');
         _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
-          debugPrint('Failed to send ack for type $type: $e');
+          debugPrint('Failed to send ack for calibration accel: $e');
         });
+        final parsed = _protocol.parseCalibrationAccelPacket(packet);
+        if (parsed != null) {
+          onCalibrationAccel?.call(parsed);
+        }
+      } else if (type == DistoXPacketType.calibrationMag) {
+        final seqBit = (packet[0] >> 7) & 0x01;
+        debugPrint('DistoX: received calibration mag packet (seq bit $seqBit)');
+        _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
+          debugPrint('Failed to send ack for calibration mag: $e');
+        });
+        final parsed = _protocol.parseCalibrationMagPacket(packet);
+        if (parsed != null) {
+          onCalibrationMag?.call(parsed);
+        }
+      } else if (type == DistoXPacketType.vector) {
+        // Vector packet - acknowledge but ignore (quality info)
+        final seqBit = (packet[0] >> 7) & 0x01;
+        debugPrint('DistoX: ACKing vector packet (seq bit $seqBit)');
+        _send(_protocol.buildAcknowledge(seqBit)).catchError((e) {
+          debugPrint('Failed to send ack for vector: $e');
+        });
+      } else if (type == DistoXPacketType.memoryReply) {
+        debugPrint('DistoX: received memory reply');
+        final reply = parseMemoryReply(packet);
+        if (reply != null) {
+          onMemoryReply?.call(reply);
+        }
       } else {
         // Unknown packet type - still acknowledge to avoid blocking
         final seqBit = (packet[0] >> 7) & 0x01;

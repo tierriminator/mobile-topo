@@ -21,8 +21,9 @@ class DistoXPacketType {
 
 /// Commands that can be sent to DistoX2 (InsideDistoX2.txt)
 class DistoXCommand {
-  static const int stopCalibration = 0x31;
-  static const int startCalibration = 0x30;
+  // Note: 0x31 = 0b00110001 starts calibration, 0x30 = 0b00110000 stops it
+  static const int startCalibration = 0x31;
+  static const int stopCalibration = 0x30;
   static const int stopSilentMode = 0x32;
   static const int startSilentMode = 0x33;
   static const int powerOff = 0x34; // v2.3+
@@ -234,4 +235,129 @@ DistoXMemoryReply? parseMemoryReply(Uint8List data) {
   final replyData = Uint8List.fromList(data.sublist(3, 7));
 
   return DistoXMemoryReply(address: address, data: replyData);
+}
+
+/// Parsed calibration acceleration sensor data (packet type 0x02).
+class CalibrationAccelPacket {
+  /// X acceleration (16-bit signed).
+  final int gx;
+
+  /// Y acceleration (16-bit signed).
+  final int gy;
+
+  /// Z acceleration (16-bit signed).
+  final int gz;
+
+  /// Measurement number (1-56).
+  final int measurementNumber;
+
+  /// Sequence bit for acknowledgment.
+  final int sequenceBit;
+
+  const CalibrationAccelPacket({
+    required this.gx,
+    required this.gy,
+    required this.gz,
+    required this.measurementNumber,
+    required this.sequenceBit,
+  });
+
+  @override
+  String toString() =>
+      'CalibrationAccelPacket(#$measurementNumber, G=($gx, $gy, $gz))';
+}
+
+/// Parsed calibration magnetic sensor data (packet type 0x03).
+class CalibrationMagPacket {
+  /// X magnetic field (16-bit signed).
+  final int mx;
+
+  /// Y magnetic field (16-bit signed).
+  final int my;
+
+  /// Z magnetic field (16-bit signed).
+  final int mz;
+
+  /// Measurement number (1-56).
+  final int measurementNumber;
+
+  /// Sequence bit for acknowledgment.
+  final int sequenceBit;
+
+  const CalibrationMagPacket({
+    required this.mx,
+    required this.my,
+    required this.mz,
+    required this.measurementNumber,
+    required this.sequenceBit,
+  });
+
+  @override
+  String toString() =>
+      'CalibrationMagPacket(#$measurementNumber, M=($mx, $my, $mz))';
+}
+
+/// Extension to DistoXProtocol for calibration packet parsing.
+extension DistoXCalibrationProtocol on DistoXProtocol {
+  /// Parse calibration acceleration packet (type 0x02).
+  ///
+  /// Packet format:
+  /// - Byte 0: [seqBit:1][0000010:7] = packet type
+  /// - Bytes 1-2: Gx (16-bit signed, little-endian)
+  /// - Bytes 3-4: Gy (16-bit signed, little-endian)
+  /// - Bytes 5-6: Gz (16-bit signed, little-endian)
+  /// - Byte 7: measurement number
+  CalibrationAccelPacket? parseCalibrationAccelPacket(Uint8List data) {
+    if (data.length != 8) return null;
+    if ((data[0] & 0x3F) != DistoXPacketType.calibrationAccel) return null;
+
+    final seqBit = (data[0] >> 7) & 0x01;
+    final gx = _toSigned16(data[1] | (data[2] << 8));
+    final gy = _toSigned16(data[3] | (data[4] << 8));
+    final gz = _toSigned16(data[5] | (data[6] << 8));
+    final num = data[7];
+
+    return CalibrationAccelPacket(
+      gx: gx,
+      gy: gy,
+      gz: gz,
+      measurementNumber: num,
+      sequenceBit: seqBit,
+    );
+  }
+
+  /// Parse calibration magnetic packet (type 0x03).
+  ///
+  /// Packet format:
+  /// - Byte 0: [seqBit:1][0000011:7] = packet type
+  /// - Bytes 1-2: Mx (16-bit signed, little-endian)
+  /// - Bytes 3-4: My (16-bit signed, little-endian)
+  /// - Bytes 5-6: Mz (16-bit signed, little-endian)
+  /// - Byte 7: measurement number
+  CalibrationMagPacket? parseCalibrationMagPacket(Uint8List data) {
+    if (data.length != 8) return null;
+    if ((data[0] & 0x3F) != DistoXPacketType.calibrationMag) return null;
+
+    final seqBit = (data[0] >> 7) & 0x01;
+    final mx = _toSigned16(data[1] | (data[2] << 8));
+    final my = _toSigned16(data[3] | (data[4] << 8));
+    final mz = _toSigned16(data[5] | (data[6] << 8));
+    final num = data[7];
+
+    return CalibrationMagPacket(
+      mx: mx,
+      my: my,
+      mz: mz,
+      measurementNumber: num,
+      sequenceBit: seqBit,
+    );
+  }
+
+  // Helper to convert unsigned 16-bit to signed
+  int _toSigned16(int value) {
+    if (value >= 0x8000) {
+      return value - 0x10000;
+    }
+    return value;
+  }
 }

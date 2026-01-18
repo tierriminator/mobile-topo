@@ -338,4 +338,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cellEditMode => 'Edit cells';
+
+  @override
+  String get calibrationTitle => 'Device Calibration';
+
+  @override
+  String get calibrationStart => 'Start';
+
+  @override
+  String get calibrationStop => 'Stop';
+
+  @override
+  String get calibrationNew => 'New';
+
+  @override
+  String get calibrationEvaluate => 'Evaluate';
+
+  @override
+  String get calibrationUpdate => 'Update';
+
+  @override
+  String get calibrationClear => 'Clear';
+
+  @override
+  String get calibrationClearConfirm =>
+      'Clear all measurements and start over?';
+
+  @override
+  String get calibrationUpdateConfirm =>
+      'Write calibration coefficients to device?';
+
+  @override
+  String get calibrationQualityGood => 'Good calibration';
+
+  @override
+  String get calibrationQualityPoor => 'Poor calibration';
+
+  @override
+  String get calibrationNoMeasurements => 'No calibration measurements yet';
+
+  @override
+  String get calibrationColumnEnabled => '*';
+
+  @override
+  String get calibrationColumnGroup => 'Grp';
+
+  @override
+  String get calibrationColumnError => 'Δ';
+
+  @override
+  String get calibrationColumnGMag => '|G|';
+
+  @override
+  String get calibrationColumnMMag => '|M|';
+
+  @override
+  String get calibrationColumnAlpha => 'α';
+
+  @override
+  String get calibrationMeasuring => 'Measuring...';
+
+  @override
+  String get calibrationComputing => 'Computing...';
+
+  @override
+  String get calibrationWriting => 'Writing...';
+
+  @override
+  String get calibrationReading => 'Reading...';
+
+  @override
+  String calibrationStatusCount(int count) {
+    return 'n: $count';
+  }
+
+  @override
+  String calibrationStatusIterations(int iterations) {
+    return 'i: $iterations';
+  }
+
+  @override
+  String calibrationStatusError(String error) {
+    return 'Δ: $error';
+  }
+
+  @override
+  String get calibrationNotConnected => 'Connect to DistoX first';
 }

@@ -11,6 +11,7 @@ import 'l10n/app_localizations.dart';
 import 'services/bluetooth_adapter.dart';
 import 'services/bluetooth_adapter_android.dart';
 import 'services/bluetooth_adapter_macos.dart';
+import 'services/calibration_service.dart';
 import 'services/distox_service.dart';
 import 'services/measurement_service.dart';
 import 'views/data_view.dart';
@@ -39,10 +40,16 @@ void main() async {
   // Create platform-specific Bluetooth adapter
   final bluetoothAdapter = createBluetoothAdapter();
 
-  // Create DistoX and Measurement services
+  // Create DistoX, Measurement, and Calibration services
   final distoXService = DistoXService(settingsController, bluetoothAdapter);
   final measurementService = MeasurementService(settingsController);
+  final calibrationService = CalibrationService(distoXService);
   measurementService.connectDistoX(distoXService);
+
+  // Wire up calibration callbacks
+  distoXService.onCalibrationAccel = calibrationService.onCalibrationAccelPacket;
+  distoXService.onCalibrationMag = calibrationService.onCalibrationMagPacket;
+  distoXService.onMemoryReply = calibrationService.onMemoryReply;
 
   // Set up callback to save device address on successful connection
   distoXService.onConnectionSuccess = (device) {
@@ -65,6 +72,7 @@ void main() async {
         ChangeNotifierProvider.value(value: settingsController),
         ChangeNotifierProvider.value(value: distoXService),
         ChangeNotifierProvider.value(value: measurementService),
+        ChangeNotifierProvider.value(value: calibrationService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => settingsRepository),
       ],

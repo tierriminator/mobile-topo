@@ -440,5 +440,118 @@
   "cellEditMode": "Edit cells",
   "@cellEditMode": {
     "description": "Tooltip for cell edit mode toggle button"
+  },
+  "calibrationTitle": "Device Calibration",
+  "@calibrationTitle": {
+    "description": "Title for calibration screen"
+  },
+  "calibrationStart": "Start",
+  "@calibrationStart": {
+    "description": "Button to start calibration mode"
+  },
+  "calibrationStop": "Stop",
+  "@calibrationStop": {
+    "description": "Button to stop calibration mode"
+  },
+  "calibrationNew": "New",
+  "@calibrationNew": {
+    "description": "Button to clear and start new calibration"
+  },
+  "calibrationEvaluate": "Evaluate",
+  "@calibrationEvaluate": {
+    "description": "Button to compute calibration coefficients"
+  },
+  "calibrationUpdate": "Update",
+  "@calibrationUpdate": {
+    "description": "Button to write coefficients to device"
+  },
+  "calibrationClear": "Clear",
+  "@calibrationClear": {
+    "description": "Button to clear measurements"
+  },
+  "calibrationClearConfirm": "Clear all measurements and start over?",
+  "@calibrationClearConfirm": {
+    "description": "Confirmation message for clearing calibration"
+  },
+  "calibrationUpdateConfirm": "Write calibration coefficients to device?",
+  "@calibrationUpdateConfirm": {
+    "description": "Confirmation message for updating device"
+  },
+  "calibrationQualityGood": "Good calibration",
+  "@calibrationQualityGood": {
+    "description": "Message when calibration error is below 0.5"
+  },
+  "calibrationQualityPoor": "Poor calibration",
+  "@calibrationQualityPoor": {
+    "description": "Message when calibration error is 0.5 or above"
+  },
+  "calibrationNoMeasurements": "No calibration measurements yet",
+  "@calibrationNoMeasurements": {
+    "description": "Message when no measurements have been taken"
+  },
+  "calibrationColumnEnabled": "*",
+  "@calibrationColumnEnabled": {
+    "description": "Column header for enabled checkbox"
+  },
+  "calibrationColumnGroup": "Grp",
+  "@calibrationColumnGroup": {
+    "description": "Column header for group assignment"
+  },
+  "calibrationColumnError": "Δ",
+  "@calibrationColumnError": {
+    "description": "Column header for error value"
+  },
+  "calibrationColumnGMag": "|G|",
+  "@calibrationColumnGMag": {
+    "description": "Column header for G vector magnitude"
+  },
+  "calibrationColumnMMag": "|M|",
+  "@calibrationColumnMMag": {
+    "description": "Column header for M vector magnitude"
+  },
+  "calibrationColumnAlpha": "α",
+  "@calibrationColumnAlpha": {
+    "description": "Column header for alpha angle (dip)"
+  },
+  "calibrationMeasuring": "Measuring...",
+  "@calibrationMeasuring": {
+    "description": "Status when collecting measurements"
+  },
+  "calibrationComputing": "Computing...",
+  "@calibrationComputing": {
+    "description": "Status when computing coefficients"
+  },
+  "calibrationWriting": "Writing...",
+  "@calibrationWriting": {
+    "description": "Status when writing to device"
+  },
+  "calibrationReading": "Reading...",
+  "@calibrationReading": {
+    "description": "Status when reading from device"
+  },
+  "calibrationStatusCount": "n: {count}",
+  "@calibrationStatusCount": {
+    "description": "Status bar measurement count",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "calibrationStatusIterations": "i: {iterations}",
+  "@calibrationStatusIterations": {
+    "description": "Status bar iteration count",
+    "placeholders": {
+      "iterations": {"type": "int"}
+    }
+  },
+  "calibrationStatusError": "Δ: {error}",
+  "@calibrationStatusError": {
+    "description": "Status bar RMS error",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "calibrationNotConnected": "Connect to DistoX first",
+  "@calibrationNotConnected": {
+    "description": "Error when trying to calibrate without connection"
   }
 }

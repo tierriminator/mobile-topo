@@ -6,6 +6,7 @@ import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/settings.dart';
 import '../services/distox_service.dart';
+import 'calibration_view.dart';
 
 class OptionsView extends StatelessWidget {
   const OptionsView({super.key});
@@ -120,7 +121,9 @@ class OptionsView extends StatelessWidget {
             subtitle: Text(l10n.optionsCalibrationDescription),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Open calibration screen
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CalibrationView()),
+              );
             },
           ),
 

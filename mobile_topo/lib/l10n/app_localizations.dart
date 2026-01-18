@@ -730,6 +730,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit cells'**
   String get cellEditMode;
+
+  /// Title for calibration screen
+  ///
+  /// In en, this message translates to:
+  /// **'Device Calibration'**
+  String get calibrationTitle;
+
+  /// Button to start calibration mode
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get calibrationStart;
+
+  /// Button to stop calibration mode
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get calibrationStop;
+
+  /// Button to clear and start new calibration
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get calibrationNew;
+
+  /// Button to compute calibration coefficients
+  ///
+  /// In en, this message translates to:
+  /// **'Evaluate'**
+  String get calibrationEvaluate;
+
+  /// Button to write coefficients to device
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get calibrationUpdate;
+
+  /// Button to clear measurements
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get calibrationClear;
+
+  /// Confirmation message for clearing calibration
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all measurements and start over?'**
+  String get calibrationClearConfirm;
+
+  /// Confirmation message for updating device
+  ///
+  /// In en, this message translates to:
+  /// **'Write calibration coefficients to device?'**
+  String get calibrationUpdateConfirm;
+
+  /// Message when calibration error is below 0.5
+  ///
+  /// In en, this message translates to:
+  /// **'Good calibration'**
+  String get calibrationQualityGood;
+
+  /// Message when calibration error is 0.5 or above
+  ///
+  /// In en, this message translates to:
+  /// **'Poor calibration'**
+  String get calibrationQualityPoor;
+
+  /// Message when no measurements have been taken
+  ///
+  /// In en, this message translates to:
+  /// **'No calibration measurements yet'**
+  String get calibrationNoMeasurements;
+
+  /// Column header for enabled checkbox
+  ///
+  /// In en, this message translates to:
+  /// **'*'**
+  String get calibrationColumnEnabled;
+
+  /// Column header for group assignment
+  ///
+  /// In en, this message translates to:
+  /// **'Grp'**
+  String get calibrationColumnGroup;
+
+  /// Column header for error value
+  ///
+  /// In en, this message translates to:
+  /// **'Δ'**
+  String get calibrationColumnError;
+
+  /// Column header for G vector magnitude
+  ///
+  /// In en, this message translates to:
+  /// **'|G|'**
+  String get calibrationColumnGMag;
+
+  /// Column header for M vector magnitude
+  ///
+  /// In en, this message translates to:
+  /// **'|M|'**
+  String get calibrationColumnMMag;
+
+  /// Column header for alpha angle (dip)
+  ///
+  /// In en, this message translates to:
+  /// **'α'**
+  String get calibrationColumnAlpha;
+
+  /// Status when collecting measurements
+  ///
+  /// In en, this message translates to:
+  /// **'Measuring...'**
+  String get calibrationMeasuring;
+
+  /// Status when computing coefficients
+  ///
+  /// In en, this message translates to:
+  /// **'Computing...'**
+  String get calibrationComputing;
+
+  /// Status when writing to device
+  ///
+  /// In en, this message translates to:
+  /// **'Writing...'**
+  String get calibrationWriting;
+
+  /// Status when reading from device
+  ///
+  /// In en, this message translates to:
+  /// **'Reading...'**
+  String get calibrationReading;
+
+  /// Status bar measurement count
+  ///
+  /// In en, this message translates to:
+  /// **'n: {count}'**
+  String calibrationStatusCount(int count);
+
+  /// Status bar iteration count
+  ///
+  /// In en, this message translates to:
+  /// **'i: {iterations}'**
+  String calibrationStatusIterations(int iterations);
+
+  /// Status bar RMS error
+  ///
+  /// In en, this message translates to:
+  /// **'Δ: {error}'**
+  String calibrationStatusError(String error);
+
+  /// Error when trying to calibrate without connection
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to DistoX first'**
+  String get calibrationNotConnected;
 }
 
 class _AppLocalizationsDelegate
