@@ -29,8 +29,9 @@ class CalibrationMeasurement {
   /// Whether to include in calibration calculation.
   final bool enabled;
 
-  /// Group identifier ('A', 'B', or null for ungrouped).
+  /// Group identifier ("0"-"13" or null for ungrouped).
   /// Measurements in the same group should point in the same direction.
+  /// Groups are assigned by position: 1-4 → "0", 5-8 → "1", ..., 53-56 → "13".
   final String? group;
 
   const CalibrationMeasurement({

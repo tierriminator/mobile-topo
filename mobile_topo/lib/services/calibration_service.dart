@@ -154,18 +154,19 @@ class CalibrationService extends ChangeNotifier {
     _tryAutoEvaluate();
   }
 
-  /// Cycle through group assignments: A -> B -> null -> A.
+  /// Toggle group assignment between default and null.
+  /// For calibration, groups are numeric ("0"-"13") based on position.
+  /// Cycling removes the group (null) or restores the default.
   void cycleGroup(int index) {
     if (index < 0 || index >= _measurements.length) return;
     final m = _measurements[index];
     String? newGroup;
-    switch (m.group) {
-      case 'A':
-        newGroup = 'B';
-      case 'B':
-        newGroup = null;
-      case null:
-        newGroup = 'A';
+    if (m.group != null) {
+      // Has a group → remove it
+      newGroup = null;
+    } else {
+      // No group → restore default based on position
+      newGroup = CalibrationData.defaultGroup(index + 1);
     }
     _measurements[index] =
         newGroup == null ? m.copyWith(clearGroup: true) : m.copyWith(group: newGroup);
