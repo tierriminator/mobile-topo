@@ -27,26 +27,30 @@ class CalibrationOutput {
   });
 }
 
-/// Implements Beat Heeb's iterative least-squares calibration algorithm.
+/// Implements Beat Heeb's iterative calibration algorithm.
 ///
-/// The algorithm works by:
-/// 1. Starting with identity transforms
-/// 2. Iteratively updating transforms to minimize error
-/// 3. Using group constraints to align same-direction measurements
+/// This is a Dart port of TopoDroid's CalibAlgoBH.java, which is itself
+/// adapted from TopoLinux and PocketTopo implementations.
 ///
 /// References:
-/// - PocketTopo source code
-/// - TopoDroid CalibAlgo.java
-/// - InsideDistoX2.txt documentation
+/// - B. Heeb, "A general calibration algorithm for 3-axis compass/clino devices"
+///   CREG Journal 73
+/// - TopoDroid source: github.com/marcocorvi/topodroid
 class CalibrationAlgorithm {
   /// Maximum number of optimization iterations.
   static const int maxIterations = 200;
 
-  /// Convergence threshold (stop when change < epsilon).
-  static const double epsilon = 1e-7;
+  /// Convergence threshold (stop when matrix change < epsilon).
+  static const double epsilon = 1e-6;
 
   /// Minimum number of measurements required.
   static const int minMeasurements = 16;
+
+  // Intermediate computation results
+  Vector3 _gxp = Vector3.zero; // Optimized G direction
+  Vector3 _mxp = Vector3.zero; // Optimized M direction
+  Vector3 _gxt = Vector3.zero; // Turned G vector
+  Vector3 _mxt = Vector3.zero; // Turned M vector
 
   /// Compute calibration coefficients from measurements.
   ///
@@ -57,135 +61,26 @@ class CalibrationAlgorithm {
   ) async {
     // Filter to enabled measurements only
     final data = measurements.where((m) => m.enabled).toList();
-    if (data.length < minMeasurements) {
+    final nn = data.length;
+
+    if (nn < minMeasurements) {
       throw CalibrationException(
-        'Need at least $minMeasurements measurements, got ${data.length}',
+        'Need at least $minMeasurements measurements, got $nn',
       );
     }
 
-    // Initialize transforms
-    var aG = Matrix3.identity();
-    var bG = Vector3.zero;
-    var aM = Matrix3.identity();
-    var bM = Vector3.zero;
+    // Extract raw vectors and group IDs
+    final g = data.map((m) => m.gVector).toList();
+    final m = data.map((m) => m.mVector).toList();
+    final group = data.map((m) => m.group != null ? int.parse(m.group!) + 1 : 0).toList();
 
-    // Compute initial scale factors to normalize vectors
-    final gScale = _computeScaleFactor(data.map((m) => m.gVector).toList());
-    final mScale = _computeScaleFactor(data.map((m) => m.mVector).toList());
+    // Run optimization
+    final result = _optimize(nn, g, m, group);
 
-    // Apply initial scaling
-    aG = aG * (1.0 / gScale);
-    aM = aM * (1.0 / mScale);
+    // Compute per-measurement errors
+    final results = _computeResults(data, result.aG, result.bG, result.aM, result.bM);
 
-    int iterations = 0;
-    double prevError = double.infinity;
-
-    while (iterations < maxIterations) {
-      iterations++;
-
-      // Step 1: Transform all raw measurements
-      final transformed = data.map((m) {
-        final g = aG.transform(m.gVector) + bG;
-        final rawM = aM.transform(m.mVector) + bM;
-        return _TransformedMeasurement(
-          g: g,
-          m: rawM,
-          raw: m,
-        );
-      }).toList();
-
-      // Step 2: Compute group constraints
-      // Measurements in the same group should have the same direction
-      final groupMeanG = <String, Vector3>{};
-      final groupMeanM = <String, Vector3>{};
-      final groupCounts = <String, int>{};
-
-      for (final t in transformed) {
-        final group = t.raw.group;
-        if (group == null) continue;
-
-        final gNorm = t.g.normalized;
-        final mNorm = t.m.normalized;
-
-        groupMeanG[group] = (groupMeanG[group] ?? Vector3.zero) + gNorm;
-        groupMeanM[group] = (groupMeanM[group] ?? Vector3.zero) + mNorm;
-        groupCounts[group] = (groupCounts[group] ?? 0) + 1;
-      }
-
-      // Normalize group means
-      for (final group in groupMeanG.keys) {
-        final count = groupCounts[group]!;
-        if (count > 0) {
-          groupMeanG[group] = groupMeanG[group]!.normalized;
-          groupMeanM[group] = groupMeanM[group]!.normalized;
-        }
-      }
-
-      // Step 3: Compute optimal transforms using least-squares
-      // For each sensor (G and M), solve:
-      //   min sum ||A * raw_i + B - target_i||^2
-      //
-      // Target is:
-      //   - For grouped measurements: the group mean direction, scaled to |target| = 1
-      //   - For ungrouped: the normalized current transformed value
-
-      final gRaw = <Vector3>[];
-      final gTarget = <Vector3>[];
-      final mRaw = <Vector3>[];
-      final mTarget = <Vector3>[];
-
-      for (final t in transformed) {
-        final group = t.raw.group;
-
-        // G targets
-        if (group != null && groupMeanG.containsKey(group)) {
-          gTarget.add(groupMeanG[group]!);
-        } else {
-          gTarget.add(t.g.normalized);
-        }
-        gRaw.add(t.raw.gVector);
-
-        // M targets
-        if (group != null && groupMeanM.containsKey(group)) {
-          mTarget.add(groupMeanM[group]!);
-        } else {
-          mTarget.add(t.m.normalized);
-        }
-        mRaw.add(t.raw.mVector);
-      }
-
-      // Solve for new transforms
-      final (newAG, newBG) = _solveTransform(gRaw, gTarget);
-      final (newAM, newBM) = _solveTransform(mRaw, mTarget);
-
-      // Update transforms
-      aG = newAG;
-      bG = newBG;
-      aM = newAM;
-      bM = newBM;
-
-      // Step 4: Compute error
-      final error = _computeRmsError(
-        data,
-        aG,
-        bG,
-        aM,
-        bM,
-        groupMeanG,
-        groupMeanM,
-      );
-
-      // Check convergence
-      if ((prevError - error).abs() < epsilon) {
-        break;
-      }
-      prevError = error;
-    }
-
-    // Compute per-measurement results
-    final results = _computeResults(data, aG, bG, aM, bM);
-
-    // Final RMS error in degrees
+    // Compute RMS error in degrees
     final rmsError = results.isEmpty
         ? 0.0
         : math.sqrt(
@@ -195,85 +90,224 @@ class CalibrationAlgorithm {
 
     return CalibrationOutput(
       coefficients: CalibrationCoefficients(
-        aG: aG,
-        bG: bG,
-        aM: aM,
-        bM: bM,
+        aG: result.aG,
+        bG: result.bG,
+        aM: result.aM,
+        bM: result.bM,
       ),
       results: results,
       rmsError: rmsError,
-      iterations: iterations,
+      iterations: result.iterations,
     );
   }
 
-  /// Compute scale factor as average magnitude of vectors.
-  double _computeScaleFactor(List<Vector3> vectors) {
-    if (vectors.isEmpty) return 1.0;
-    final sum = vectors.map((v) => v.magnitude).reduce((a, b) => a + b);
-    return sum / vectors.length;
+  /// Main optimization loop - port of TopoDroid's Optimize method.
+  _OptimizeResult _optimize(
+    int nn,
+    List<Vector3> g,
+    List<Vector3> m,
+    List<int> group,
+  ) {
+    // Working arrays
+    final gr = List<Vector3>.filled(nn, Vector3.zero);
+    final mr = List<Vector3>.filled(nn, Vector3.zero);
+    final gx = List<Vector3>.filled(nn, Vector3.zero);
+    final mx = List<Vector3>.filled(nn, Vector3.zero);
+
+    // Compute sums for initialization
+    var sumG = Vector3.zero;
+    var sumM = Vector3.zero;
+    var sumG2 = Matrix3.zero();
+    var sumM2 = Matrix3.zero();
+    double sa = 0.0;
+    double ca = 0.0;
+    double invNum = 0.0;
+
+    for (int i = 0; i < nn; i++) {
+      if (group[i] > 0) {
+        invNum += 1.0;
+        // Cross product length (sin of angle) and dot product (cos of angle)
+        sa += g[i].cross(m[i]).magnitude;
+        ca += g[i].dot(m[i]);
+        sumG = sumG + g[i];
+        sumM = sumM + m[i];
+        sumG2 = sumG2 + _outerProduct(g[i], g[i]);
+        sumM2 = sumM2 + _outerProduct(m[i], m[i]);
+      }
+    }
+
+    if (invNum < 0.5) {
+      throw CalibrationException('No valid measurements with groups');
+    }
+
+    invNum = 1.0 / invNum;
+
+    // Compute averages and inverse covariance matrices
+    final avG = sumG * invNum;
+    final avM = sumM * invNum;
+    final invG = (sumG2 - _outerProduct(sumG, avG)).inverse;
+    final invM = (sumM2 - _outerProduct(sumM, avM)).inverse;
+
+    // Initialize transforms (identity A, zero B for linear algorithm)
+    var aG = Matrix3.identity();
+    var aM = Matrix3.identity();
+    var bG = Vector3.zero;
+    var bM = Vector3.zero;
+
+    // Compute initial sin/cos of dip angle
+    double da = math.sqrt(ca * ca + sa * sa);
+    double s = sa / da;
+    double c = ca / da;
+
+    int it = 0;
+    Matrix3 aG0, aM0;
+
+    do {
+      // Transform all raw measurements
+      for (int i = 0; i < nn; i++) {
+        if (group[i] > 0) {
+          gr[i] = bG + aG.transform(g[i]);
+          mr[i] = bM + aM.transform(m[i]);
+        }
+      }
+
+      // Process groups
+      sa = 0.0;
+      ca = 0.0;
+      int group0 = -1;
+
+      for (int i = 0; i < nn;) {
+        if (group[i] <= 0) {
+          i++;
+        } else if (group[i] != group0) {
+          group0 = group[i];
+          var grp = Vector3.zero;
+          var mrp = Vector3.zero;
+          int first = i;
+
+          // Sum up all measurements in this group
+          while (i < nn && (group[i] <= 0 || group[i] == group0)) {
+            if (group[i] > 0) {
+              _turnVectors(gr[i], mr[i], gr[first], mr[first]);
+              grp = grp + _gxt;
+              mrp = mrp + _mxt;
+            }
+            i++;
+          }
+
+          // Compute optimal vectors for this group
+          _optVectors(grp, mrp, s, c);
+
+          // Accumulate sin/cos for dip angle update
+          sa += mrp.cross(_gxp).magnitude;
+          ca += mrp.dot(_gxp);
+
+          // Turn optimal vectors back to each measurement
+          for (int j = first; j < i; j++) {
+            if (group[j] > 0) {
+              _turnVectors(_gxp, _mxp, gr[j], mr[j]);
+              gx[j] = _gxt;
+              mx[j] = _mxt;
+            }
+          }
+        }
+      }
+
+      // Update sin/cos
+      da = math.sqrt(ca * ca + sa * sa);
+      s = sa / da;
+      c = ca / da;
+
+      // Compute new transforms using least squares
+      var avGx = Vector3.zero;
+      var avMx = Vector3.zero;
+      var sumGxG = Matrix3.zero();
+      var sumMxM = Matrix3.zero();
+
+      for (int i = 0; i < nn; i++) {
+        if (group[i] > 0) {
+          avGx = avGx + gx[i];
+          avMx = avMx + mx[i];
+          sumGxG = sumGxG + _outerProduct(gx[i], g[i]);
+          sumMxM = sumMxM + _outerProduct(mx[i], m[i]);
+        }
+      }
+
+      // Save old matrices for convergence check
+      aG0 = aG;
+      aM0 = aM;
+
+      avGx = avGx * invNum;
+      avMx = avMx * invNum;
+
+      // Update A matrices: A = (sumXxR - outer(avX, sumR)) * invR^T
+      aG = (sumGxG - _outerProduct(avGx, sumG)).multiplyTransposed(invG);
+      aM = (sumMxM - _outerProduct(avMx, sumM)).multiplyTransposed(invM);
+
+      // Enforce symmetric aG[1,2] = aG[2,1] (y.z = z.y)
+      final sym = (aG.get(1, 2) + aG.get(2, 1)) * 0.5;
+      aG = aG.withElement(1, 2, sym).withElement(2, 1, sym);
+
+      // Update B vectors
+      bG = avGx - aG.transform(avG);
+      bM = avMx - aM.transform(avM);
+
+      it++;
+    } while (it < maxIterations && (_maxDiff(aG, aG0) > epsilon || _maxDiff(aM, aM0) > epsilon));
+
+    return _OptimizeResult(
+      aG: aG,
+      bG: bG,
+      aM: aM,
+      bM: bM,
+      iterations: it,
+      s: s,
+      c: c,
+    );
   }
 
-  /// Solve for transform (A, B) that minimizes ||A * raw + B - target||^2.
+  /// Compute optimal direction vectors (port of OptVectors).
   ///
-  /// Uses least-squares solution with SVD-free approach.
-  (Matrix3, Vector3) _solveTransform(
-    List<Vector3> raw,
-    List<Vector3> target,
-  ) {
-    final n = raw.length;
-    if (n == 0) {
-      return (Matrix3.identity(), Vector3.zero);
+  /// Given summed G and M vectors from a group, compute the optimal
+  /// unit direction vectors that satisfy the dip angle constraint.
+  void _optVectors(Vector3 gr, Vector3 mr, double s, double c) {
+    var no = gr.cross(mr);
+    no = no.magnitude > 0 ? no.normalized : const Vector3(0, 0, 1);
+
+    // gxp = normalize(mr * c + (mr x no) * s + gr)
+    _gxp = (mr * c) + (mr.cross(no) * s) + gr;
+    _gxp = _gxp.magnitude > 0 ? _gxp.normalized : const Vector3(1, 0, 0);
+
+    // mxp = gxp * c + (no x gxp) * s
+    _mxp = (_gxp * c) + (no.cross(_gxp) * s);
+  }
+
+  /// Turn vectors around X axis to align with reference (port of TurnVectors).
+  ///
+  /// Rotates (gf, mf) around X axis to best align with (gr, mr).
+  void _turnVectors(Vector3 gf, Vector3 mf, Vector3 gr, Vector3 mr) {
+    // Compute rotation angle
+    final s1Raw = gr.z * gf.y - gr.y * gf.z + mr.z * mf.y - mr.y * mf.z;
+    final c1Raw = gr.y * gf.y + gr.z * gf.z + mr.y * mf.y + mr.z * mf.z;
+    final d1 = math.sqrt(c1Raw * c1Raw + s1Raw * s1Raw);
+
+    if (d1 < 1e-10) {
+      _gxt = gf;
+      _mxt = mf;
+      return;
     }
 
-    // Compute means
-    var rawMean = Vector3.zero;
-    var targetMean = Vector3.zero;
-    for (int i = 0; i < n; i++) {
-      rawMean = rawMean + raw[i];
-      targetMean = targetMean + target[i];
-    }
-    rawMean = rawMean / n.toDouble();
-    targetMean = targetMean / n.toDouble();
+    final s1 = s1Raw / d1;
+    final c1 = c1Raw / d1;
 
-    // Center the data
-    final rawCentered = raw.map((v) => v - rawMean).toList();
-    final targetCentered = target.map((v) => v - targetMean).toList();
+    // Apply rotation around X axis
+    _gxt = _turnX(gf, s1, c1);
+    _mxt = _turnX(mf, s1, c1);
+  }
 
-    // Compute covariance matrices
-    // C = sum(target_i * raw_i^T) / n
-    // R = sum(raw_i * raw_i^T) / n
-    var c = Matrix3.zero();
-    var r = Matrix3.zero();
-
-    for (int i = 0; i < n; i++) {
-      final t = targetCentered[i];
-      final s = rawCentered[i];
-
-      // Outer product: target * raw^T
-      c = c + _outerProduct(t, s);
-
-      // Outer product: raw * raw^T
-      r = r + _outerProduct(s, s);
-    }
-
-    // Add regularization to avoid singular matrix
-    const reg = 1e-6;
-    r = r + Matrix3.identity() * reg;
-
-    // A = C * R^(-1)
-    Matrix3 a;
-    try {
-      final rInv = r.inverse;
-      a = c.multiply(rInv);
-    } catch (_) {
-      // If matrix is singular, return identity
-      a = Matrix3.identity();
-    }
-
-    // B = targetMean - A * rawMean
-    final b = targetMean - a.transform(rawMean);
-
-    return (a, b);
+  /// Rotate vector around X axis.
+  Vector3 _turnX(Vector3 v, double s, double c) {
+    return Vector3(v.x, c * v.y - s * v.z, c * v.z + s * v.y);
   }
 
   /// Compute outer product of two vectors.
@@ -285,43 +319,16 @@ class CalibrationAlgorithm {
     ]);
   }
 
-  /// Compute RMS error of current calibration.
-  double _computeRmsError(
-    List<CalibrationMeasurement> data,
-    Matrix3 aG,
-    Vector3 bG,
-    Matrix3 aM,
-    Vector3 bM,
-    Map<String, Vector3> groupMeanG,
-    Map<String, Vector3> groupMeanM,
-  ) {
-    if (data.isEmpty) return 0.0;
-
-    double sumSq = 0.0;
-    int count = 0;
-
-    for (final m in data) {
-      final g = (aG.transform(m.gVector) + bG).normalized;
-      final mag = (aM.transform(m.mVector) + bM).normalized;
-
-      // Error is angular difference from group mean (if grouped) or from unit sphere
-      final group = m.group;
-      double gError, mError;
-
-      if (group != null && groupMeanG.containsKey(group)) {
-        gError = g.angleTo(groupMeanG[group]!);
-        mError = mag.angleTo(groupMeanM[group]!);
-      } else {
-        // For ungrouped, error is deviation from unit magnitude
-        gError = (g.magnitude - 1.0).abs();
-        mError = (mag.magnitude - 1.0).abs();
+  /// Compute maximum element-wise difference between matrices.
+  double _maxDiff(Matrix3 a, Matrix3 b) {
+    double maxD = 0;
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        final d = (a.get(i, j) - b.get(i, j)).abs();
+        if (d > maxD) maxD = d;
       }
-
-      sumSq += gError * gError + mError * mError;
-      count += 2;
     }
-
-    return count > 0 ? math.sqrt(sumSq / count) : 0.0;
+    return maxD;
   }
 
   /// Compute per-measurement results.
@@ -332,19 +339,20 @@ class CalibrationAlgorithm {
     Matrix3 aM,
     Vector3 bM,
   ) {
+    final results = <CalibrationResult>[];
+
     // First pass: compute mean alpha (dip angle) for consistency check
     double alphaSum = 0;
+    int count = 0;
     for (final m in data) {
       final g = aG.transform(m.gVector) + bG;
       final mag = aM.transform(m.mVector) + bM;
-      final alpha = g.angleTo(mag);
-      alphaSum += alpha;
+      alphaSum += g.angleTo(mag);
+      count++;
     }
-    final meanAlpha = data.isNotEmpty ? alphaSum / data.length : 0.0;
+    final meanAlpha = count > 0 ? alphaSum / count : 0.0;
 
     // Second pass: compute full results
-    final results = <CalibrationResult>[];
-
     for (final m in data) {
       final g = aG.transform(m.gVector) + bG;
       final mag = aM.transform(m.mVector) + bM;
@@ -353,30 +361,30 @@ class CalibrationAlgorithm {
       final mMag = mag.magnitude;
       final alpha = g.angleTo(mag);
 
-      // Error estimate: deviation of alpha from mean, plus magnitude deviations
+      // Error estimate using Beat Heeb's method:
+      // error = 2 * tan(alpha/2) approximates the angle
       final alphaError = (alpha - meanAlpha).abs();
       final gMagError = (gMag - 1.0).abs();
       final mMagError = (mMag - 1.0).abs();
 
-      // Combined error (in radians, will be converted to degrees)
       final error = math.sqrt(
         alphaError * alphaError +
             gMagError * gMagError +
             mMagError * mMagError,
       );
 
-      // Compute angles
+      // Compute angles from calibrated vectors
       final gNorm = g.normalized;
       final mNorm = mag.normalized;
 
-      // Inclination from G
-      final inclination = math.asin(-gNorm.z) * 180 / math.pi;
+      // Inclination from G (angle from horizontal)
+      final inclination = math.asin(-gNorm.z.clamp(-1.0, 1.0)) * 180 / math.pi;
 
-      // For azimuth, project M onto horizontal plane
+      // Project M onto horizontal plane for azimuth
       final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
       final mHorizNorm = mHoriz.magnitude > 0.01 ? mHoriz.normalized : mNorm;
 
-      // Use cross product to get east direction
+      // Compute azimuth using local reference frame
       const up = Vector3(0, 0, 1);
       var east = gNorm.cross(up);
       if (east.magnitude < 0.01) {
@@ -390,7 +398,7 @@ class CalibrationAlgorithm {
       var azimuth = math.atan2(mEast, mNorth) * 180 / math.pi;
       if (azimuth < 0) azimuth += 360;
 
-      // Roll
+      // Roll from G
       final roll = math.atan2(gNorm.y, -gNorm.x) * 180 / math.pi;
 
       results.add(CalibrationResult(
@@ -408,15 +416,23 @@ class CalibrationAlgorithm {
   }
 }
 
-/// Internal class for transformed measurement during iteration.
-class _TransformedMeasurement {
-  final Vector3 g;
-  final Vector3 m;
-  final CalibrationMeasurement raw;
+/// Internal result from optimization.
+class _OptimizeResult {
+  final Matrix3 aG;
+  final Vector3 bG;
+  final Matrix3 aM;
+  final Vector3 bM;
+  final int iterations;
+  final double s; // sin of dip angle
+  final double c; // cos of dip angle
 
-  _TransformedMeasurement({
-    required this.g,
-    required this.m,
-    required this.raw,
+  _OptimizeResult({
+    required this.aG,
+    required this.bG,
+    required this.aM,
+    required this.bM,
+    required this.iterations,
+    required this.s,
+    required this.c,
   });
 }

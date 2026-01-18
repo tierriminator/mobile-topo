@@ -205,6 +205,31 @@ class Matrix3 {
   /// Create a copy of this matrix.
   Matrix3 copy() => Matrix3(List<double>.from(_m));
 
+  /// Multiply this matrix by the transpose of another: this * other^T.
+  /// Used in calibration algorithm for computing A = (sum_XxR - outer(avX, sumR)) * invR^T
+  Matrix3 multiplyTransposed(Matrix3 o) {
+    final result = Matrix3.zero();
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        double sum = 0;
+        for (int k = 0; k < 3; k++) {
+          // this[i,k] * o^T[k,j] = this[i,k] * o[j,k]
+          sum += get(i, k) * o.get(j, k);
+        }
+        result.set(i, j, sum);
+      }
+    }
+    return result;
+  }
+
+  /// Return a copy with one element changed.
+  /// Used for enforcing symmetry constraints in calibration.
+  Matrix3 withElement(int row, int col, double value) {
+    final result = copy();
+    result.set(row, col, value);
+    return result;
+  }
+
   /// Internal elements (for serialization).
   List<double> get elements => List<double>.from(_m);
 

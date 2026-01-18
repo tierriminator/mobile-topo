@@ -434,6 +434,95 @@ void main() {
         expect(c.get(0, 0), 99);
       });
     });
+
+    group('multiplyTransposed', () {
+      test('identity times identity transposed is identity', () {
+        final identity = Matrix3.identity();
+        final result = identity.multiplyTransposed(identity);
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            expect(result.get(i, j), closeTo(i == j ? 1 : 0, 1e-10));
+          }
+        }
+      });
+
+      test('A * A^T equals A.multiply(A.transpose)', () {
+        final a = Matrix3([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        final result1 = a.multiplyTransposed(a);
+        final result2 = a.multiply(a.transpose);
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            expect(result1.get(i, j), closeTo(result2.get(i, j), 1e-10),
+                reason: 'Mismatch at [$i,$j]');
+          }
+        }
+      });
+
+      test('A * B^T computes correctly', () {
+        final a = Matrix3([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+        final b = Matrix3([2, 0, 0, 0, 3, 0, 0, 0, 4]);
+        // I * diag(2,3,4)^T = diag(2,3,4)
+        final result = a.multiplyTransposed(b);
+        expect(result.get(0, 0), closeTo(2, 1e-10));
+        expect(result.get(1, 1), closeTo(3, 1e-10));
+        expect(result.get(2, 2), closeTo(4, 1e-10));
+      });
+
+      test('non-symmetric A * B^T', () {
+        final a = Matrix3([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        final b = Matrix3([9, 8, 7, 6, 5, 4, 3, 2, 1]);
+        // Manual: A * B^T
+        // B^T = [9,6,3; 8,5,2; 7,4,1]
+        // A * B^T [0,0] = 1*9 + 2*8 + 3*7 = 9+16+21 = 46
+        final result = a.multiplyTransposed(b);
+        expect(result.get(0, 0), closeTo(46, 1e-10));
+        // A * B^T [1,0] = 4*9 + 5*8 + 6*7 = 36+40+42 = 118
+        expect(result.get(1, 0), closeTo(118, 1e-10));
+      });
+    });
+
+    group('withElement', () {
+      test('withElement creates copy with modified element', () {
+        final m = Matrix3.identity();
+        final modified = m.withElement(0, 1, 42);
+
+        // Original unchanged
+        expect(m.get(0, 1), 0);
+
+        // Modified has new value
+        expect(modified.get(0, 1), 42);
+
+        // Other elements unchanged
+        expect(modified.get(0, 0), 1);
+        expect(modified.get(1, 1), 1);
+        expect(modified.get(2, 2), 1);
+      });
+
+      test('withElement can be chained', () {
+        final m = Matrix3.identity();
+        final modified = m.withElement(0, 1, 5).withElement(1, 0, 5);
+
+        // Both elements modified
+        expect(modified.get(0, 1), 5);
+        expect(modified.get(1, 0), 5);
+
+        // Diagonal unchanged
+        expect(modified.get(0, 0), 1);
+        expect(modified.get(1, 1), 1);
+        expect(modified.get(2, 2), 1);
+      });
+
+      test('withElement for symmetry constraint', () {
+        // Test the actual use case: enforcing aG[1,2] = aG[2,1]
+        final m = Matrix3([1, 0, 0.1, 0, 1, 0.3, 0, 0.2, 1]);
+        final sym = (m.get(1, 2) + m.get(2, 1)) * 0.5; // 0.25
+        final symmetric = m.withElement(1, 2, sym).withElement(2, 1, sym);
+
+        expect(symmetric.get(1, 2), closeTo(0.25, 1e-10));
+        expect(symmetric.get(2, 1), closeTo(0.25, 1e-10));
+        expect(symmetric.get(1, 2), symmetric.get(2, 1));
+      });
+    });
   });
 
   group('solveLinearSystem3', () {

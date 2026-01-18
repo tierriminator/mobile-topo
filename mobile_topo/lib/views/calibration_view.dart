@@ -294,7 +294,7 @@ class _ControlBar extends StatelessWidget {
 /// Table displaying calibration measurements and results.
 class _CalibrationTable extends StatelessWidget {
   final List<CalibrationMeasurement> measurements;
-  final List<CalibrationResult>? results;
+  final List<CalibrationResult?>? results;
   final CalibrationService calibration;
   final DistoXService distoX;
 
@@ -477,7 +477,7 @@ class _MeasurementRow extends StatelessWidget {
 /// Guidance widget showing what measurement to take next.
 class _CalibrationGuidance extends StatelessWidget {
   final List<CalibrationMeasurement> measurements;
-  final List<CalibrationResult>? results;
+  final List<CalibrationResult?>? results;
 
   const _CalibrationGuidance({
     required this.measurements,
@@ -543,7 +543,8 @@ class _CalibrationGuidance extends StatelessWidget {
     if (results == null) return null;
 
     for (int i = 0; i < results!.length && i < measurements.length; i++) {
-      if (measurements[i].enabled && results![i].error >= 0.5) {
+      final r = results![i];
+      if (r != null && measurements[i].enabled && r.error >= 0.5) {
         return i;
       }
     }

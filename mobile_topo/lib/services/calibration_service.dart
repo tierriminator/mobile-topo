@@ -39,7 +39,7 @@ class CalibrationService extends ChangeNotifier {
 
   CalibrationState _state = CalibrationState.idle;
   List<CalibrationMeasurement> _measurements = [];
-  List<CalibrationResult>? _results;
+  List<CalibrationResult?>? _results;
   CalibrationCoefficients? _coefficients;
   double? _rmsError;
   int? _iterations;
@@ -71,7 +71,7 @@ class CalibrationService extends ChangeNotifier {
   CalibrationState get state => _state;
   List<CalibrationMeasurement> get measurements =>
       List.unmodifiable(_measurements);
-  List<CalibrationResult>? get results => _results;
+  List<CalibrationResult?>? get results => _results;
   CalibrationCoefficients? get coefficients => _coefficients;
   double? get rmsError => _rmsError;
   int? get iterations => _iterations;
@@ -301,16 +301,32 @@ class CalibrationService extends ChangeNotifier {
       final result = await _algorithm.compute(_measurements);
 
       _coefficients = result.coefficients;
-      _results = result.results;
       _rmsError = result.rmsError;
       _iterations = result.iterations;
       _state = CalibrationState.idle;
 
+      // Expand results to match measurements indexing.
+      // The algorithm only returns results for enabled measurements, so we need
+      // to map them back to the full measurements list with null for disabled ones.
+      final expandedResults = <CalibrationResult?>[];
+      int algorithmResultIndex = 0;
+      for (int i = 0; i < _measurements.length; i++) {
+        if (_measurements[i].enabled &&
+            algorithmResultIndex < result.results.length) {
+          expandedResults.add(result.results[algorithmResultIndex]);
+          algorithmResultIndex++;
+        } else {
+          expandedResults.add(null);
+        }
+      }
+      _results = expandedResults;
+
       // After all 56 measurements, automatically set retake index for first bad measurement
       _retakeIndex = null;
       if (_measurements.length >= 56 && _results != null) {
-        for (int i = 0; i < _results!.length && i < _measurements.length; i++) {
-          if (_measurements[i].enabled && _results![i].error >= 0.5) {
+        for (int i = 0; i < _results!.length; i++) {
+          final r = _results![i];
+          if (r != null && _measurements[i].enabled && r.error >= 0.5) {
             _retakeIndex = i;
             debugPrint('CalibrationService: next measurement will replace index $i');
             break;

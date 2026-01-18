@@ -193,57 +193,53 @@ class CalibrationCoefficients {
 
   /// Serialize to 48 bytes for device memory.
   ///
-  /// Layout (from TopoDroid/PocketTopo):
+  /// Layout (from TopoDroid CalibTransform.GetCoeff):
+  /// B vector components are interleaved with A matrix rows.
   /// - Bytes 0-23: G transform
   ///   - [0-1]: bG.x * FV
-  ///   - [2-3]: aG[0,0] * FM
-  ///   - [4-5]: aG[0,1] * FM
-  ///   - [6-7]: aG[0,2] * FM
-  ///   - [8-9]: aG[1,0] * FM
-  ///   - [10-11]: aG[1,1] * FM
-  ///   - [12-13]: aG[1,2] * FM
-  ///   - [14-15]: aG[2,0] * FM
-  ///   - [16-17]: aG[2,1] * FM
-  ///   - [18-19]: aG[2,2] * FM
-  ///   - [20-21]: bG.y * FV
-  ///   - [22-23]: bG.z * FV
+  ///   - [2-7]: aG row 0 (3 elements * FM)
+  ///   - [8-9]: bG.y * FV
+  ///   - [10-15]: aG row 1 (3 elements * FM)
+  ///   - [16-17]: bG.z * FV
+  ///   - [18-23]: aG row 2 (3 elements * FM)
   /// - Bytes 24-47: M transform (same layout)
   Uint8List toBytes() {
     final bytes = Uint8List(48);
     final data = ByteData.view(bytes.buffer);
 
-    // G coefficients
+    // G coefficients - interleaved layout
     data.setInt16(0, _toInt16(bG.x * _fv), Endian.little);
     data.setInt16(2, _toInt16(aG.get(0, 0) * _fm), Endian.little);
     data.setInt16(4, _toInt16(aG.get(0, 1) * _fm), Endian.little);
     data.setInt16(6, _toInt16(aG.get(0, 2) * _fm), Endian.little);
-    data.setInt16(8, _toInt16(aG.get(1, 0) * _fm), Endian.little);
-    data.setInt16(10, _toInt16(aG.get(1, 1) * _fm), Endian.little);
-    data.setInt16(12, _toInt16(aG.get(1, 2) * _fm), Endian.little);
-    data.setInt16(14, _toInt16(aG.get(2, 0) * _fm), Endian.little);
-    data.setInt16(16, _toInt16(aG.get(2, 1) * _fm), Endian.little);
-    data.setInt16(18, _toInt16(aG.get(2, 2) * _fm), Endian.little);
-    data.setInt16(20, _toInt16(bG.y * _fv), Endian.little);
-    data.setInt16(22, _toInt16(bG.z * _fv), Endian.little);
+    data.setInt16(8, _toInt16(bG.y * _fv), Endian.little);
+    data.setInt16(10, _toInt16(aG.get(1, 0) * _fm), Endian.little);
+    data.setInt16(12, _toInt16(aG.get(1, 1) * _fm), Endian.little);
+    data.setInt16(14, _toInt16(aG.get(1, 2) * _fm), Endian.little);
+    data.setInt16(16, _toInt16(bG.z * _fv), Endian.little);
+    data.setInt16(18, _toInt16(aG.get(2, 0) * _fm), Endian.little);
+    data.setInt16(20, _toInt16(aG.get(2, 1) * _fm), Endian.little);
+    data.setInt16(22, _toInt16(aG.get(2, 2) * _fm), Endian.little);
 
-    // M coefficients
+    // M coefficients - interleaved layout
     data.setInt16(24, _toInt16(bM.x * _fv), Endian.little);
     data.setInt16(26, _toInt16(aM.get(0, 0) * _fm), Endian.little);
     data.setInt16(28, _toInt16(aM.get(0, 1) * _fm), Endian.little);
     data.setInt16(30, _toInt16(aM.get(0, 2) * _fm), Endian.little);
-    data.setInt16(32, _toInt16(aM.get(1, 0) * _fm), Endian.little);
-    data.setInt16(34, _toInt16(aM.get(1, 1) * _fm), Endian.little);
-    data.setInt16(36, _toInt16(aM.get(1, 2) * _fm), Endian.little);
-    data.setInt16(38, _toInt16(aM.get(2, 0) * _fm), Endian.little);
-    data.setInt16(40, _toInt16(aM.get(2, 1) * _fm), Endian.little);
-    data.setInt16(42, _toInt16(aM.get(2, 2) * _fm), Endian.little);
-    data.setInt16(44, _toInt16(bM.y * _fv), Endian.little);
-    data.setInt16(46, _toInt16(bM.z * _fv), Endian.little);
+    data.setInt16(32, _toInt16(bM.y * _fv), Endian.little);
+    data.setInt16(34, _toInt16(aM.get(1, 0) * _fm), Endian.little);
+    data.setInt16(36, _toInt16(aM.get(1, 1) * _fm), Endian.little);
+    data.setInt16(38, _toInt16(aM.get(1, 2) * _fm), Endian.little);
+    data.setInt16(40, _toInt16(bM.z * _fv), Endian.little);
+    data.setInt16(42, _toInt16(aM.get(2, 0) * _fm), Endian.little);
+    data.setInt16(44, _toInt16(aM.get(2, 1) * _fm), Endian.little);
+    data.setInt16(46, _toInt16(aM.get(2, 2) * _fm), Endian.little);
 
     return bytes;
   }
 
   /// Deserialize from device memory (48 bytes).
+  /// Uses interleaved layout matching TopoDroid CalibTransform.GetCoeff.
   factory CalibrationCoefficients.fromBytes(Uint8List bytes) {
     if (bytes.length < 48) {
       throw ArgumentError('Need at least 48 bytes for coefficients');
@@ -251,33 +247,33 @@ class CalibrationCoefficients {
 
     final data = ByteData.view(bytes.buffer);
 
-    // G coefficients
+    // G coefficients - interleaved layout
     final bGx = data.getInt16(0, Endian.little) / _fv;
     final aG00 = data.getInt16(2, Endian.little) / _fm;
     final aG01 = data.getInt16(4, Endian.little) / _fm;
     final aG02 = data.getInt16(6, Endian.little) / _fm;
-    final aG10 = data.getInt16(8, Endian.little) / _fm;
-    final aG11 = data.getInt16(10, Endian.little) / _fm;
-    final aG12 = data.getInt16(12, Endian.little) / _fm;
-    final aG20 = data.getInt16(14, Endian.little) / _fm;
-    final aG21 = data.getInt16(16, Endian.little) / _fm;
-    final aG22 = data.getInt16(18, Endian.little) / _fm;
-    final bGy = data.getInt16(20, Endian.little) / _fv;
-    final bGz = data.getInt16(22, Endian.little) / _fv;
+    final bGy = data.getInt16(8, Endian.little) / _fv;
+    final aG10 = data.getInt16(10, Endian.little) / _fm;
+    final aG11 = data.getInt16(12, Endian.little) / _fm;
+    final aG12 = data.getInt16(14, Endian.little) / _fm;
+    final bGz = data.getInt16(16, Endian.little) / _fv;
+    final aG20 = data.getInt16(18, Endian.little) / _fm;
+    final aG21 = data.getInt16(20, Endian.little) / _fm;
+    final aG22 = data.getInt16(22, Endian.little) / _fm;
 
-    // M coefficients
+    // M coefficients - interleaved layout
     final bMx = data.getInt16(24, Endian.little) / _fv;
     final aM00 = data.getInt16(26, Endian.little) / _fm;
     final aM01 = data.getInt16(28, Endian.little) / _fm;
     final aM02 = data.getInt16(30, Endian.little) / _fm;
-    final aM10 = data.getInt16(32, Endian.little) / _fm;
-    final aM11 = data.getInt16(34, Endian.little) / _fm;
-    final aM12 = data.getInt16(36, Endian.little) / _fm;
-    final aM20 = data.getInt16(38, Endian.little) / _fm;
-    final aM21 = data.getInt16(40, Endian.little) / _fm;
-    final aM22 = data.getInt16(42, Endian.little) / _fm;
-    final bMy = data.getInt16(44, Endian.little) / _fv;
-    final bMz = data.getInt16(46, Endian.little) / _fv;
+    final bMy = data.getInt16(32, Endian.little) / _fv;
+    final aM10 = data.getInt16(34, Endian.little) / _fm;
+    final aM11 = data.getInt16(36, Endian.little) / _fm;
+    final aM12 = data.getInt16(38, Endian.little) / _fm;
+    final bMz = data.getInt16(40, Endian.little) / _fv;
+    final aM20 = data.getInt16(42, Endian.little) / _fm;
+    final aM21 = data.getInt16(44, Endian.little) / _fm;
+    final aM22 = data.getInt16(46, Endian.little) / _fm;
 
     return CalibrationCoefficients(
       aG: Matrix3([aG00, aG01, aG02, aG10, aG11, aG12, aG20, aG21, aG22]),
@@ -370,11 +366,13 @@ class CalibrationData {
 
   /// Get default group assignment for measurement index.
   ///
-  /// First 16 measurements are grouped in fours: AAAA BBBB AAAA BBBB
-  /// Remaining measurements are ungrouped.
+  /// All 56 measurements are grouped by direction (14 groups of 4).
+  /// Measurements 1-4 share direction 0, 5-8 share direction 1, etc.
+  /// This ensures measurements in the same direction are constrained
+  /// to have the same calibrated vector direction.
   static String? defaultGroup(int index) {
-    if (index > 16) return null;
-    // 1-4: A, 5-8: B, 9-12: A, 13-16: B
-    return ((index - 1) ~/ 4) % 2 == 0 ? 'A' : 'B';
+    if (index < 1 || index > 56) return null;
+    // Group by direction: 1-4 → "0", 5-8 → "1", ..., 53-56 → "13"
+    return ((index - 1) ~/ 4).toString();
   }
 }
