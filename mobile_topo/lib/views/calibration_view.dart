@@ -89,9 +89,9 @@ class _CalibrationViewState extends State<CalibrationView> {
                   color: Colors.orange,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'CAL',
-                  style: TextStyle(
+                child: Text(
+                  l10n.calibrationModeIndicator,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
@@ -204,19 +204,9 @@ class _CalibrationViewState extends State<CalibrationView> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.looks_one, color: Colors.blue),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(l10n.calibrationPhase1Title)),
-          ],
+        title: Text(
+          l10n.calibrationPhase1Title,
+          style: const TextStyle(fontSize: 16),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -279,21 +269,9 @@ class _CalibrationViewState extends State<CalibrationView> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.check_circle, color: Colors.green),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Phase 1 Complete!'),
-            ),
-          ],
+        title: Text(
+          l10n.calibrationPhase1Complete,
+          style: const TextStyle(fontSize: 16),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -306,13 +284,13 @@ class _CalibrationViewState extends State<CalibrationView> {
                   color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check, color: Colors.green, size: 20),
-                    SizedBox(width: 8),
+                    const Icon(Icons.check, color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
                     Text(
-                      '16 precise measurements done',
-                      style: TextStyle(
+                      l10n.calibrationPreciseMeasurementsDone,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         color: Colors.green,
                       ),
@@ -697,24 +675,6 @@ class _DirectionGroup extends StatelessWidget {
     required this.onMeasurementTap,
   });
 
-  // Direction labels
-  static const _directionLabels = [
-    'North (horizontal)',
-    'East (horizontal)',
-    'South (horizontal)',
-    'West (horizontal)',
-    'NE (up 45°)',
-    'SE (up 45°)',
-    'SW (up 45°)',
-    'NW (up 45°)',
-    'NE (down 45°)',
-    'SE (down 45°)',
-    'SW (down 45°)',
-    'NW (down 45°)',
-    'Up (vertical)',
-    'Down (vertical)',
-  ];
-
   // Direction icons
   static const _directionIcons = [
     Icons.arrow_upward,
@@ -733,14 +693,42 @@ class _DirectionGroup extends StatelessWidget {
     Icons.expand_more,
   ];
 
-  // Roll labels
-  static const _rollLabels = ['0°', '90°', '180°', '270°'];
+  /// Get localized direction label.
+  static String getDirectionLabel(AppLocalizations l10n, int direction) {
+    switch (direction) {
+      case 0: return l10n.calibrationDirectionForward;
+      case 1: return l10n.calibrationDirectionRight;
+      case 2: return l10n.calibrationDirectionBack;
+      case 3: return l10n.calibrationDirectionLeft;
+      case 4: return l10n.calibrationDirectionForwardUp;
+      case 5: return l10n.calibrationDirectionRightUp;
+      case 6: return l10n.calibrationDirectionBackUp;
+      case 7: return l10n.calibrationDirectionLeftUp;
+      case 8: return l10n.calibrationDirectionForwardDown;
+      case 9: return l10n.calibrationDirectionRightDown;
+      case 10: return l10n.calibrationDirectionBackDown;
+      case 11: return l10n.calibrationDirectionLeftDown;
+      case 12: return l10n.calibrationDirectionUp;
+      case 13: return l10n.calibrationDirectionDown;
+      default: return l10n.calibrationDirectionN(direction);
+    }
+  }
+
+  /// Get localized roll label.
+  static String getRollLabel(AppLocalizations l10n, int rollIndex) {
+    switch (rollIndex) {
+      case 0: return l10n.calibrationRoll0;
+      case 1: return l10n.calibrationRoll90;
+      case 2: return l10n.calibrationRoll180;
+      case 3: return l10n.calibrationRoll270;
+      default: return l10n.calibrationRollN(rollIndex);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dirLabel = group.direction < _directionLabels.length
-        ? _directionLabels[group.direction]
-        : 'Direction ${group.direction}';
+    final l10n = AppLocalizations.of(context)!;
+    final dirLabel = getDirectionLabel(l10n, group.direction);
     final dirIcon = group.direction < _directionIcons.length
         ? _directionIcons[group.direction]
         : Icons.explore;
@@ -834,9 +822,7 @@ class _DirectionGroup extends StatelessWidget {
         // Measurements in this group
         ...group.measurements.map((gm) => _GroupedMeasurementRow(
               groupedMeasurement: gm,
-              rollLabel: gm.rollIndex < _rollLabels.length
-                  ? _rollLabels[gm.rollIndex]
-                  : 'Roll ${gm.rollIndex}',
+              rollLabel: getRollLabel(l10n, gm.rollIndex),
               onTap: () => onMeasurementTap(gm.measurementIndex, gm.measurement, gm.result),
             )),
       ],
@@ -1039,7 +1025,7 @@ class _MeasurementDetailsView extends StatelessWidget {
             _buildDataCard(context, [
               _DataRow('|G|', result!.gMagnitude.toStringAsFixed(4)),
               _DataRow('|M|', result!.mMagnitude.toStringAsFixed(4)),
-              _DataRow('α (dip)', '${result!.alpha.toStringAsFixed(2)}°'),
+              _DataRow(l10n.calibrationAlphaDip, '${result!.alpha.toStringAsFixed(2)}°'),
             ]),
           ],
         ],
@@ -1153,6 +1139,7 @@ class _CalibrationGuidance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final measurements = calibration.measurements;
     final count = measurements.length;
     final badIndex = _findFirstBadMeasurement();
@@ -1162,7 +1149,7 @@ class _CalibrationGuidance extends StatelessWidget {
     final useAutoDetect = calibration.canAutoDetect && calibration.autoDetectEnabled;
     final filledSlots = useAutoDetect ? calibration.filledSlotCount : count;
     final suggestedDescription = useAutoDetect
-        ? calibration.getSuggestedNextDescription()
+        ? _getLocalizedSuggestedDescription(l10n)
         : null;
 
     // If all 56 slots filled and no bad measurements, show completion
@@ -1181,10 +1168,10 @@ class _CalibrationGuidance extends StatelessWidget {
           children: [
             const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Calibration complete',
-                style: TextStyle(fontWeight: FontWeight.w600),
+                l10n.calibrationComplete,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             Text(
@@ -1237,7 +1224,7 @@ class _CalibrationGuidance extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Measurement #${badIndex + 1} has high error. Retake:',
+                    l10n.calibrationRetakeNeeded(badIndex + 1),
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.orange,
@@ -1264,7 +1251,7 @@ class _CalibrationGuidance extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      suggestedDescription ?? _getFallbackDescription(count),
+                      suggestedDescription ?? _getFallbackDescription(l10n, count),
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -1272,7 +1259,7 @@ class _CalibrationGuidance extends StatelessWidget {
                     ),
                     if (useAutoDetect && calibration.suggestedNext != null)
                       Text(
-                        _getRollDescription(calibration.suggestedNext!.rollIndex),
+                        _getRollDescription(l10n, calibration.suggestedNext!.rollIndex),
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.outline,
@@ -1334,27 +1321,32 @@ class _CalibrationGuidance extends StatelessWidget {
     return icons[direction];
   }
 
-  /// Get roll description.
-  String _getRollDescription(int rollIndex) {
-    const rolls = ['Roll: 0° (display up)', 'Roll: 90° (display right)',
-                   'Roll: 180° (display down)', 'Roll: 270° (display left)'];
-    if (rollIndex < 0 || rollIndex >= rolls.length) return '';
-    return rolls[rollIndex];
+  /// Get localized roll description.
+  String _getRollDescription(AppLocalizations l10n, int rollIndex) {
+    switch (rollIndex) {
+      case 0: return l10n.calibrationRollDisplayUp;
+      case 1: return l10n.calibrationRollDisplayRight;
+      case 2: return l10n.calibrationRollDisplayDown;
+      case 3: return l10n.calibrationRollDisplayLeft;
+      default: return '';
+    }
+  }
+
+  /// Get localized suggested description from auto-detect.
+  String? _getLocalizedSuggestedDescription(AppLocalizations l10n) {
+    final suggested = calibration.suggestedNext;
+    if (suggested == null) return null;
+    return _DirectionGroup.getDirectionLabel(l10n, suggested.direction);
   }
 
   /// Fallback description when auto-detect not available.
-  String _getFallbackDescription(int count) {
-    if (count >= 56) return 'Take more shots or retake bad ones';
+  String _getFallbackDescription(AppLocalizations l10n, int count) {
+    if (count >= 56) return l10n.calibrationTakeMoreOrRetake;
     final dirIndex = count ~/ 4;
     final rollIndex = count % 4;
-    const dirs = ['North', 'East', 'South', 'West',
-                  'NE (up 45°)', 'SE (up 45°)', 'SW (up 45°)', 'NW (up 45°)',
-                  'NE (down 45°)', 'SE (down 45°)', 'SW (down 45°)', 'NW (down 45°)',
-                  'Up (vertical)', 'Down (vertical)'];
-    const rolls = ['0°', '90°', '180°', '270°'];
-    final dir = dirIndex < dirs.length ? dirs[dirIndex] : 'Direction $dirIndex';
-    final roll = rollIndex < rolls.length ? rolls[rollIndex] : 'Roll $rollIndex';
-    return '$dir, roll $roll';
+    final dir = _DirectionGroup.getDirectionLabel(l10n, dirIndex);
+    final roll = _DirectionGroup.getRollLabel(l10n, rollIndex);
+    return l10n.calibrationShotDescription(dir, roll);
   }
 }
 

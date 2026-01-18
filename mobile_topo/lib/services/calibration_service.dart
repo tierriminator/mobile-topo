@@ -82,6 +82,10 @@ class CalibrationService extends ChangeNotifier {
   /// The suggested next position to take.
   CalibrationPosition? _suggestedNext;
 
+  /// Reference bearing that defines "Forward" (direction 0).
+  /// Established from the first horizontal measurement.
+  double? _referenceBearing;
+
   CalibrationService(this._distoX);
 
   // Getters
@@ -127,6 +131,9 @@ class CalibrationService extends ChangeNotifier {
 
   /// The suggested next position to take.
   CalibrationPosition? get suggestedNext => _suggestedNext;
+
+  /// Reference bearing that defines "Forward" direction.
+  double? get referenceBearing => _referenceBearing;
 
   /// Get list of missing positions (not yet filled).
   List<CalibrationPosition> get missingPositions {
@@ -196,6 +203,7 @@ class CalibrationService extends ChangeNotifier {
     _insertPosition = null;
     _filledSlots.clear();
     _detectedPositions = [];
+    _referenceBearing = null;
     _suggestedNext = _getFirstNeededPosition();
     notifyListeners();
   }
@@ -564,6 +572,10 @@ class CalibrationService extends ChangeNotifier {
       null,
     );
 
+    // Establish reference bearing from first horizontal measurement
+    _referenceBearing = _findReferenceBearing();
+    debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}°');
+
     // Detect position for each measurement
     for (int i = 0; i < _measurements.length; i++) {
       final result = _results![i];
@@ -603,13 +615,48 @@ class CalibrationService extends ChangeNotifier {
     debugPrint('Auto-detection: ${_filledSlots.length}/56 slots filled');
   }
 
+  /// Find the reference bearing from the first horizontal measurement.
+  /// Returns null if no suitable measurement found.
+  double? _findReferenceBearing() {
+    if (_results == null) return null;
+
+    // Find the first enabled measurement that is roughly horizontal
+    // (inclination within ±30° of horizontal)
+    for (int i = 0; i < _measurements.length && i < _results!.length; i++) {
+      if (!_measurements[i].enabled) continue;
+      final result = _results![i];
+      if (result == null) continue;
+
+      // Check if roughly horizontal (Phase 1 shots are horizontal)
+      if (result.inclination.abs() <= 30.0) {
+        return result.azimuth;
+      }
+    }
+
+    // Fallback: use first measurement regardless of inclination
+    for (int i = 0; i < _measurements.length && i < _results!.length; i++) {
+      if (!_measurements[i].enabled) continue;
+      final result = _results![i];
+      if (result != null) {
+        return result.azimuth;
+      }
+    }
+
+    return null;
+  }
+
   /// Detect which position a measurement belongs to based on its angles.
   CalibrationPosition? _detectPosition(
     double bearing,
     double inclination,
     double roll,
   ) {
-    final match = CalibrationPositions.findClosest(bearing, inclination, roll);
+    final match = CalibrationPositions.findClosest(
+      bearing,
+      inclination,
+      roll,
+      referenceBearing: _referenceBearing,
+    );
     if (match == null) return null;
 
     final (position, dirError, rollError) = match;

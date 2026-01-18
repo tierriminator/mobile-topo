@@ -653,5 +653,90 @@
   "calibrationEnvironmentText": "You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.",
   "@calibrationEnvironmentText": {
     "description": "Warning text about magnetic environment"
+  },
+  "calibrationModeIndicator": "CAL",
+  "@calibrationModeIndicator": {
+    "description": "Short indicator shown when device is in calibration mode"
+  },
+  "calibrationPhase1Complete": "Phase 1 Complete!",
+  "@calibrationPhase1Complete": {
+    "description": "Title shown when phase 1 is done"
+  },
+  "calibrationPreciseMeasurementsDone": "16 precise measurements done",
+  "@calibrationPreciseMeasurementsDone": {
+    "description": "Message confirming phase 1 completion"
+  },
+  "calibrationComplete": "Calibration complete",
+  "@calibrationComplete": {
+    "description": "Message when all 56 measurements are done"
+  },
+  "calibrationRetakeNeeded": "Measurement #{index} has high error. Retake:",
+  "@calibrationRetakeNeeded": {
+    "description": "Warning about measurement needing retake",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationTakeMoreOrRetake": "Take more shots or retake bad ones",
+  "@calibrationTakeMoreOrRetake": {
+    "description": "Guidance when all shots done but some have errors"
+  },
+  "calibrationAlphaDip": "α (dip)",
+  "@calibrationAlphaDip": {
+    "description": "Label for alpha/dip angle"
+  },
+  "calibrationDirectionForward": "Forward (horizontal)",
+  "calibrationDirectionRight": "Right (horizontal)",
+  "calibrationDirectionBack": "Back (horizontal)",
+  "calibrationDirectionLeft": "Left (horizontal)",
+  "calibrationDirectionForwardUp": "Forward (up 45°)",
+  "calibrationDirectionRightUp": "Right (up 45°)",
+  "calibrationDirectionBackUp": "Back (up 45°)",
+  "calibrationDirectionLeftUp": "Left (up 45°)",
+  "calibrationDirectionForwardDown": "Forward (down 45°)",
+  "calibrationDirectionRightDown": "Right (down 45°)",
+  "calibrationDirectionBackDown": "Back (down 45°)",
+  "calibrationDirectionLeftDown": "Left (down 45°)",
+  "calibrationDirectionUp": "Up (vertical)",
+  "calibrationDirectionDown": "Down (vertical)",
+  "calibrationDirectionN": "Direction {n}",
+  "@calibrationDirectionN": {
+    "description": "Fallback direction label",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationRoll0": "0°",
+  "calibrationRoll90": "90°",
+  "calibrationRoll180": "180°",
+  "calibrationRoll270": "270°",
+  "calibrationRollN": "Roll {n}",
+  "@calibrationRollN": {
+    "description": "Fallback roll label",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationRollDisplayUp": "Roll: 0° (display up)",
+  "calibrationRollDisplayRight": "Roll: 90° (display right)",
+  "calibrationRollDisplayDown": "Roll: 180° (display down)",
+  "calibrationRollDisplayLeft": "Roll: 270° (display left)",
+  "calibrationShotDescription": "{direction}, roll {roll}",
+  "@calibrationShotDescription": {
+    "description": "Description of a calibration shot",
+    "placeholders": {
+      "direction": {
+        "type": "String"
+      },
+      "roll": {
+        "type": "String"
+      }
+    }
   }
 }

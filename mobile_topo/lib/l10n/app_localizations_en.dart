@@ -504,4 +504,110 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get calibrationEnvironmentText =>
       'You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.';
+
+  @override
+  String get calibrationModeIndicator => 'CAL';
+
+  @override
+  String get calibrationPhase1Complete => 'Phase 1 Complete!';
+
+  @override
+  String get calibrationPreciseMeasurementsDone =>
+      '16 precise measurements done';
+
+  @override
+  String get calibrationComplete => 'Calibration complete';
+
+  @override
+  String calibrationRetakeNeeded(int index) {
+    return 'Measurement #$index has high error. Retake:';
+  }
+
+  @override
+  String get calibrationTakeMoreOrRetake =>
+      'Take more shots or retake bad ones';
+
+  @override
+  String get calibrationAlphaDip => 'α (dip)';
+
+  @override
+  String get calibrationDirectionForward => 'Forward (horizontal)';
+
+  @override
+  String get calibrationDirectionRight => 'Right (horizontal)';
+
+  @override
+  String get calibrationDirectionBack => 'Back (horizontal)';
+
+  @override
+  String get calibrationDirectionLeft => 'Left (horizontal)';
+
+  @override
+  String get calibrationDirectionForwardUp => 'Forward (up 45°)';
+
+  @override
+  String get calibrationDirectionRightUp => 'Right (up 45°)';
+
+  @override
+  String get calibrationDirectionBackUp => 'Back (up 45°)';
+
+  @override
+  String get calibrationDirectionLeftUp => 'Left (up 45°)';
+
+  @override
+  String get calibrationDirectionForwardDown => 'Forward (down 45°)';
+
+  @override
+  String get calibrationDirectionRightDown => 'Right (down 45°)';
+
+  @override
+  String get calibrationDirectionBackDown => 'Back (down 45°)';
+
+  @override
+  String get calibrationDirectionLeftDown => 'Left (down 45°)';
+
+  @override
+  String get calibrationDirectionUp => 'Up (vertical)';
+
+  @override
+  String get calibrationDirectionDown => 'Down (vertical)';
+
+  @override
+  String calibrationDirectionN(int n) {
+    return 'Direction $n';
+  }
+
+  @override
+  String get calibrationRoll0 => '0°';
+
+  @override
+  String get calibrationRoll90 => '90°';
+
+  @override
+  String get calibrationRoll180 => '180°';
+
+  @override
+  String get calibrationRoll270 => '270°';
+
+  @override
+  String calibrationRollN(int n) {
+    return 'Roll $n';
+  }
+
+  @override
+  String get calibrationRollDisplayUp => 'Roll: 0° (display up)';
+
+  @override
+  String get calibrationRollDisplayRight => 'Roll: 90° (display right)';
+
+  @override
+  String get calibrationRollDisplayDown => 'Roll: 180° (display down)';
+
+  @override
+  String get calibrationRollDisplayLeft => 'Roll: 270° (display left)';
+
+  @override
+  String calibrationShotDescription(String direction, String roll) {
+    return '$direction, roll $roll';
+  }
 }

@@ -418,46 +418,47 @@ class CalibrationPosition {
 ///
 /// 14 directions × 4 roll orientations = 56 positions total.
 /// Directions are distributed for good angular coverage:
-/// - 4 horizontal (cardinal directions)
+/// - 4 horizontal (forward, right, back, left relative to first shot)
 /// - 4 upward at ~45°
 /// - 4 downward at ~45°
 /// - 2 near-vertical (up and down)
 class CalibrationPositions {
   CalibrationPositions._();
 
-  /// The 14 standard directions with (bearing, inclination).
+  /// The 14 standard directions with (relative bearing offset, inclination).
+  /// Bearings are relative to the first measurement's bearing (reference = 0°).
   /// Based on typical DistoX calibration procedure.
-  static const List<(double, double)> directions = [
-    // First 4: horizontal, cardinal directions (most precise)
-    (0.0, 0.0),    // 0: North, horizontal
-    (90.0, 0.0),   // 1: East, horizontal
-    (180.0, 0.0),  // 2: South, horizontal
-    (270.0, 0.0),  // 3: West, horizontal
-    // Next 4: upward at ~45°
-    (45.0, 45.0),  // 4: NE, up 45°
-    (135.0, 45.0), // 5: SE, up 45°
-    (225.0, 45.0), // 6: SW, up 45°
-    (315.0, 45.0), // 7: NW, up 45°
+  static const List<(double, double)> relativeDirections = [
+    // First 4: horizontal directions relative to first shot
+    (0.0, 0.0),    // 0: Forward, horizontal
+    (90.0, 0.0),   // 1: Right, horizontal
+    (180.0, 0.0),  // 2: Back, horizontal
+    (270.0, 0.0),  // 3: Left, horizontal
+    // Next 4: upward at ~45° (diagonal between adjacent horizontal directions)
+    (45.0, 45.0),  // 4: Forward-Right, up 45°
+    (135.0, 45.0), // 5: Right-Back, up 45°
+    (225.0, 45.0), // 6: Back-Left, up 45°
+    (315.0, 45.0), // 7: Left-Forward, up 45°
     // Next 4: downward at ~45°
-    (45.0, -45.0),  // 8: NE, down 45°
-    (135.0, -45.0), // 9: SE, down 45°
-    (225.0, -45.0), // 10: SW, down 45°
-    (315.0, -45.0), // 11: NW, down 45°
-    // Last 2: near-vertical
+    (45.0, -45.0),  // 8: Forward-Right, down 45°
+    (135.0, -45.0), // 9: Right-Back, down 45°
+    (225.0, -45.0), // 10: Back-Left, down 45°
+    (315.0, -45.0), // 11: Left-Forward, down 45°
+    // Last 2: near-vertical (bearing doesn't matter)
     (0.0, 80.0),   // 12: Up (any bearing)
     (0.0, -80.0),  // 13: Down (any bearing)
   ];
 
-  /// Generate all 56 expected positions.
+  /// Generate all 56 expected positions with relative bearing offsets.
   static List<CalibrationPosition> get all {
     final positions = <CalibrationPosition>[];
     for (int d = 0; d < 14; d++) {
-      final (bearing, inclination) = directions[d];
+      final (bearingOffset, inclination) = relativeDirections[d];
       for (int r = 0; r < 4; r++) {
         positions.add(CalibrationPosition(
           direction: d,
           rollIndex: r,
-          bearing: bearing,
+          bearing: bearingOffset, // This is a relative offset, not absolute
           inclination: inclination,
         ));
       }
@@ -465,31 +466,31 @@ class CalibrationPositions {
     return positions;
   }
 
-  /// Get positions for a specific direction.
+  /// Get positions for a specific direction with relative bearing offsets.
   static List<CalibrationPosition> forDirection(int direction) {
     if (direction < 0 || direction >= 14) return [];
-    final (bearing, inclination) = directions[direction];
+    final (bearingOffset, inclination) = relativeDirections[direction];
     return [
       for (int r = 0; r < 4; r++)
         CalibrationPosition(
           direction: direction,
           rollIndex: r,
-          bearing: bearing,
+          bearing: bearingOffset, // This is a relative offset, not absolute
           inclination: inclination,
         ),
     ];
   }
 
-  /// Get position by slot index (0-55).
+  /// Get position by slot index (0-55) with relative bearing offset.
   static CalibrationPosition? bySlot(int slot) {
     if (slot < 0 || slot >= 56) return null;
     final direction = slot ~/ 4;
     final rollIndex = slot % 4;
-    final (bearing, inclination) = directions[direction];
+    final (bearingOffset, inclination) = relativeDirections[direction];
     return CalibrationPosition(
       direction: direction,
       rollIndex: rollIndex,
-      bearing: bearing,
+      bearing: bearingOffset, // This is a relative offset, not absolute
       inclination: inclination,
     );
   }
@@ -501,21 +502,38 @@ class CalibrationPositions {
   static const double rollTolerance = 35.0;
 
   /// Find the closest matching position for given angles.
+  ///
+  /// [bearing] is the absolute bearing of the measurement.
+  /// [inclination] is the inclination of the measurement.
+  /// [roll] is the roll angle of the measurement.
+  /// [referenceBearing] is the bearing that defines "Forward" (direction 0).
+  ///   If null, uses 0° as the reference (legacy absolute mode).
+  ///
   /// Returns (position, directionError, rollError) or null if no match.
   static (CalibrationPosition, double, double)? findClosest(
     double bearing,
     double inclination,
-    double roll,
-  ) {
+    double roll, {
+    double? referenceBearing,
+  }) {
+    // Convert absolute bearing to relative bearing
+    final relativeBearing = _normalizeAngle(bearing - (referenceBearing ?? 0.0));
+
     CalibrationPosition? bestPos;
     double bestDirError = double.infinity;
     double bestRollError = double.infinity;
 
     for (int d = 0; d < 14; d++) {
-      final (expBearing, expIncl) = directions[d];
+      final (expBearingOffset, expIncl) = relativeDirections[d];
 
       // Compute direction error (angular distance)
-      final dirError = _directionError(bearing, inclination, expBearing, expIncl);
+      // Use relative bearing for comparison
+      final dirError = _directionError(
+        relativeBearing,
+        inclination,
+        expBearingOffset,
+        expIncl,
+      );
 
       if (dirError < bestDirError ||
           (dirError < directionTolerance && bestDirError >= directionTolerance)) {
@@ -529,7 +547,7 @@ class CalibrationPositions {
             bestPos = CalibrationPosition(
               direction: d,
               rollIndex: r,
-              bearing: expBearing,
+              bearing: expBearingOffset,
               inclination: expIncl,
             );
             bestDirError = dirError;
@@ -541,6 +559,13 @@ class CalibrationPositions {
 
     if (bestPos == null) return null;
     return (bestPos, bestDirError, bestRollError);
+  }
+
+  /// Normalize angle to [0, 360) range.
+  static double _normalizeAngle(double angle) {
+    var result = angle % 360;
+    if (result < 0) result += 360;
+    return result;
   }
 
   /// Compute direction error between two (bearing, inclination) pairs.
