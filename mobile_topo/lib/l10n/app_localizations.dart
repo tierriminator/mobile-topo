@@ -737,6 +737,12 @@ abstract class AppLocalizations {
   /// **'Device Calibration'**
   String get calibrationTitle;
 
+  /// Description text shown on calibration start page
+  ///
+  /// In en, this message translates to:
+  /// **'Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.'**
+  String get calibrationDescription;
+
   /// Button to start calibration mode
   ///
   /// In en, this message translates to:
@@ -767,6 +773,12 @@ abstract class AppLocalizations {
   /// **'Update'**
   String get calibrationUpdate;
 
+  /// Button to write coefficients to device
+  ///
+  /// In en, this message translates to:
+  /// **'Write'**
+  String get calibrationWrite;
+
   /// Button to clear measurements
   ///
   /// In en, this message translates to:
@@ -778,6 +790,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear all measurements and start over?'**
   String get calibrationClearConfirm;
+
+  /// Title for cancel calibration dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Calibration?'**
+  String get calibrationCancelTitle;
+
+  /// Confirmation message for canceling calibration
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved calibration measurements. Discard and exit?'**
+  String get calibrationCancelConfirm;
+
+  /// Button to discard calibration and exit
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get calibrationDiscard;
 
   /// Confirmation message for updating device
   ///

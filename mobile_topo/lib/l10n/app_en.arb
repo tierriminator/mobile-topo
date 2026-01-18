@@ -445,6 +445,10 @@
   "@calibrationTitle": {
     "description": "Title for calibration screen"
   },
+  "calibrationDescription": "Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.",
+  "@calibrationDescription": {
+    "description": "Description text shown on calibration start page"
+  },
   "calibrationStart": "Start",
   "@calibrationStart": {
     "description": "Button to start calibration mode"
@@ -465,6 +469,10 @@
   "@calibrationUpdate": {
     "description": "Button to write coefficients to device"
   },
+  "calibrationWrite": "Write",
+  "@calibrationWrite": {
+    "description": "Button to write coefficients to device"
+  },
   "calibrationClear": "Clear",
   "@calibrationClear": {
     "description": "Button to clear measurements"
@@ -472,6 +480,18 @@
   "calibrationClearConfirm": "Clear all measurements and start over?",
   "@calibrationClearConfirm": {
     "description": "Confirmation message for clearing calibration"
+  },
+  "calibrationCancelTitle": "Cancel Calibration?",
+  "@calibrationCancelTitle": {
+    "description": "Title for cancel calibration dialog"
+  },
+  "calibrationCancelConfirm": "You have unsaved calibration measurements. Discard and exit?",
+  "@calibrationCancelConfirm": {
+    "description": "Confirmation message for canceling calibration"
+  },
+  "calibrationDiscard": "Discard",
+  "@calibrationDiscard": {
+    "description": "Button to discard calibration and exit"
   },
   "calibrationUpdateConfirm": "Write calibration coefficients to device?",
   "@calibrationUpdateConfirm": {

@@ -45,6 +45,14 @@ class CalibrationService extends ChangeNotifier {
   int? _iterations;
   String? _error;
 
+  /// Index of measurement to replace (for retakes after all 56 are done).
+  /// If null, append to end (or insert at _insertPosition).
+  int? _retakeIndex;
+
+  /// Position to insert next measurement (when deleted manually).
+  /// If null, append to end.
+  int? _insertPosition;
+
   /// Pending acceleration packet waiting for matching magnetic packet.
   CalibrationAccelPacket? _pendingAccel;
 
@@ -119,17 +127,22 @@ class CalibrationService extends ChangeNotifier {
     _iterations = null;
     _error = null;
     _pendingAccel = null;
+    _retakeIndex = null;
+    _insertPosition = null;
     notifyListeners();
   }
 
   /// Delete a specific measurement.
+  /// Sets insert position so the next measurement fills the gap.
   void deleteMeasurement(int index) {
     if (index < 0 || index >= _measurements.length) return;
     _measurements.removeAt(index);
-    // Invalidate results since data changed
-    _results = null;
-    _rmsError = null;
+    // Set insert position so next measurement goes here
+    _insertPosition = index;
+    // Clear retake index since we manually deleted
+    _retakeIndex = null;
     notifyListeners();
+    _tryAutoEvaluate();
   }
 
   /// Toggle whether a measurement is enabled.
@@ -137,10 +150,8 @@ class CalibrationService extends ChangeNotifier {
     if (index < 0 || index >= _measurements.length) return;
     final m = _measurements[index];
     _measurements[index] = m.copyWith(enabled: !m.enabled);
-    // Invalidate results since data changed
-    _results = null;
-    _rmsError = null;
     notifyListeners();
+    _tryAutoEvaluate();
   }
 
   /// Cycle through group assignments: A -> B -> null -> A.
@@ -158,10 +169,16 @@ class CalibrationService extends ChangeNotifier {
     }
     _measurements[index] =
         newGroup == null ? m.copyWith(clearGroup: true) : m.copyWith(group: newGroup);
-    // Invalidate results since data changed
-    _results = null;
-    _rmsError = null;
     notifyListeners();
+    _tryAutoEvaluate();
+  }
+
+  /// Auto-evaluate if we have enough enabled measurements.
+  void _tryAutoEvaluate() {
+    final enabledCount = _measurements.where((m) => m.enabled).length;
+    if (enabledCount >= CalibrationAlgorithm.minMeasurements) {
+      evaluate();
+    }
   }
 
   /// Called when a calibration acceleration packet is received.
@@ -186,7 +203,24 @@ class CalibrationService extends ChangeNotifier {
       return;
     }
 
+    // Determine what to do: replace, insert, or append
+    int position;
+    bool isReplace = false;
+
+    if (_retakeIndex != null) {
+      // Replace a bad measurement (automatic retake after 56)
+      position = _retakeIndex!;
+      isReplace = true;
+    } else if (_insertPosition != null) {
+      // Insert at deleted position
+      position = _insertPosition!;
+    } else {
+      // Append to end
+      position = _measurements.length;
+    }
+
     // Combine into full measurement
+    // Use position-based group (1-indexed for defaultGroup)
     final measurement = CalibrationMeasurement(
       gx: _pendingAccel!.gx,
       gy: _pendingAccel!.gy,
@@ -194,16 +228,32 @@ class CalibrationService extends ChangeNotifier {
       mx: packet.mx,
       my: packet.my,
       mz: packet.mz,
-      index: packet.measurementNumber,
+      index: position + 1, // Use list position as index (1-indexed)
       enabled: true,
-      group: CalibrationData.defaultGroup(packet.measurementNumber),
+      group: CalibrationData.defaultGroup(position + 1),
     );
 
-    _measurements.add(measurement);
-    _pendingAccel = null;
+    if (isReplace) {
+      // Replace the bad measurement
+      _measurements[position] = measurement;
+      _retakeIndex = null;
+      debugPrint('CalibrationService: replaced measurement at position $position');
+    } else if (_insertPosition != null) {
+      // Insert at deleted position
+      _measurements.insert(position, measurement);
+      _insertPosition = null;
+      debugPrint('CalibrationService: inserted measurement at position $position');
+    } else {
+      // Append
+      _measurements.add(measurement);
+      debugPrint('CalibrationService: added measurement #${measurement.index}');
+    }
 
-    debugPrint('CalibrationService: added measurement #${measurement.index}');
+    _pendingAccel = null;
     notifyListeners();
+
+    // Auto-evaluate when we have enough measurements
+    _tryAutoEvaluate();
   }
 
   /// Called when a memory reply packet is received.
@@ -255,6 +305,18 @@ class CalibrationService extends ChangeNotifier {
       _rmsError = result.rmsError;
       _iterations = result.iterations;
       _state = CalibrationState.idle;
+
+      // After all 56 measurements, automatically set retake index for first bad measurement
+      _retakeIndex = null;
+      if (_measurements.length >= 56 && _results != null) {
+        for (int i = 0; i < _results!.length && i < _measurements.length; i++) {
+          if (_measurements[i].enabled && _results![i].error >= 0.5) {
+            _retakeIndex = i;
+            debugPrint('CalibrationService: next measurement will replace index $i');
+            break;
+          }
+        }
+      }
 
       debugPrint('Calibration computed: RMS error = ${_rmsError?.toStringAsFixed(3)}°, '
           'iterations = $_iterations');

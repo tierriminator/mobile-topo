@@ -343,6 +343,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationTitle => 'Device Calibration';
 
   @override
+  String get calibrationDescription =>
+      'Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.';
+
+  @override
   String get calibrationStart => 'Start';
 
   @override
@@ -358,11 +362,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationUpdate => 'Update';
 
   @override
+  String get calibrationWrite => 'Write';
+
+  @override
   String get calibrationClear => 'Clear';
 
   @override
   String get calibrationClearConfirm =>
       'Clear all measurements and start over?';
+
+  @override
+  String get calibrationCancelTitle => 'Cancel Calibration?';
+
+  @override
+  String get calibrationCancelConfirm =>
+      'You have unsaved calibration measurements. Discard and exit?';
+
+  @override
+  String get calibrationDiscard => 'Discard';
 
   @override
   String get calibrationUpdateConfirm =>
