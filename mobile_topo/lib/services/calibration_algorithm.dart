@@ -331,7 +331,41 @@ class CalibrationAlgorithm {
     return maxD;
   }
 
+  /// Compute bearing and clino from calibrated G and M vectors.
+  /// Returns (bearing, clino) in radians.
+  (double, double) _computeBearingClino(Vector3 g, Vector3 m) {
+    final gNorm = g.normalized;
+    final mNorm = m.normalized;
+
+    // Clino (inclination) from G - angle from horizontal
+    final clino = math.asin(-gNorm.z.clamp(-1.0, 1.0));
+
+    // Project M onto horizontal plane perpendicular to G for bearing
+    final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
+    if (mHoriz.magnitude < 0.001) {
+      // Device is vertical, bearing is undefined
+      return (0.0, clino);
+    }
+    final mHorizNorm = mHoriz.normalized;
+
+    // Compute bearing using local reference frame
+    const up = Vector3(0, 0, 1);
+    var east = gNorm.cross(up);
+    if (east.magnitude < 0.01) {
+      east = const Vector3(1, 0, 0);
+    }
+    east = east.normalized;
+    final north = up.cross(east).normalized;
+
+    final mEast = mHorizNorm.dot(east);
+    final mNorth = mHorizNorm.dot(north);
+    final bearing = math.atan2(mEast, mNorth);
+
+    return (bearing, clino);
+  }
+
   /// Compute per-measurement results.
+  /// Error is computed as direction difference within groups (TopoDroid method).
   List<CalibrationResult> _computeResults(
     List<CalibrationMeasurement> data,
     Matrix3 aG,
@@ -339,70 +373,103 @@ class CalibrationAlgorithm {
     Matrix3 aM,
     Vector3 bM,
   ) {
+    final nn = data.length;
+
+    // First pass: compute calibrated vectors and directions for all measurements
+    final calibratedG = <Vector3>[];
+    final calibratedM = <Vector3>[];
+    final bearings = <double>[];
+    final clinos = <double>[];
+
+    for (final m in data) {
+      final g = aG.transform(m.gVector) + bG;
+      final mag = aM.transform(m.mVector) + bM;
+      calibratedG.add(g);
+      calibratedM.add(mag);
+
+      final (bearing, clino) = _computeBearingClino(g, mag);
+      bearings.add(bearing);
+      clinos.add(clino);
+    }
+
+    // Second pass: compute group reference directions and errors
+    // Group measurements by their group ID
+    final groupIndices = <int, List<int>>{};
+    for (int i = 0; i < nn; i++) {
+      final groupStr = data[i].group;
+      if (groupStr != null) {
+        final groupId = int.tryParse(groupStr) ?? -1;
+        if (groupId >= 0) {
+          groupIndices.putIfAbsent(groupId, () => []).add(i);
+        }
+      }
+    }
+
+    // Compute reference direction for each group (average of measurements)
+    final groupRefBearing = <int, double>{};
+    final groupRefClino = <int, double>{};
+
+    for (final entry in groupIndices.entries) {
+      final indices = entry.value;
+      if (indices.isEmpty) continue;
+
+      // Average bearing needs special handling for angle wraparound
+      double sumSin = 0, sumCos = 0, sumClino = 0;
+      for (final i in indices) {
+        sumSin += math.sin(bearings[i]);
+        sumCos += math.cos(bearings[i]);
+        sumClino += clinos[i];
+      }
+      groupRefBearing[entry.key] = math.atan2(sumSin, sumCos);
+      groupRefClino[entry.key] = sumClino / indices.length;
+    }
+
+    // Third pass: compute errors and build results
+    final errors = List<double>.filled(nn, 0.0);
+
+    for (final entry in groupIndices.entries) {
+      final groupId = entry.key;
+      final indices = entry.value;
+      final refB = groupRefBearing[groupId] ?? 0.0;
+      final refC = groupRefClino[groupId] ?? 0.0;
+
+      for (final i in indices) {
+        // Error = length of direction difference vector
+        // This approximates the angle: error ≈ 2*tan(angle/2) for small angles
+        var dBearing = bearings[i] - refB;
+        // Normalize bearing difference to [-pi, pi]
+        while (dBearing > math.pi) dBearing -= 2 * math.pi;
+        while (dBearing < -math.pi) dBearing += 2 * math.pi;
+
+        final dClino = clinos[i] - refC;
+
+        // Error as Euclidean distance in (bearing, clino) space
+        errors[i] = math.sqrt(dBearing * dBearing + dClino * dClino);
+      }
+    }
+
+    // Build results
     final results = <CalibrationResult>[];
 
-    // First pass: compute mean alpha (dip angle) for consistency check
-    double alphaSum = 0;
-    int count = 0;
-    for (final m in data) {
-      final g = aG.transform(m.gVector) + bG;
-      final mag = aM.transform(m.mVector) + bM;
-      alphaSum += g.angleTo(mag);
-      count++;
-    }
-    final meanAlpha = count > 0 ? alphaSum / count : 0.0;
-
-    // Second pass: compute full results
-    for (final m in data) {
-      final g = aG.transform(m.gVector) + bG;
-      final mag = aM.transform(m.mVector) + bM;
+    for (int i = 0; i < nn; i++) {
+      final g = calibratedG[i];
+      final mag = calibratedM[i];
 
       final gMag = g.magnitude;
       final mMag = mag.magnitude;
       final alpha = g.angleTo(mag);
 
-      // Error estimate using Beat Heeb's method:
-      // error = 2 * tan(alpha/2) approximates the angle
-      final alphaError = (alpha - meanAlpha).abs();
-      final gMagError = (gMag - 1.0).abs();
-      final mMagError = (mMag - 1.0).abs();
-
-      final error = math.sqrt(
-        alphaError * alphaError +
-            gMagError * gMagError +
-            mMagError * mMagError,
-      );
-
-      // Compute angles from calibrated vectors
-      final gNorm = g.normalized;
-      final mNorm = mag.normalized;
-
-      // Inclination from G (angle from horizontal)
-      final inclination = math.asin(-gNorm.z.clamp(-1.0, 1.0)) * 180 / math.pi;
-
-      // Project M onto horizontal plane for azimuth
-      final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
-      final mHorizNorm = mHoriz.magnitude > 0.01 ? mHoriz.normalized : mNorm;
-
-      // Compute azimuth using local reference frame
-      const up = Vector3(0, 0, 1);
-      var east = gNorm.cross(up);
-      if (east.magnitude < 0.01) {
-        east = const Vector3(1, 0, 0);
-      }
-      east = east.normalized;
-      final north = up.cross(east).normalized;
-
-      final mEast = mHorizNorm.dot(east);
-      final mNorth = mHorizNorm.dot(north);
-      var azimuth = math.atan2(mEast, mNorth) * 180 / math.pi;
+      // Convert bearing/clino to degrees for output
+      var azimuth = bearings[i] * 180 / math.pi;
       if (azimuth < 0) azimuth += 360;
+      final inclination = clinos[i] * 180 / math.pi;
 
       // Roll from G
+      final gNorm = g.normalized;
       final roll = math.atan2(gNorm.y, -gNorm.x) * 180 / math.pi;
 
       results.add(CalibrationResult(
-        error: error * 180 / math.pi, // Convert to degrees
+        error: errors[i] * 180 / math.pi, // Convert to degrees
         gMagnitude: gMag,
         mMagnitude: mMag,
         alpha: alpha * 180 / math.pi,
