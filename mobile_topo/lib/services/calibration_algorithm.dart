@@ -438,8 +438,12 @@ class CalibrationAlgorithm {
         // This approximates the angle: error ≈ 2*tan(angle/2) for small angles
         var dBearing = bearings[i] - refB;
         // Normalize bearing difference to [-pi, pi]
-        while (dBearing > math.pi) dBearing -= 2 * math.pi;
-        while (dBearing < -math.pi) dBearing += 2 * math.pi;
+        while (dBearing > math.pi) {
+          dBearing -= 2 * math.pi;
+        }
+        while (dBearing < -math.pi) {
+          dBearing += 2 * math.pi;
+        }
 
         final dClino = clinos[i] - refC;
 

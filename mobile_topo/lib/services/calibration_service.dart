@@ -32,6 +32,7 @@ enum CalibrationState {
 /// - Collecting calibration measurements
 /// - Computing calibration coefficients
 /// - Writing coefficients to device memory
+/// - Auto-detecting which position each shot belongs to
 class CalibrationService extends ChangeNotifier {
   final DistoXService _distoX;
   final DistoXProtocol _protocol = DistoXProtocol();
@@ -65,6 +66,22 @@ class CalibrationService extends ChangeNotifier {
   int _writtenBytes = 0;
   Completer<void>? _memoryWriteCompleter;
 
+  /// Whether auto-detection mode is enabled.
+  bool _autoDetectEnabled = true;
+
+  /// Minimum measurements needed before auto-detection becomes reliable.
+  static const int minForAutoDetect = 16;
+
+  /// Which position slots (0-55) are filled, and by which measurement index.
+  /// Key: slot index, Value: measurement list index.
+  final Map<int, int> _filledSlots = {};
+
+  /// Detected position for each measurement (null if not detected yet).
+  List<CalibrationPosition?> _detectedPositions = [];
+
+  /// The suggested next position to take.
+  CalibrationPosition? _suggestedNext;
+
   CalibrationService(this._distoX);
 
   // Getters
@@ -81,6 +98,54 @@ class CalibrationService extends ChangeNotifier {
 
   /// Check if connected to DistoX.
   bool get isConnected => _distoX.isConnected;
+
+  /// Whether auto-detection is enabled.
+  bool get autoDetectEnabled => _autoDetectEnabled;
+  set autoDetectEnabled(bool value) {
+    if (_autoDetectEnabled != value) {
+      _autoDetectEnabled = value;
+      if (value && _coefficients != null) {
+        _runAutoDetection();
+      }
+      notifyListeners();
+    }
+  }
+
+  /// Whether auto-detection is currently possible (enough measurements).
+  bool get canAutoDetect =>
+      _measurements.length >= minForAutoDetect && _coefficients != null;
+
+  /// Detected positions for each measurement.
+  List<CalibrationPosition?> get detectedPositions =>
+      List.unmodifiable(_detectedPositions);
+
+  /// Which slots are filled (0-55).
+  Set<int> get filledSlots => _filledSlots.keys.toSet();
+
+  /// Number of filled slots.
+  int get filledSlotCount => _filledSlots.length;
+
+  /// The suggested next position to take.
+  CalibrationPosition? get suggestedNext => _suggestedNext;
+
+  /// Get list of missing positions (not yet filled).
+  List<CalibrationPosition> get missingPositions {
+    final all = CalibrationPositions.all;
+    return all.where((p) => !_filledSlots.containsKey(p.slotIndex)).toList();
+  }
+
+  /// Get progress by direction (how many of 4 rolls are filled for each).
+  Map<int, int> get progressByDirection {
+    final progress = <int, int>{};
+    for (int d = 0; d < 14; d++) {
+      int count = 0;
+      for (int r = 0; r < 4; r++) {
+        if (_filledSlots.containsKey(d * 4 + r)) count++;
+      }
+      progress[d] = count;
+    }
+    return progress;
+  }
 
   /// Start calibration mode on the device.
   ///
@@ -129,6 +194,9 @@ class CalibrationService extends ChangeNotifier {
     _pendingAccel = null;
     _retakeIndex = null;
     _insertPosition = null;
+    _filledSlots.clear();
+    _detectedPositions = [];
+    _suggestedNext = _getFirstNeededPosition();
     notifyListeners();
   }
 
@@ -136,11 +204,37 @@ class CalibrationService extends ChangeNotifier {
   /// Sets insert position so the next measurement fills the gap.
   void deleteMeasurement(int index) {
     if (index < 0 || index >= _measurements.length) return;
+
+    // Remove from filled slots if it was detected
+    if (index < _detectedPositions.length && _detectedPositions[index] != null) {
+      final slot = _detectedPositions[index]!.slotIndex;
+      if (_filledSlots[slot] == index) {
+        _filledSlots.remove(slot);
+      }
+    }
+
     _measurements.removeAt(index);
+    _detectedPositions.removeAt(index);
+
+    // Update filled slots indices (shift down)
+    final updatedSlots = <int, int>{};
+    for (final entry in _filledSlots.entries) {
+      if (entry.value > index) {
+        updatedSlots[entry.key] = entry.value - 1;
+      } else {
+        updatedSlots[entry.key] = entry.value;
+      }
+    }
+    _filledSlots
+      ..clear()
+      ..addAll(updatedSlots);
+
     // Set insert position so next measurement goes here
     _insertPosition = index;
     // Clear retake index since we manually deleted
     _retakeIndex = null;
+
+    _updateSuggestedNext();
     notifyListeners();
     _tryAutoEvaluate();
   }
@@ -337,6 +431,12 @@ class CalibrationService extends ChangeNotifier {
 
       debugPrint('Calibration computed: RMS error = ${_rmsError?.toStringAsFixed(3)}°, '
           'iterations = $_iterations');
+
+      // Run auto-detection if enabled
+      if (_autoDetectEnabled) {
+        _runAutoDetection();
+      }
+
       notifyListeners();
     } on CalibrationException catch (e) {
       _error = e.message;
@@ -449,6 +549,205 @@ class CalibrationService extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  // ===== Auto-Detection Methods =====
+
+  /// Run auto-detection on all measurements.
+  /// This analyzes each measurement's direction and assigns it to a position slot.
+  void _runAutoDetection() {
+    if (_coefficients == null || _results == null) return;
+
+    _filledSlots.clear();
+    _detectedPositions = List<CalibrationPosition?>.filled(
+      _measurements.length,
+      null,
+    );
+
+    // Detect position for each measurement
+    for (int i = 0; i < _measurements.length; i++) {
+      final result = _results![i];
+      if (result == null || !_measurements[i].enabled) continue;
+
+      final position = _detectPosition(
+        result.azimuth,
+        result.inclination,
+        result.roll,
+      );
+
+      if (position != null) {
+        _detectedPositions[i] = position;
+
+        // Assign to slot if not already filled, or if this one has lower error
+        final slot = position.slotIndex;
+        final existingIdx = _filledSlots[slot];
+
+        if (existingIdx == null) {
+          // Slot is empty, fill it
+          _filledSlots[slot] = i;
+          // Update measurement's group to match detected direction
+          _updateMeasurementGroup(i, position.direction);
+        } else {
+          // Slot already filled - keep the one with lower error
+          final existingError = _results![existingIdx]?.error ?? double.infinity;
+          if (result.error < existingError) {
+            _filledSlots[slot] = i;
+            _updateMeasurementGroup(i, position.direction);
+          }
+        }
+      }
+    }
+
+    _updateSuggestedNext();
+
+    debugPrint('Auto-detection: ${_filledSlots.length}/56 slots filled');
+  }
+
+  /// Detect which position a measurement belongs to based on its angles.
+  CalibrationPosition? _detectPosition(
+    double bearing,
+    double inclination,
+    double roll,
+  ) {
+    final match = CalibrationPositions.findClosest(bearing, inclination, roll);
+    if (match == null) return null;
+
+    final (position, dirError, rollError) = match;
+
+    // Check if within tolerance
+    if (dirError <= CalibrationPositions.directionTolerance &&
+        rollError <= CalibrationPositions.rollTolerance) {
+      return position;
+    }
+
+    return null;
+  }
+
+  /// Update a measurement's group based on detected direction.
+  void _updateMeasurementGroup(int index, int direction) {
+    if (index < 0 || index >= _measurements.length) return;
+    final m = _measurements[index];
+    final newGroup = direction.toString();
+    if (m.group != newGroup) {
+      _measurements[index] = m.copyWith(group: newGroup);
+    }
+  }
+
+  /// Update the suggested next position based on what's missing.
+  void _updateSuggestedNext() {
+    // Priority order:
+    // 1. Complete partially-filled directions (finish 4 rolls for a direction)
+    // 2. Then fill new directions in order (0-13)
+
+    // Find directions that are partially filled
+    final progress = progressByDirection;
+
+    // First, try to complete partially-filled directions
+    for (int d = 0; d < 14; d++) {
+      final filled = progress[d] ?? 0;
+      if (filled > 0 && filled < 4) {
+        // Find the first missing roll for this direction
+        for (int r = 0; r < 4; r++) {
+          final slot = d * 4 + r;
+          if (!_filledSlots.containsKey(slot)) {
+            _suggestedNext = CalibrationPositions.bySlot(slot);
+            return;
+          }
+        }
+      }
+    }
+
+    // Then, find the first completely empty direction
+    for (int d = 0; d < 14; d++) {
+      final filled = progress[d] ?? 0;
+      if (filled == 0) {
+        // Start with roll 0 for this direction
+        _suggestedNext = CalibrationPositions.bySlot(d * 4);
+        return;
+      }
+    }
+
+    // All slots filled
+    _suggestedNext = null;
+  }
+
+  /// Get the first needed position (for initial state).
+  CalibrationPosition? _getFirstNeededPosition() {
+    return CalibrationPositions.bySlot(0);
+  }
+
+  /// Manually assign a measurement to a specific position slot.
+  /// This overrides auto-detection for that measurement.
+  void assignToSlot(int measurementIndex, int slotIndex) {
+    if (measurementIndex < 0 || measurementIndex >= _measurements.length) return;
+    if (slotIndex < 0 || slotIndex >= 56) return;
+
+    final position = CalibrationPositions.bySlot(slotIndex);
+    if (position == null) return;
+
+    // Remove measurement from its current slot if any
+    if (measurementIndex < _detectedPositions.length) {
+      final oldPos = _detectedPositions[measurementIndex];
+      if (oldPos != null) {
+        final oldSlot = oldPos.slotIndex;
+        if (_filledSlots[oldSlot] == measurementIndex) {
+          _filledSlots.remove(oldSlot);
+        }
+      }
+    }
+
+    // Ensure detectedPositions list is long enough
+    while (_detectedPositions.length <= measurementIndex) {
+      _detectedPositions.add(null);
+    }
+
+    // Assign to new slot
+    _detectedPositions[measurementIndex] = position;
+    _filledSlots[slotIndex] = measurementIndex;
+    _updateMeasurementGroup(measurementIndex, position.direction);
+
+    _updateSuggestedNext();
+    notifyListeners();
+  }
+
+  /// Get a description of the suggested next shot for the user.
+  String? getSuggestedNextDescription() {
+    if (_suggestedNext == null) {
+      if (_filledSlots.length >= 56) {
+        return 'All 56 positions filled!';
+      }
+      return null;
+    }
+
+    final pos = _suggestedNext!;
+    final dirNames = [
+      'North (horizontal)',
+      'East (horizontal)',
+      'South (horizontal)',
+      'West (horizontal)',
+      'NE (up 45°)',
+      'SE (up 45°)',
+      'SW (up 45°)',
+      'NW (up 45°)',
+      'NE (down 45°)',
+      'SE (down 45°)',
+      'SW (down 45°)',
+      'NW (down 45°)',
+      'Up (vertical)',
+      'Down (vertical)',
+    ];
+
+    final rollNames = ['0°', '90°', '180°', '270°'];
+
+    final dirName = pos.direction < dirNames.length
+        ? dirNames[pos.direction]
+        : 'Direction ${pos.direction}';
+    final rollName = pos.rollIndex < rollNames.length
+        ? rollNames[pos.rollIndex]
+        : 'Roll ${pos.rollIndex}';
+
+    final progress = progressByDirection[pos.direction] ?? 0;
+    return '$dirName, roll $rollName (${progress + 1}/4)';
   }
 
   @override

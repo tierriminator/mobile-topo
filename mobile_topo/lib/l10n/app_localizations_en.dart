@@ -477,4 +477,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get delete => 'Delete';
+
+  @override
+  String get calibrationPhase1Title => 'Phase 1: Precise Measurements';
+
+  @override
+  String get calibrationPhase1Instructions =>
+      'The first 16 measurements (4 directions × 4 orientations) must be PRECISE.\n\n• Use two fixed points (marks on trees or cave walls)\n• For each direction, take 4 shots with different device orientations (display up, right, down, left)\n• All 4 shots in each direction must hit the SAME target point\n\nIMPORTANT: Calibrate in an undisturbed magnetic environment - a cave or forest. NOT inside buildings or near metal objects.';
+
+  @override
+  String get calibrationPhase2Title => 'Phase 2: Coverage Measurements';
+
+  @override
+  String get calibrationPhase2Instructions =>
+      'The remaining 40 measurements are less critical.\n\n• Aim in different directions to cover a sphere (imagine cube vertices)\n• Still use a target point for each shot\n• Allow the reading to stabilize before shooting\n• The exact directions don\'t matter - just get good spread';
+
+  @override
+  String get calibrationBegin => 'Begin';
+
+  @override
+  String get calibrationContinue => 'Continue';
+
+  @override
+  String get calibrationEnvironmentWarning => 'Magnetic Environment';
+
+  @override
+  String get calibrationEnvironmentText =>
+      'You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.';
 }

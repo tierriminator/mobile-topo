@@ -988,6 +988,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete'**
   String get delete;
+
+  /// Title for phase 1 instructions dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Phase 1: Precise Measurements'**
+  String get calibrationPhase1Title;
+
+  /// Instructions for phase 1 of calibration
+  ///
+  /// In en, this message translates to:
+  /// **'The first 16 measurements (4 directions × 4 orientations) must be PRECISE.\n\n• Use two fixed points (marks on trees or cave walls)\n• For each direction, take 4 shots with different device orientations (display up, right, down, left)\n• All 4 shots in each direction must hit the SAME target point\n\nIMPORTANT: Calibrate in an undisturbed magnetic environment - a cave or forest. NOT inside buildings or near metal objects.'**
+  String get calibrationPhase1Instructions;
+
+  /// Title for phase 2 instructions dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Phase 2: Coverage Measurements'**
+  String get calibrationPhase2Title;
+
+  /// Instructions for phase 2 of calibration
+  ///
+  /// In en, this message translates to:
+  /// **'The remaining 40 measurements are less critical.\n\n• Aim in different directions to cover a sphere (imagine cube vertices)\n• Still use a target point for each shot\n• Allow the reading to stabilize before shooting\n• The exact directions don\'t matter - just get good spread'**
+  String get calibrationPhase2Instructions;
+
+  /// Button to begin calibration after reading instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Begin'**
+  String get calibrationBegin;
+
+  /// Button to continue to phase 2
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get calibrationContinue;
+
+  /// Warning section title about magnetic environment
+  ///
+  /// In en, this message translates to:
+  /// **'Magnetic Environment'**
+  String get calibrationEnvironmentWarning;
+
+  /// Warning text about magnetic environment
+  ///
+  /// In en, this message translates to:
+  /// **'You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.'**
+  String get calibrationEnvironmentText;
 }
 
 class _AppLocalizationsDelegate

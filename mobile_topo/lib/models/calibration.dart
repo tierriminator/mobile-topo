@@ -377,3 +377,207 @@ class CalibrationData {
     return ((index - 1) ~/ 4).toString();
   }
 }
+
+/// An expected calibration position (direction + roll orientation).
+class CalibrationPosition {
+  /// Direction index (0-13).
+  final int direction;
+
+  /// Roll index (0-3, corresponding to ~0°, 90°, 180°, 270°).
+  final int rollIndex;
+
+  /// Expected bearing in degrees (0-360).
+  final double bearing;
+
+  /// Expected inclination in degrees (-90 to 90).
+  final double inclination;
+
+  /// Expected roll in degrees for this roll index.
+  double get expectedRoll => rollIndex * 90.0 - 180.0; // -180, -90, 0, 90
+
+  const CalibrationPosition({
+    required this.direction,
+    required this.rollIndex,
+    required this.bearing,
+    required this.inclination,
+  });
+
+  /// Slot index (0-55) for unique identification.
+  int get slotIndex => direction * 4 + rollIndex;
+
+  /// Group ID string for this direction.
+  String get groupId => direction.toString();
+
+  @override
+  String toString() =>
+      'Position(dir=$direction, roll=$rollIndex, bearing=${bearing.toStringAsFixed(0)}°, '
+      'incl=${inclination.toStringAsFixed(0)}°)';
+}
+
+/// Standard calibration positions for DistoX calibration.
+///
+/// 14 directions × 4 roll orientations = 56 positions total.
+/// Directions are distributed for good angular coverage:
+/// - 4 horizontal (cardinal directions)
+/// - 4 upward at ~45°
+/// - 4 downward at ~45°
+/// - 2 near-vertical (up and down)
+class CalibrationPositions {
+  CalibrationPositions._();
+
+  /// The 14 standard directions with (bearing, inclination).
+  /// Based on typical DistoX calibration procedure.
+  static const List<(double, double)> directions = [
+    // First 4: horizontal, cardinal directions (most precise)
+    (0.0, 0.0),    // 0: North, horizontal
+    (90.0, 0.0),   // 1: East, horizontal
+    (180.0, 0.0),  // 2: South, horizontal
+    (270.0, 0.0),  // 3: West, horizontal
+    // Next 4: upward at ~45°
+    (45.0, 45.0),  // 4: NE, up 45°
+    (135.0, 45.0), // 5: SE, up 45°
+    (225.0, 45.0), // 6: SW, up 45°
+    (315.0, 45.0), // 7: NW, up 45°
+    // Next 4: downward at ~45°
+    (45.0, -45.0),  // 8: NE, down 45°
+    (135.0, -45.0), // 9: SE, down 45°
+    (225.0, -45.0), // 10: SW, down 45°
+    (315.0, -45.0), // 11: NW, down 45°
+    // Last 2: near-vertical
+    (0.0, 80.0),   // 12: Up (any bearing)
+    (0.0, -80.0),  // 13: Down (any bearing)
+  ];
+
+  /// Generate all 56 expected positions.
+  static List<CalibrationPosition> get all {
+    final positions = <CalibrationPosition>[];
+    for (int d = 0; d < 14; d++) {
+      final (bearing, inclination) = directions[d];
+      for (int r = 0; r < 4; r++) {
+        positions.add(CalibrationPosition(
+          direction: d,
+          rollIndex: r,
+          bearing: bearing,
+          inclination: inclination,
+        ));
+      }
+    }
+    return positions;
+  }
+
+  /// Get positions for a specific direction.
+  static List<CalibrationPosition> forDirection(int direction) {
+    if (direction < 0 || direction >= 14) return [];
+    final (bearing, inclination) = directions[direction];
+    return [
+      for (int r = 0; r < 4; r++)
+        CalibrationPosition(
+          direction: direction,
+          rollIndex: r,
+          bearing: bearing,
+          inclination: inclination,
+        ),
+    ];
+  }
+
+  /// Get position by slot index (0-55).
+  static CalibrationPosition? bySlot(int slot) {
+    if (slot < 0 || slot >= 56) return null;
+    final direction = slot ~/ 4;
+    final rollIndex = slot % 4;
+    final (bearing, inclination) = directions[direction];
+    return CalibrationPosition(
+      direction: direction,
+      rollIndex: rollIndex,
+      bearing: bearing,
+      inclination: inclination,
+    );
+  }
+
+  /// Tolerance for direction matching in degrees.
+  static const double directionTolerance = 25.0;
+
+  /// Tolerance for roll matching in degrees.
+  static const double rollTolerance = 35.0;
+
+  /// Find the closest matching position for given angles.
+  /// Returns (position, directionError, rollError) or null if no match.
+  static (CalibrationPosition, double, double)? findClosest(
+    double bearing,
+    double inclination,
+    double roll,
+  ) {
+    CalibrationPosition? bestPos;
+    double bestDirError = double.infinity;
+    double bestRollError = double.infinity;
+
+    for (int d = 0; d < 14; d++) {
+      final (expBearing, expIncl) = directions[d];
+
+      // Compute direction error (angular distance)
+      final dirError = _directionError(bearing, inclination, expBearing, expIncl);
+
+      if (dirError < bestDirError ||
+          (dirError < directionTolerance && bestDirError >= directionTolerance)) {
+        // Find best roll match for this direction
+        for (int r = 0; r < 4; r++) {
+          final expRoll = r * 90.0 - 180.0;
+          final rollError = _angleDiff(roll, expRoll).abs();
+
+          if (dirError < bestDirError ||
+              (dirError < directionTolerance && rollError < bestRollError)) {
+            bestPos = CalibrationPosition(
+              direction: d,
+              rollIndex: r,
+              bearing: expBearing,
+              inclination: expIncl,
+            );
+            bestDirError = dirError;
+            bestRollError = rollError;
+          }
+        }
+      }
+    }
+
+    if (bestPos == null) return null;
+    return (bestPos, bestDirError, bestRollError);
+  }
+
+  /// Compute direction error between two (bearing, inclination) pairs.
+  /// Uses great circle distance approximation.
+  static double _directionError(
+    double b1, double i1,
+    double b2, double i2,
+  ) {
+    // Convert to radians
+    final b1r = b1 * math.pi / 180;
+    final i1r = i1 * math.pi / 180;
+    final b2r = b2 * math.pi / 180;
+    final i2r = i2 * math.pi / 180;
+
+    // Convert to unit vectors
+    final x1 = math.cos(i1r) * math.sin(b1r);
+    final y1 = math.cos(i1r) * math.cos(b1r);
+    final z1 = math.sin(i1r);
+
+    final x2 = math.cos(i2r) * math.sin(b2r);
+    final y2 = math.cos(i2r) * math.cos(b2r);
+    final z2 = math.sin(i2r);
+
+    // Dot product = cos(angle)
+    final dot = (x1 * x2 + y1 * y2 + z1 * z2).clamp(-1.0, 1.0);
+    return math.acos(dot) * 180 / math.pi;
+  }
+
+  /// Compute angle difference normalized to [-180, 180].
+  static double _angleDiff(double a, double b) {
+    var diff = a - b;
+    while (diff > 180) {
+      diff -= 360;
+    }
+    while (diff < -180) {
+      diff += 360;
+    }
+    return diff;
+  }
+}
