@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../l10n/app_localizations.dart';
 
 import '../models/calibration.dart';
 import 'calibration_algorithm.dart';
@@ -25,6 +26,25 @@ enum CalibrationState {
   reading,
 }
 
+/// Phase of the calibration workflow.
+enum CalibrationPhase {
+  /// Phase 1: Collecting initial measurements (first 16) without guidance.
+  /// User takes shots in any order until we have enough for initial calibration.
+  collectingInitial,
+
+  /// Phase 2: Guided collection to fill all 56 positions.
+  /// We have coefficients, so we can detect positions and guide the user.
+  /// Don't suggest corrections yet - just fill all slots.
+  collectingGuided,
+
+  /// Phase 3: All 56 positions filled. Now identifying and correcting bad shots.
+  /// Suggests retaking measurements with high error.
+  correcting,
+
+  /// Calibration complete - all shots good, ready to write to device.
+  complete,
+}
+
 /// Service for managing DistoX calibration.
 ///
 /// Handles:
@@ -39,6 +59,7 @@ class CalibrationService extends ChangeNotifier {
   final CalibrationAlgorithm _algorithm = CalibrationAlgorithm();
 
   CalibrationState _state = CalibrationState.idle;
+  CalibrationPhase _phase = CalibrationPhase.collectingInitial;
   List<CalibrationMeasurement> _measurements = [];
   List<CalibrationResult?>? _results;
   CalibrationCoefficients? _coefficients;
@@ -72,6 +93,9 @@ class CalibrationService extends ChangeNotifier {
   /// Minimum measurements needed before auto-detection becomes reliable.
   static const int minForAutoDetect = 16;
 
+  /// Error threshold (degrees) for considering a measurement "bad" and needing correction.
+  static const double errorThreshold = 0.5;
+
   /// Which position slots (0-55) are filled, and by which measurement index.
   /// Key: slot index, Value: measurement list index.
   final Map<int, int> _filledSlots = {};
@@ -90,6 +114,7 @@ class CalibrationService extends ChangeNotifier {
 
   // Getters
   CalibrationState get state => _state;
+  CalibrationPhase get phase => _phase;
   List<CalibrationMeasurement> get measurements =>
       List.unmodifiable(_measurements);
   List<CalibrationResult?>? get results => _results;
@@ -154,6 +179,66 @@ class CalibrationService extends ChangeNotifier {
     return progress;
   }
 
+  /// Get a user-friendly status message for the current phase.
+  String getPhaseStatusMessage(AppLocalizations l10n) {
+    switch (_phase) {
+      case CalibrationPhase.collectingInitial:
+        final remaining = minForAutoDetect - _measurements.length;
+        if (remaining > 0) {
+          return l10n.calibrationPhaseInitialRemaining(remaining);
+        }
+        return l10n.calibrationPhaseInitial;
+
+      case CalibrationPhase.collectingGuided:
+        final remaining = 56 - _filledSlots.length;
+        return l10n.calibrationPhaseGuided(remaining, _filledSlots.length);
+
+      case CalibrationPhase.correcting:
+        final badCount = _countBadMeasurements();
+        if (_retakeIndex != null) {
+          final reason = _getBadMeasurementReason(_retakeIndex!, l10n);
+          return l10n.calibrationPhaseCorrecting(_retakeIndex! + 1, reason, badCount);
+        }
+        return l10n.calibrationPhaseCorrectingGeneric(badCount);
+
+      case CalibrationPhase.complete:
+        return l10n.calibrationPhaseComplete;
+    }
+  }
+
+  /// Count how many measurements need correction (high error or misaligned).
+  int _countBadMeasurements() {
+    int count = 0;
+    for (int i = 0; i < _measurements.length; i++) {
+      if (!_measurements[i].enabled) continue;
+
+      final r = _results != null && i < _results!.length ? _results![i] : null;
+      final hasHighError = r != null && r.error >= errorThreshold;
+      final isMisaligned = isMeasurementMisaligned(i);
+
+      if (hasHighError || isMisaligned) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /// Get a description of why a measurement needs correction.
+  String _getBadMeasurementReason(int index, AppLocalizations l10n) {
+    final r = _results != null && index < _results!.length ? _results![index] : null;
+    final hasHighError = r != null && r.error >= errorThreshold;
+    final isMisaligned = isMeasurementMisaligned(index);
+
+    if (hasHighError && isMisaligned) {
+      return l10n.calibrationReasonBoth;
+    } else if (hasHighError) {
+      return l10n.calibrationReasonHighError(r.error.toStringAsFixed(2));
+    } else if (isMisaligned) {
+      return l10n.calibrationReasonMisaligned;
+    }
+    return 'unknown';
+  }
+
   /// Start calibration mode on the device.
   ///
   /// The device will begin sending calibration packets instead of
@@ -205,6 +290,7 @@ class CalibrationService extends ChangeNotifier {
     _detectedPositions = [];
     _referenceBearing = null;
     _suggestedNext = _getFirstNeededPosition();
+    _phase = CalibrationPhase.collectingInitial;
     notifyListeners();
   }
 
@@ -306,24 +392,33 @@ class CalibrationService extends ChangeNotifier {
       return;
     }
 
-    // Determine what to do: replace, insert, or append
-    int position;
-    bool isReplace = false;
+    // Determine what to do: replace or append
+    final bool isReplace = _retakeIndex != null;
+    final int listPosition = isReplace ? _retakeIndex! : _measurements.length;
 
-    if (_retakeIndex != null) {
-      // Replace a bad measurement (automatic retake after 56)
-      position = _retakeIndex!;
-      isReplace = true;
-    } else if (_insertPosition != null) {
-      // Insert at deleted position
-      position = _insertPosition!;
+    // Get the group and slot from the suggested position (prescriptive assignment)
+    // During collection, we assign based on what we told the user to take
+    final int? group;
+    final int? slotIndex;
+
+    if (isReplace && _phase == CalibrationPhase.correcting) {
+      // Correction phase: keep the same group/slot as the measurement being replaced
+      final existing = _measurements[listPosition];
+      group = existing.group;
+      slotIndex = listPosition < _detectedPositions.length
+          ? _detectedPositions[listPosition]?.slotIndex
+          : null;
+    } else if (_suggestedNext != null) {
+      // Collection phase: assign based on suggested position
+      group = _suggestedNext!.direction;
+      slotIndex = _suggestedNext!.slotIndex;
     } else {
-      // Append to end
-      position = _measurements.length;
+      // Fallback (shouldn't happen in normal flow)
+      group = CalibrationData.defaultGroup(listPosition + 1);
+      slotIndex = null;
     }
 
     // Combine into full measurement
-    // Use position-based group (1-indexed for defaultGroup)
     final measurement = CalibrationMeasurement(
       gx: _pendingAccel!.gx,
       gy: _pendingAccel!.gy,
@@ -331,25 +426,41 @@ class CalibrationService extends ChangeNotifier {
       mx: packet.mx,
       my: packet.my,
       mz: packet.mz,
-      index: position + 1, // Use list position as index (1-indexed)
+      index: listPosition + 1,
       enabled: true,
-      group: CalibrationData.defaultGroup(position + 1),
+      group: group,
     );
 
     if (isReplace) {
-      // Replace the bad measurement
-      _measurements[position] = measurement;
+      // Replace a bad measurement
+      _measurements[listPosition] = measurement;
       _retakeIndex = null;
-      debugPrint('CalibrationService: replaced measurement at position $position');
+      debugPrint('CalibrationService: replaced measurement at position $listPosition');
     } else if (_insertPosition != null) {
-      // Insert at deleted position
-      _measurements.insert(position, measurement);
+      // Insert at deleted position (manual delete case)
+      _measurements.insert(_insertPosition!, measurement);
+      debugPrint('CalibrationService: inserted measurement at position $_insertPosition');
       _insertPosition = null;
-      debugPrint('CalibrationService: inserted measurement at position $position');
     } else {
-      // Append
+      // Append new measurement
       _measurements.add(measurement);
-      debugPrint('CalibrationService: added measurement #${measurement.index}');
+
+      // Track the slot as filled (prescriptive: we assume user took the suggested position)
+      if (slotIndex != null) {
+        _filledSlots[slotIndex] = _measurements.length - 1;
+
+        // Track detected position (will be validated later)
+        while (_detectedPositions.length < _measurements.length) {
+          _detectedPositions.add(null);
+        }
+        _detectedPositions[_measurements.length - 1] = _suggestedNext;
+      }
+
+      debugPrint('CalibrationService: added measurement #${measurement.index} '
+          'for slot $slotIndex (group $group)');
+
+      // Advance to next suggested position
+      _updateSuggestedNext();
     }
 
     _pendingAccel = null;
@@ -424,19 +535,6 @@ class CalibrationService extends ChangeNotifier {
       }
       _results = expandedResults;
 
-      // After all 56 measurements, automatically set retake index for first bad measurement
-      _retakeIndex = null;
-      if (_measurements.length >= 56 && _results != null) {
-        for (int i = 0; i < _results!.length; i++) {
-          final r = _results![i];
-          if (r != null && _measurements[i].enabled && r.error >= 0.5) {
-            _retakeIndex = i;
-            debugPrint('CalibrationService: next measurement will replace index $i');
-            break;
-          }
-        }
-      }
-
       debugPrint('Calibration computed: RMS error = ${_rmsError?.toStringAsFixed(3)}°, '
           'iterations = $_iterations');
 
@@ -444,6 +542,9 @@ class CalibrationService extends ChangeNotifier {
       if (_autoDetectEnabled) {
         _runAutoDetection();
       }
+
+      // Update phase based on current state
+      _updatePhase();
 
       notifyListeners();
     } on CalibrationException catch (e) {
@@ -561,58 +662,112 @@ class CalibrationService extends ChangeNotifier {
 
   // ===== Auto-Detection Methods =====
 
-  /// Run auto-detection on all measurements.
-  /// This analyzes each measurement's direction and assigns it to a position slot.
+  /// Run auto-detection to validate measurements.
+  ///
+  /// During collection (phases 1-2): Validates shots but keeps prescriptive slot assignments.
+  /// After 56 measurements (phase 3+): Identifies misaligned shots that need correction.
   void _runAutoDetection() {
     if (_coefficients == null || _results == null) return;
 
-    _filledSlots.clear();
-    _detectedPositions = List<CalibrationPosition?>.filled(
-      _measurements.length,
-      null,
-    );
-
     // Establish reference bearing from first horizontal measurement
-    _referenceBearing = _findReferenceBearing();
+    _referenceBearing ??= _findReferenceBearing();
     debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}°');
 
-    // Detect position for each measurement
+    // Ensure _detectedPositions list is sized correctly
+    while (_detectedPositions.length < _measurements.length) {
+      _detectedPositions.add(null);
+    }
+
+    // Detect actual position for each measurement (validation)
     for (int i = 0; i < _measurements.length; i++) {
       final result = _results![i];
       if (result == null || !_measurements[i].enabled) continue;
 
-      final position = _detectPosition(
+      final detectedPos = _detectPosition(
         result.azimuth,
         result.inclination,
         result.roll,
       );
 
-      if (position != null) {
-        _detectedPositions[i] = position;
-
-        // Assign to slot if not already filled, or if this one has lower error
-        final slot = position.slotIndex;
-        final existingIdx = _filledSlots[slot];
-
-        if (existingIdx == null) {
-          // Slot is empty, fill it
-          _filledSlots[slot] = i;
-          // Update measurement's group to match detected direction
-          _updateMeasurementGroup(i, position.direction);
-        } else {
-          // Slot already filled - keep the one with lower error
-          final existingError = _results![existingIdx]?.error ?? double.infinity;
-          if (result.error < existingError) {
-            _filledSlots[slot] = i;
-            _updateMeasurementGroup(i, position.direction);
-          }
-        }
-      }
+      // Store detected position for comparison with prescriptive assignment
+      _detectedPositions[i] = detectedPos;
     }
 
-    _updateSuggestedNext();
-
     debugPrint('Auto-detection: ${_filledSlots.length}/56 slots filled');
+  }
+
+  /// Check if a measurement is misaligned (detected position doesn't match assigned).
+  bool isMeasurementMisaligned(int index) {
+    if (index < 0 || index >= _measurements.length) return false;
+    if (index >= _detectedPositions.length) return false;
+
+    final assigned = _measurements[index].group;
+    final detected = _detectedPositions[index];
+
+    // No detection = can't validate = not misaligned (yet)
+    if (detected == null) return false;
+
+    // Check if detected direction matches assigned group
+    return detected.direction != assigned;
+  }
+
+  /// Get list of misaligned measurement indices.
+  List<int> get misalignedMeasurements {
+    final misaligned = <int>[];
+    for (int i = 0; i < _measurements.length; i++) {
+      if (_measurements[i].enabled && isMeasurementMisaligned(i)) {
+        misaligned.add(i);
+      }
+    }
+    return misaligned;
+  }
+
+  /// Update the calibration phase based on current state.
+  void _updatePhase() {
+    // Phase 1: Still collecting initial measurements
+    if (_coefficients == null) {
+      _phase = CalibrationPhase.collectingInitial;
+      _retakeIndex = null;
+      return;
+    }
+
+    // Phase 2: Have coefficients, but not all 56 slots filled yet
+    if (_filledSlots.length < 56) {
+      _phase = CalibrationPhase.collectingGuided;
+      _retakeIndex = null;
+      return;
+    }
+
+    // Phase 3: All 56 slots filled - check for bad measurements
+    _retakeIndex = _findFirstBadMeasurement();
+    if (_retakeIndex != null) {
+      _phase = CalibrationPhase.correcting;
+      debugPrint('CalibrationService: correcting phase, next will replace index $_retakeIndex');
+      return;
+    }
+
+    // Phase 4: All measurements good!
+    _phase = CalibrationPhase.complete;
+  }
+
+  /// Find the first measurement that needs correction.
+  /// A measurement needs correction if it has high error OR is misaligned.
+  /// Returns the index, or null if all are good.
+  int? _findFirstBadMeasurement() {
+    if (_results == null) return null;
+
+    for (int i = 0; i < _results!.length; i++) {
+      if (!_measurements[i].enabled) continue;
+
+      final r = _results![i];
+      final hasHighError = r != null && r.error >= errorThreshold;
+      final isMisaligned = isMeasurementMisaligned(i);
+
+      if (hasHighError || isMisaligned) {
+        return i;
+      }
+    }
+    return null;
   }
 
   /// Find the reference bearing from the first horizontal measurement.
@@ -757,43 +912,52 @@ class CalibrationService extends ChangeNotifier {
   }
 
   /// Get a description of the suggested next shot for the user.
-  String? getSuggestedNextDescription() {
+  String? getSuggestedNextDescription(AppLocalizations l10n) {
     if (_suggestedNext == null) {
       if (_filledSlots.length >= 56) {
-        return 'All 56 positions filled!';
+        return l10n.calibrationAllPositionsFilled;
       }
       return null;
     }
 
     final pos = _suggestedNext!;
-    final dirNames = [
-      'North (horizontal)',
-      'East (horizontal)',
-      'South (horizontal)',
-      'West (horizontal)',
-      'NE (up 45°)',
-      'SE (up 45°)',
-      'SW (up 45°)',
-      'NW (up 45°)',
-      'NE (down 45°)',
-      'SE (down 45°)',
-      'SW (down 45°)',
-      'NW (down 45°)',
-      'Up (vertical)',
-      'Down (vertical)',
-    ];
-
-    final rollNames = ['0°', '90°', '180°', '270°'];
-
-    final dirName = pos.direction < dirNames.length
-        ? dirNames[pos.direction]
-        : 'Direction ${pos.direction}';
-    final rollName = pos.rollIndex < rollNames.length
-        ? rollNames[pos.rollIndex]
-        : 'Roll ${pos.rollIndex}';
-
+    final dirName = _getDirectionName(pos.direction, l10n);
+    final rollName = _getRollName(pos.rollIndex, l10n);
     final progress = progressByDirection[pos.direction] ?? 0;
-    return '$dirName, roll $rollName (${progress + 1}/4)';
+
+    return l10n.calibrationShotDescription(dirName, rollName, progress + 1);
+  }
+
+  /// Get localized direction name.
+  String _getDirectionName(int direction, AppLocalizations l10n) {
+    switch (direction) {
+      case 0: return l10n.calibrationDirectionForward;
+      case 1: return l10n.calibrationDirectionRight;
+      case 2: return l10n.calibrationDirectionBack;
+      case 3: return l10n.calibrationDirectionLeft;
+      case 4: return l10n.calibrationDirectionForwardRightUp;
+      case 5: return l10n.calibrationDirectionRightBackUp;
+      case 6: return l10n.calibrationDirectionBackLeftUp;
+      case 7: return l10n.calibrationDirectionLeftForwardUp;
+      case 8: return l10n.calibrationDirectionForwardRightDown;
+      case 9: return l10n.calibrationDirectionRightBackDown;
+      case 10: return l10n.calibrationDirectionBackLeftDown;
+      case 11: return l10n.calibrationDirectionLeftForwardDown;
+      case 12: return l10n.calibrationDirectionUp;
+      case 13: return l10n.calibrationDirectionDown;
+      default: return l10n.calibrationDirectionN(direction);
+    }
+  }
+
+  /// Get localized roll name.
+  String _getRollName(int rollIndex, AppLocalizations l10n) {
+    switch (rollIndex) {
+      case 0: return l10n.calibrationRollFlat;
+      case 1: return l10n.calibrationRoll90CW;
+      case 2: return l10n.calibrationRollUpsideDown;
+      case 3: return l10n.calibrationRoll90CCW;
+      default: return l10n.calibrationRollN(rollIndex);
+    }
   }
 
   @override

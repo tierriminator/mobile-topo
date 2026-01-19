@@ -1082,85 +1082,85 @@ abstract class AppLocalizations {
   /// No description provided for @calibrationDirectionForward.
   ///
   /// In en, this message translates to:
-  /// **'Forward (horizontal)'**
+  /// **'Forward'**
   String get calibrationDirectionForward;
 
   /// No description provided for @calibrationDirectionRight.
   ///
   /// In en, this message translates to:
-  /// **'Right (horizontal)'**
+  /// **'Right'**
   String get calibrationDirectionRight;
 
   /// No description provided for @calibrationDirectionBack.
   ///
   /// In en, this message translates to:
-  /// **'Back (horizontal)'**
+  /// **'Back'**
   String get calibrationDirectionBack;
 
   /// No description provided for @calibrationDirectionLeft.
   ///
   /// In en, this message translates to:
-  /// **'Left (horizontal)'**
+  /// **'Left'**
   String get calibrationDirectionLeft;
 
-  /// No description provided for @calibrationDirectionForwardUp.
+  /// No description provided for @calibrationDirectionForwardRightUp.
   ///
   /// In en, this message translates to:
-  /// **'Forward (up 45°)'**
-  String get calibrationDirectionForwardUp;
+  /// **'Forward-Right, up 45°'**
+  String get calibrationDirectionForwardRightUp;
 
-  /// No description provided for @calibrationDirectionRightUp.
+  /// No description provided for @calibrationDirectionRightBackUp.
   ///
   /// In en, this message translates to:
-  /// **'Right (up 45°)'**
-  String get calibrationDirectionRightUp;
+  /// **'Right-Back, up 45°'**
+  String get calibrationDirectionRightBackUp;
 
-  /// No description provided for @calibrationDirectionBackUp.
+  /// No description provided for @calibrationDirectionBackLeftUp.
   ///
   /// In en, this message translates to:
-  /// **'Back (up 45°)'**
-  String get calibrationDirectionBackUp;
+  /// **'Back-Left, up 45°'**
+  String get calibrationDirectionBackLeftUp;
 
-  /// No description provided for @calibrationDirectionLeftUp.
+  /// No description provided for @calibrationDirectionLeftForwardUp.
   ///
   /// In en, this message translates to:
-  /// **'Left (up 45°)'**
-  String get calibrationDirectionLeftUp;
+  /// **'Left-Forward, up 45°'**
+  String get calibrationDirectionLeftForwardUp;
 
-  /// No description provided for @calibrationDirectionForwardDown.
+  /// No description provided for @calibrationDirectionForwardRightDown.
   ///
   /// In en, this message translates to:
-  /// **'Forward (down 45°)'**
-  String get calibrationDirectionForwardDown;
+  /// **'Forward-Right, down 45°'**
+  String get calibrationDirectionForwardRightDown;
 
-  /// No description provided for @calibrationDirectionRightDown.
+  /// No description provided for @calibrationDirectionRightBackDown.
   ///
   /// In en, this message translates to:
-  /// **'Right (down 45°)'**
-  String get calibrationDirectionRightDown;
+  /// **'Right-Back, down 45°'**
+  String get calibrationDirectionRightBackDown;
 
-  /// No description provided for @calibrationDirectionBackDown.
+  /// No description provided for @calibrationDirectionBackLeftDown.
   ///
   /// In en, this message translates to:
-  /// **'Back (down 45°)'**
-  String get calibrationDirectionBackDown;
+  /// **'Back-Left, down 45°'**
+  String get calibrationDirectionBackLeftDown;
 
-  /// No description provided for @calibrationDirectionLeftDown.
+  /// No description provided for @calibrationDirectionLeftForwardDown.
   ///
   /// In en, this message translates to:
-  /// **'Left (down 45°)'**
-  String get calibrationDirectionLeftDown;
+  /// **'Left-Forward, down 45°'**
+  String get calibrationDirectionLeftForwardDown;
 
   /// No description provided for @calibrationDirectionUp.
   ///
   /// In en, this message translates to:
-  /// **'Up (vertical)'**
+  /// **'Up'**
   String get calibrationDirectionUp;
 
   /// No description provided for @calibrationDirectionDown.
   ///
   /// In en, this message translates to:
-  /// **'Down (vertical)'**
+  /// **'Down'**
   String get calibrationDirectionDown;
 
   /// Fallback direction label
@@ -1169,29 +1169,53 @@ abstract class AppLocalizations {
   /// **'Direction {n}'**
   String calibrationDirectionN(int n);
 
-  /// No description provided for @calibrationRoll0.
+  /// No description provided for @calibrationRollFlat.
   ///
   /// In en, this message translates to:
-  /// **'0°'**
-  String get calibrationRoll0;
+  /// **'flat'**
+  String get calibrationRollFlat;
 
-  /// No description provided for @calibrationRoll90.
+  /// No description provided for @calibrationRoll90CW.
   ///
   /// In en, this message translates to:
-  /// **'90°'**
-  String get calibrationRoll90;
+  /// **'90° CW'**
+  String get calibrationRoll90CW;
 
-  /// No description provided for @calibrationRoll180.
+  /// No description provided for @calibrationRollUpsideDown.
   ///
   /// In en, this message translates to:
-  /// **'180°'**
-  String get calibrationRoll180;
+  /// **'upside down'**
+  String get calibrationRollUpsideDown;
 
-  /// No description provided for @calibrationRoll270.
+  /// No description provided for @calibrationRoll90CCW.
   ///
   /// In en, this message translates to:
-  /// **'270°'**
-  String get calibrationRoll270;
+  /// **'90° CCW'**
+  String get calibrationRoll90CCW;
+
+  /// No description provided for @calibrationRollDescFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll: flat (display up)'**
+  String get calibrationRollDescFlat;
+
+  /// No description provided for @calibrationRollDesc90CW.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll: 90° CW (display right)'**
+  String get calibrationRollDesc90CW;
+
+  /// No description provided for @calibrationRollDescUpsideDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll: upside down (display down)'**
+  String get calibrationRollDescUpsideDown;
+
+  /// No description provided for @calibrationRollDesc90CCW.
+  ///
+  /// In en, this message translates to:
+  /// **'Roll: 90° CCW (display left)'**
+  String get calibrationRollDesc90CCW;
 
   /// Fallback roll label
   ///
@@ -1199,35 +1223,72 @@ abstract class AppLocalizations {
   /// **'Roll {n}'**
   String calibrationRollN(int n);
 
-  /// No description provided for @calibrationRollDisplayUp.
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 0° (display up)'**
-  String get calibrationRollDisplayUp;
-
-  /// No description provided for @calibrationRollDisplayRight.
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 90° (display right)'**
-  String get calibrationRollDisplayRight;
-
-  /// No description provided for @calibrationRollDisplayDown.
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 180° (display down)'**
-  String get calibrationRollDisplayDown;
-
-  /// No description provided for @calibrationRollDisplayLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 270° (display left)'**
-  String get calibrationRollDisplayLeft;
-
   /// Description of a calibration shot
   ///
   /// In en, this message translates to:
-  /// **'{direction}, roll {roll}'**
-  String calibrationShotDescription(String direction, String roll);
+  /// **'{direction}, roll {roll} ({progress}/4)'**
+  String calibrationShotDescription(
+      String direction, String roll, int progress);
+
+  /// Status during initial phase with remaining count
+  ///
+  /// In en, this message translates to:
+  /// **'Take {remaining} more shots to enable guidance'**
+  String calibrationPhaseInitialRemaining(int remaining);
+
+  /// Status during initial phase
+  ///
+  /// In en, this message translates to:
+  /// **'Take shots in any direction'**
+  String get calibrationPhaseInitial;
+
+  /// Status during guided phase
+  ///
+  /// In en, this message translates to:
+  /// **'Fill remaining {remaining} positions ({filled}/56)'**
+  String calibrationPhaseGuided(int remaining, int filled);
+
+  /// Status during correcting phase
+  ///
+  /// In en, this message translates to:
+  /// **'Retake shot #{index} ({reason}) - {remaining} remaining'**
+  String calibrationPhaseCorrecting(int index, String reason, int remaining);
+
+  /// Generic status during correcting phase
+  ///
+  /// In en, this message translates to:
+  /// **'Correct {count} shots with errors'**
+  String calibrationPhaseCorrectingGeneric(int count);
+
+  /// Status when calibration is complete
+  ///
+  /// In en, this message translates to:
+  /// **'Calibration complete! Ready to write to device.'**
+  String get calibrationPhaseComplete;
+
+  /// Message when all positions are filled
+  ///
+  /// In en, this message translates to:
+  /// **'All 56 positions filled!'**
+  String get calibrationAllPositionsFilled;
+
+  /// Reason for correction: high error
+  ///
+  /// In en, this message translates to:
+  /// **'error {error}°'**
+  String calibrationReasonHighError(String error);
+
+  /// Reason for correction: misaligned
+  ///
+  /// In en, this message translates to:
+  /// **'misaligned'**
+  String get calibrationReasonMisaligned;
+
+  /// Reason for correction: both issues
+  ///
+  /// In en, this message translates to:
+  /// **'high error & misaligned'**
+  String get calibrationReasonBoth;
 }
 
 class _AppLocalizationsDelegate

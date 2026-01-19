@@ -531,46 +531,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationAlphaDip => 'α (dip)';
 
   @override
-  String get calibrationDirectionForward => 'Forward (horizontal)';
+  String get calibrationDirectionForward => 'Forward';
 
   @override
-  String get calibrationDirectionRight => 'Right (horizontal)';
+  String get calibrationDirectionRight => 'Right';
 
   @override
-  String get calibrationDirectionBack => 'Back (horizontal)';
+  String get calibrationDirectionBack => 'Back';
 
   @override
-  String get calibrationDirectionLeft => 'Left (horizontal)';
+  String get calibrationDirectionLeft => 'Left';
 
   @override
-  String get calibrationDirectionForwardUp => 'Forward (up 45°)';
+  String get calibrationDirectionForwardRightUp => 'Forward-Right, up 45°';
 
   @override
-  String get calibrationDirectionRightUp => 'Right (up 45°)';
+  String get calibrationDirectionRightBackUp => 'Right-Back, up 45°';
 
   @override
-  String get calibrationDirectionBackUp => 'Back (up 45°)';
+  String get calibrationDirectionBackLeftUp => 'Back-Left, up 45°';
 
   @override
-  String get calibrationDirectionLeftUp => 'Left (up 45°)';
+  String get calibrationDirectionLeftForwardUp => 'Left-Forward, up 45°';
 
   @override
-  String get calibrationDirectionForwardDown => 'Forward (down 45°)';
+  String get calibrationDirectionForwardRightDown => 'Forward-Right, down 45°';
 
   @override
-  String get calibrationDirectionRightDown => 'Right (down 45°)';
+  String get calibrationDirectionRightBackDown => 'Right-Back, down 45°';
 
   @override
-  String get calibrationDirectionBackDown => 'Back (down 45°)';
+  String get calibrationDirectionBackLeftDown => 'Back-Left, down 45°';
 
   @override
-  String get calibrationDirectionLeftDown => 'Left (down 45°)';
+  String get calibrationDirectionLeftForwardDown => 'Left-Forward, down 45°';
 
   @override
-  String get calibrationDirectionUp => 'Up (vertical)';
+  String get calibrationDirectionUp => 'Up';
 
   @override
-  String get calibrationDirectionDown => 'Down (vertical)';
+  String get calibrationDirectionDown => 'Down';
 
   @override
   String calibrationDirectionN(int n) {
@@ -578,16 +578,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calibrationRoll0 => '0°';
+  String get calibrationRollFlat => 'flat';
 
   @override
-  String get calibrationRoll90 => '90°';
+  String get calibrationRoll90CW => '90° CW';
 
   @override
-  String get calibrationRoll180 => '180°';
+  String get calibrationRollUpsideDown => 'upside down';
 
   @override
-  String get calibrationRoll270 => '270°';
+  String get calibrationRoll90CCW => '90° CCW';
+
+  @override
+  String get calibrationRollDescFlat => 'Roll: flat (display up)';
+
+  @override
+  String get calibrationRollDesc90CW => 'Roll: 90° CW (display right)';
+
+  @override
+  String get calibrationRollDescUpsideDown =>
+      'Roll: upside down (display down)';
+
+  @override
+  String get calibrationRollDesc90CCW => 'Roll: 90° CCW (display left)';
 
   @override
   String calibrationRollN(int n) {
@@ -595,19 +608,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calibrationRollDisplayUp => 'Roll: 0° (display up)';
-
-  @override
-  String get calibrationRollDisplayRight => 'Roll: 90° (display right)';
-
-  @override
-  String get calibrationRollDisplayDown => 'Roll: 180° (display down)';
-
-  @override
-  String get calibrationRollDisplayLeft => 'Roll: 270° (display left)';
-
-  @override
-  String calibrationShotDescription(String direction, String roll) {
-    return '$direction, roll $roll';
+  String calibrationShotDescription(
+      String direction, String roll, int progress) {
+    return '$direction, roll $roll ($progress/4)';
   }
+
+  @override
+  String calibrationPhaseInitialRemaining(int remaining) {
+    return 'Take $remaining more shots to enable guidance';
+  }
+
+  @override
+  String get calibrationPhaseInitial => 'Take shots in any direction';
+
+  @override
+  String calibrationPhaseGuided(int remaining, int filled) {
+    return 'Fill remaining $remaining positions ($filled/56)';
+  }
+
+  @override
+  String calibrationPhaseCorrecting(int index, String reason, int remaining) {
+    return 'Retake shot #$index ($reason) - $remaining remaining';
+  }
+
+  @override
+  String calibrationPhaseCorrectingGeneric(int count) {
+    return 'Correct $count shots with errors';
+  }
+
+  @override
+  String get calibrationPhaseComplete =>
+      'Calibration complete! Ready to write to device.';
+
+  @override
+  String get calibrationAllPositionsFilled => 'All 56 positions filled!';
+
+  @override
+  String calibrationReasonHighError(String error) {
+    return 'error $error°';
+  }
+
+  @override
+  String get calibrationReasonMisaligned => 'misaligned';
+
+  @override
+  String get calibrationReasonBoth => 'high error & misaligned';
 }

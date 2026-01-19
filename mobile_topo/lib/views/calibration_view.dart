@@ -700,14 +700,14 @@ class _DirectionGroup extends StatelessWidget {
       case 1: return l10n.calibrationDirectionRight;
       case 2: return l10n.calibrationDirectionBack;
       case 3: return l10n.calibrationDirectionLeft;
-      case 4: return l10n.calibrationDirectionForwardUp;
-      case 5: return l10n.calibrationDirectionRightUp;
-      case 6: return l10n.calibrationDirectionBackUp;
-      case 7: return l10n.calibrationDirectionLeftUp;
-      case 8: return l10n.calibrationDirectionForwardDown;
-      case 9: return l10n.calibrationDirectionRightDown;
-      case 10: return l10n.calibrationDirectionBackDown;
-      case 11: return l10n.calibrationDirectionLeftDown;
+      case 4: return l10n.calibrationDirectionForwardRightUp;
+      case 5: return l10n.calibrationDirectionRightBackUp;
+      case 6: return l10n.calibrationDirectionBackLeftUp;
+      case 7: return l10n.calibrationDirectionLeftForwardUp;
+      case 8: return l10n.calibrationDirectionForwardRightDown;
+      case 9: return l10n.calibrationDirectionRightBackDown;
+      case 10: return l10n.calibrationDirectionBackLeftDown;
+      case 11: return l10n.calibrationDirectionLeftForwardDown;
       case 12: return l10n.calibrationDirectionUp;
       case 13: return l10n.calibrationDirectionDown;
       default: return l10n.calibrationDirectionN(direction);
@@ -717,10 +717,10 @@ class _DirectionGroup extends StatelessWidget {
   /// Get localized roll label.
   static String getRollLabel(AppLocalizations l10n, int rollIndex) {
     switch (rollIndex) {
-      case 0: return l10n.calibrationRoll0;
-      case 1: return l10n.calibrationRoll90;
-      case 2: return l10n.calibrationRoll180;
-      case 3: return l10n.calibrationRoll270;
+      case 0: return l10n.calibrationRollFlat;
+      case 1: return l10n.calibrationRoll90CW;
+      case 2: return l10n.calibrationRollUpsideDown;
+      case 3: return l10n.calibrationRoll90CCW;
       default: return l10n.calibrationRollN(rollIndex);
     }
   }
@@ -1324,10 +1324,10 @@ class _CalibrationGuidance extends StatelessWidget {
   /// Get localized roll description.
   String _getRollDescription(AppLocalizations l10n, int rollIndex) {
     switch (rollIndex) {
-      case 0: return l10n.calibrationRollDisplayUp;
-      case 1: return l10n.calibrationRollDisplayRight;
-      case 2: return l10n.calibrationRollDisplayDown;
-      case 3: return l10n.calibrationRollDisplayLeft;
+      case 0: return l10n.calibrationRollDescFlat;
+      case 1: return l10n.calibrationRollDesc90CW;
+      case 2: return l10n.calibrationRollDescUpsideDown;
+      case 3: return l10n.calibrationRollDesc90CCW;
       default: return '';
     }
   }
@@ -1344,9 +1344,10 @@ class _CalibrationGuidance extends StatelessWidget {
     if (count >= 56) return l10n.calibrationTakeMoreOrRetake;
     final dirIndex = count ~/ 4;
     final rollIndex = count % 4;
+    final progress = (count % 4) + 1; // Which shot of 4 for this direction
     final dir = _DirectionGroup.getDirectionLabel(l10n, dirIndex);
     final roll = _DirectionGroup.getRollLabel(l10n, rollIndex);
-    return l10n.calibrationShotDescription(dir, roll);
+    return l10n.calibrationShotDescription(dir, roll, progress);
   }
 }
 

@@ -687,20 +687,20 @@
   "@calibrationAlphaDip": {
     "description": "Label for alpha/dip angle"
   },
-  "calibrationDirectionForward": "Forward (horizontal)",
-  "calibrationDirectionRight": "Right (horizontal)",
-  "calibrationDirectionBack": "Back (horizontal)",
-  "calibrationDirectionLeft": "Left (horizontal)",
-  "calibrationDirectionForwardUp": "Forward (up 45°)",
-  "calibrationDirectionRightUp": "Right (up 45°)",
-  "calibrationDirectionBackUp": "Back (up 45°)",
-  "calibrationDirectionLeftUp": "Left (up 45°)",
-  "calibrationDirectionForwardDown": "Forward (down 45°)",
-  "calibrationDirectionRightDown": "Right (down 45°)",
-  "calibrationDirectionBackDown": "Back (down 45°)",
-  "calibrationDirectionLeftDown": "Left (down 45°)",
-  "calibrationDirectionUp": "Up (vertical)",
-  "calibrationDirectionDown": "Down (vertical)",
+  "calibrationDirectionForward": "Forward",
+  "calibrationDirectionRight": "Right",
+  "calibrationDirectionBack": "Back",
+  "calibrationDirectionLeft": "Left",
+  "calibrationDirectionForwardRightUp": "Forward-Right, up 45°",
+  "calibrationDirectionRightBackUp": "Right-Back, up 45°",
+  "calibrationDirectionBackLeftUp": "Back-Left, up 45°",
+  "calibrationDirectionLeftForwardUp": "Left-Forward, up 45°",
+  "calibrationDirectionForwardRightDown": "Forward-Right, down 45°",
+  "calibrationDirectionRightBackDown": "Right-Back, down 45°",
+  "calibrationDirectionBackLeftDown": "Back-Left, down 45°",
+  "calibrationDirectionLeftForwardDown": "Left-Forward, down 45°",
+  "calibrationDirectionUp": "Up",
+  "calibrationDirectionDown": "Down",
   "calibrationDirectionN": "Direction {n}",
   "@calibrationDirectionN": {
     "description": "Fallback direction label",
@@ -710,10 +710,14 @@
       }
     }
   },
-  "calibrationRoll0": "0°",
-  "calibrationRoll90": "90°",
-  "calibrationRoll180": "180°",
-  "calibrationRoll270": "270°",
+  "calibrationRollFlat": "flat",
+  "calibrationRoll90CW": "90° CW",
+  "calibrationRollUpsideDown": "upside down",
+  "calibrationRoll90CCW": "90° CCW",
+  "calibrationRollDescFlat": "Roll: flat (display up)",
+  "calibrationRollDesc90CW": "Roll: 90° CW (display right)",
+  "calibrationRollDescUpsideDown": "Roll: upside down (display down)",
+  "calibrationRollDesc90CCW": "Roll: 90° CCW (display left)",
   "calibrationRollN": "Roll {n}",
   "@calibrationRollN": {
     "description": "Fallback roll label",
@@ -723,11 +727,7 @@
       }
     }
   },
-  "calibrationRollDisplayUp": "Roll: 0° (display up)",
-  "calibrationRollDisplayRight": "Roll: 90° (display right)",
-  "calibrationRollDisplayDown": "Roll: 180° (display down)",
-  "calibrationRollDisplayLeft": "Roll: 270° (display left)",
-  "calibrationShotDescription": "{direction}, roll {roll}",
+  "calibrationShotDescription": "{direction}, roll {roll} ({progress}/4)",
   "@calibrationShotDescription": {
     "description": "Description of a calibration shot",
     "placeholders": {
@@ -736,7 +736,84 @@
       },
       "roll": {
         "type": "String"
+      },
+      "progress": {
+        "type": "int"
       }
     }
+  },
+  "calibrationPhaseInitialRemaining": "Take {remaining} more shots to enable guidance",
+  "@calibrationPhaseInitialRemaining": {
+    "description": "Status during initial phase with remaining count",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationPhaseInitial": "Take shots in any direction",
+  "@calibrationPhaseInitial": {
+    "description": "Status during initial phase"
+  },
+  "calibrationPhaseGuided": "Fill remaining {remaining} positions ({filled}/56)",
+  "@calibrationPhaseGuided": {
+    "description": "Status during guided phase",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "filled": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationPhaseCorrecting": "Retake shot #{index} ({reason}) - {remaining} remaining",
+  "@calibrationPhaseCorrecting": {
+    "description": "Status during correcting phase",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "reason": {
+        "type": "String"
+      },
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationPhaseCorrectingGeneric": "Correct {count} shots with errors",
+  "@calibrationPhaseCorrectingGeneric": {
+    "description": "Generic status during correcting phase",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calibrationPhaseComplete": "Calibration complete! Ready to write to device.",
+  "@calibrationPhaseComplete": {
+    "description": "Status when calibration is complete"
+  },
+  "calibrationAllPositionsFilled": "All 56 positions filled!",
+  "@calibrationAllPositionsFilled": {
+    "description": "Message when all positions are filled"
+  },
+  "calibrationReasonHighError": "error {error}°",
+  "@calibrationReasonHighError": {
+    "description": "Reason for correction: high error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationReasonMisaligned": "misaligned",
+  "@calibrationReasonMisaligned": {
+    "description": "Reason for correction: misaligned"
+  },
+  "calibrationReasonBoth": "high error & misaligned",
+  "@calibrationReasonBoth": {
+    "description": "Reason for correction: both issues"
   }
 }
