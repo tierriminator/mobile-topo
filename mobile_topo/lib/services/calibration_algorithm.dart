@@ -61,8 +61,8 @@ class CalibrationAlgorithm {
   Future<CalibrationOutput> compute(
     List<CalibrationMeasurement> measurements,
   ) async {
-    // Filter to enabled measurements only
-    final data = measurements.where((m) => m.enabled).toList();
+    // Filter to enabled measurements with groups only
+    final data = measurements.where((m) => m.enabled && m.group != null).toList();
     final nn = data.length;
 
     if (nn < minMeasurements) {
@@ -71,10 +71,10 @@ class CalibrationAlgorithm {
       );
     }
 
-    // Extract raw vectors and group IDs
+    // Extract raw vectors and group IDs (group is guaranteed non-null after filter)
     final g = data.map((m) => m.gVector).toList();
     final m = data.map((m) => m.mVector).toList();
-    final group = data.map((m) => m.group != null ? int.parse(m.group!) + 1 : 0).toList();
+    final group = data.map((m) => m.group!).toList();
 
     // Run optimization
     final result = _optimize(nn, g, m, group);
@@ -126,20 +126,14 @@ class CalibrationAlgorithm {
     double invNum = 0.0;
 
     for (int i = 0; i < nn; i++) {
-      if (group[i] > 0) {
-        invNum += 1.0;
-        // Cross product length (sin of angle) and dot product (cos of angle)
-        sa += g[i].cross(m[i]).magnitude;
-        ca += g[i].dot(m[i]);
-        sumG = sumG + g[i];
-        sumM = sumM + m[i];
-        sumG2 = sumG2 + _outerProduct(g[i], g[i]);
-        sumM2 = sumM2 + _outerProduct(m[i], m[i]);
-      }
-    }
-
-    if (invNum < 0.5) {
-      throw CalibrationException('No valid measurements with groups');
+      invNum += 1.0;
+      // Cross product length (sin of angle) and dot product (cos of angle)
+      sa += g[i].cross(m[i]).magnitude;
+      ca += g[i].dot(m[i]);
+      sumG = sumG + g[i];
+      sumM = sumM + m[i];
+      sumG2 = sumG2 + _outerProduct(g[i], g[i]);
+      sumM2 = sumM2 + _outerProduct(m[i], m[i]);
     }
 
     invNum = 1.0 / invNum;
@@ -167,10 +161,8 @@ class CalibrationAlgorithm {
     do {
       // Transform all raw measurements
       for (int i = 0; i < nn; i++) {
-        if (group[i] > 0) {
-          gr[i] = bG + aG.transform(g[i]);
-          mr[i] = bM + aM.transform(m[i]);
-        }
+        gr[i] = bG + aG.transform(g[i]);
+        mr[i] = bM + aM.transform(m[i]);
       }
 
       // Process groups
@@ -179,21 +171,17 @@ class CalibrationAlgorithm {
       int group0 = -1;
 
       for (int i = 0; i < nn;) {
-        if (group[i] <= 0) {
-          i++;
-        } else if (group[i] != group0) {
+        if (group[i] != group0) {
           group0 = group[i];
           var grp = Vector3.zero();
           var mrp = Vector3.zero();
           int first = i;
 
           // Sum up all measurements in this group
-          while (i < nn && (group[i] <= 0 || group[i] == group0)) {
-            if (group[i] > 0) {
-              _turnVectors(gr[i], mr[i], gr[first], mr[first]);
-              grp = grp + _gxt;
-              mrp = mrp + _mxt;
-            }
+          while (i < nn && group[i] == group0) {
+            _turnVectors(gr[i], mr[i], gr[first], mr[first]);
+            grp = grp + _gxt;
+            mrp = mrp + _mxt;
             i++;
           }
 
@@ -206,11 +194,9 @@ class CalibrationAlgorithm {
 
           // Turn optimal vectors back to each measurement
           for (int j = first; j < i; j++) {
-            if (group[j] > 0) {
-              _turnVectors(_gxp, _mxp, gr[j], mr[j]);
-              gx[j] = _gxt;
-              mx[j] = _mxt;
-            }
+            _turnVectors(_gxp, _mxp, gr[j], mr[j]);
+            gx[j] = _gxt;
+            mx[j] = _mxt;
           }
         }
       }
@@ -227,12 +213,10 @@ class CalibrationAlgorithm {
       var sumMxM = Matrix3.zero();
 
       for (int i = 0; i < nn; i++) {
-        if (group[i] > 0) {
-          avGx = avGx + gx[i];
-          avMx = avMx + mx[i];
-          sumGxG = sumGxG + _outerProduct(gx[i], g[i]);
-          sumMxM = sumMxM + _outerProduct(mx[i], m[i]);
-        }
+        avGx = avGx + gx[i];
+        avMx = avMx + mx[i];
+        sumGxG = sumGxG + _outerProduct(gx[i], g[i]);
+        sumMxM = sumMxM + _outerProduct(mx[i], m[i]);
       }
 
       // Save old matrices for convergence check
@@ -398,12 +382,9 @@ class CalibrationAlgorithm {
     // Group measurements by their group ID
     final groupIndices = <int, List<int>>{};
     for (int i = 0; i < nn; i++) {
-      final groupStr = data[i].group;
-      if (groupStr != null) {
-        final groupId = int.tryParse(groupStr) ?? -1;
-        if (groupId >= 0) {
-          groupIndices.putIfAbsent(groupId, () => []).add(i);
-        }
+      final groupId = data[i].group;
+      if (groupId != null && groupId >= 0) {
+        groupIndices.putIfAbsent(groupId, () => []).add(i);
       }
     }
 

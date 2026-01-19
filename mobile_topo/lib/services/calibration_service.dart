@@ -262,7 +262,7 @@ class CalibrationService extends ChangeNotifier {
   void cycleGroup(int index) {
     if (index < 0 || index >= _measurements.length) return;
     final m = _measurements[index];
-    String? newGroup;
+    int? newGroup;
     if (m.group != null) {
       // Has a group → remove it
       newGroup = null;
@@ -674,9 +674,8 @@ class CalibrationService extends ChangeNotifier {
   void _updateMeasurementGroup(int index, int direction) {
     if (index < 0 || index >= _measurements.length) return;
     final m = _measurements[index];
-    final newGroup = direction.toString();
-    if (m.group != newGroup) {
-      _measurements[index] = m.copyWith(group: newGroup);
+    if (m.group != direction) {
+      _measurements[index] = m.copyWith(group: direction);
     }
   }
 

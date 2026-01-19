@@ -18,7 +18,7 @@ void main() {
         mz: 600,
         index: 1,
         enabled: true,
-        group: 'A',
+        group: 1,
       );
 
       expect(m.gx, 100);
@@ -29,7 +29,7 @@ void main() {
       expect(m.mz, 600);
       expect(m.index, 1);
       expect(m.enabled, true);
-      expect(m.group, 'A');
+      expect(m.group, 1);
     });
 
     test('gVector returns correct vector', () {
@@ -74,15 +74,15 @@ void main() {
         mz: 600,
         index: 1,
         enabled: true,
-        group: 'A',
+        group: 1,
       );
 
       final disabled = m.copyWith(enabled: false);
       expect(disabled.enabled, false);
       expect(disabled.gx, 100); // Unchanged
 
-      final groupB = m.copyWith(group: 'B');
-      expect(groupB.group, 'B');
+      final groupB = m.copyWith(group: 2);
+      expect(groupB.group, 2);
 
       final noGroup = m.copyWith(clearGroup: true);
       expect(noGroup.group, isNull);
@@ -98,7 +98,7 @@ void main() {
         mz: -600,
         index: 5,
         enabled: false,
-        group: 'B',
+        group: 2,
       );
 
       final json = original.toJson();
@@ -318,34 +318,34 @@ void main() {
 
   group('CalibrationData', () {
     test('defaultGroup returns correct groups for all 56 measurements', () {
-      // Groups are "0" through "13", with 4 measurements per group
+      // Groups are 0 through 13, with 4 measurements per group
       // Group 0: measurements 1-4
-      expect(CalibrationData.defaultGroup(1), '0');
-      expect(CalibrationData.defaultGroup(2), '0');
-      expect(CalibrationData.defaultGroup(3), '0');
-      expect(CalibrationData.defaultGroup(4), '0');
+      expect(CalibrationData.defaultGroup(1), 0);
+      expect(CalibrationData.defaultGroup(2), 0);
+      expect(CalibrationData.defaultGroup(3), 0);
+      expect(CalibrationData.defaultGroup(4), 0);
 
       // Group 1: measurements 5-8
-      expect(CalibrationData.defaultGroup(5), '1');
-      expect(CalibrationData.defaultGroup(8), '1');
+      expect(CalibrationData.defaultGroup(5), 1);
+      expect(CalibrationData.defaultGroup(8), 1);
 
       // Group 2: measurements 9-12
-      expect(CalibrationData.defaultGroup(9), '2');
-      expect(CalibrationData.defaultGroup(12), '2');
+      expect(CalibrationData.defaultGroup(9), 2);
+      expect(CalibrationData.defaultGroup(12), 2);
 
       // Group 3: measurements 13-16
-      expect(CalibrationData.defaultGroup(13), '3');
-      expect(CalibrationData.defaultGroup(16), '3');
+      expect(CalibrationData.defaultGroup(13), 3);
+      expect(CalibrationData.defaultGroup(16), 3);
 
       // Group 4: measurements 17-20
-      expect(CalibrationData.defaultGroup(17), '4');
-      expect(CalibrationData.defaultGroup(20), '4');
+      expect(CalibrationData.defaultGroup(17), 4);
+      expect(CalibrationData.defaultGroup(20), 4);
 
       // Group 13: measurements 53-56 (last group)
-      expect(CalibrationData.defaultGroup(53), '13');
-      expect(CalibrationData.defaultGroup(54), '13');
-      expect(CalibrationData.defaultGroup(55), '13');
-      expect(CalibrationData.defaultGroup(56), '13');
+      expect(CalibrationData.defaultGroup(53), 13);
+      expect(CalibrationData.defaultGroup(54), 13);
+      expect(CalibrationData.defaultGroup(55), 13);
+      expect(CalibrationData.defaultGroup(56), 13);
 
       // Out of range: null
       expect(CalibrationData.defaultGroup(0), isNull);
@@ -363,7 +363,7 @@ void main() {
 
     test('14 unique groups with 4 measurements each', () {
       // Count measurements per group
-      final groupCounts = <String, int>{};
+      final groupCounts = <int, int>{};
       for (int i = 1; i <= 56; i++) {
         final group = CalibrationData.defaultGroup(i)!;
         groupCounts[group] = (groupCounts[group] ?? 0) + 1;

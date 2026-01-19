@@ -31,10 +31,10 @@ class CalibrationMeasurement {
   /// Whether to include in calibration calculation.
   final bool enabled;
 
-  /// Group identifier ("0"-"13" or null for ungrouped).
+  /// Group identifier (0-13 or null for ungrouped).
   /// Measurements in the same group should point in the same direction.
-  /// Groups are assigned by position: 1-4 → "0", 5-8 → "1", ..., 53-56 → "13".
-  final String? group;
+  /// Groups are assigned by position: 1-4 → 0, 5-8 → 1, ..., 53-56 → 13.
+  final int? group;
 
   const CalibrationMeasurement({
     required this.gx,
@@ -58,7 +58,7 @@ class CalibrationMeasurement {
     int? mz,
     int? index,
     bool? enabled,
-    String? group,
+    int? group,
     bool clearGroup = false,
   }) {
     return CalibrationMeasurement(
@@ -104,7 +104,7 @@ class CalibrationMeasurement {
       mz: json['mz'] as int,
       index: json['index'] as int,
       enabled: json['enabled'] as bool? ?? true,
-      group: json['group'] as String?,
+      group: json['group'] as int?,
     );
   }
 
@@ -373,10 +373,10 @@ class CalibrationData {
   /// Measurements 1-4 share direction 0, 5-8 share direction 1, etc.
   /// This ensures measurements in the same direction are constrained
   /// to have the same calibrated vector direction.
-  static String? defaultGroup(int index) {
+  static int? defaultGroup(int index) {
     if (index < 1 || index > 56) return null;
-    // Group by direction: 1-4 → "0", 5-8 → "1", ..., 53-56 → "13"
-    return ((index - 1) ~/ 4).toString();
+    // Group by direction: 1-4 → 0, 5-8 → 1, ..., 53-56 → 13
+    return (index - 1) ~/ 4;
   }
 }
 
@@ -407,8 +407,8 @@ class CalibrationPosition {
   /// Slot index (0-55) for unique identification.
   int get slotIndex => direction * 4 + rollIndex;
 
-  /// Group ID string for this direction.
-  String get groupId => direction.toString();
+  /// Group ID for this direction.
+  int get groupId => direction;
 
   @override
   String toString() =>
