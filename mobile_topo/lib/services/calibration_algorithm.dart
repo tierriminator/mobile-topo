@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:vector_math/vector_math.dart';
+
 import '../models/calibration.dart';
-import '../utils/linear_algebra.dart';
+import '../utils/matrix_helpers.dart';
 
 /// Exception thrown when calibration computation fails.
 class CalibrationException implements Exception {
@@ -47,10 +49,10 @@ class CalibrationAlgorithm {
   static const int minMeasurements = 16;
 
   // Intermediate computation results
-  Vector3 _gxp = Vector3.zero; // Optimized G direction
-  Vector3 _mxp = Vector3.zero; // Optimized M direction
-  Vector3 _gxt = Vector3.zero; // Turned G vector
-  Vector3 _mxt = Vector3.zero; // Turned M vector
+  Vector3 _gxp = Vector3.zero(); // Optimized G direction
+  Vector3 _mxp = Vector3.zero(); // Optimized M direction
+  Vector3 _gxt = Vector3.zero(); // Turned G vector
+  Vector3 _mxt = Vector3.zero(); // Turned M vector
 
   /// Compute calibration coefficients from measurements.
   ///
@@ -109,14 +111,14 @@ class CalibrationAlgorithm {
     List<int> group,
   ) {
     // Working arrays
-    final gr = List<Vector3>.filled(nn, Vector3.zero);
-    final mr = List<Vector3>.filled(nn, Vector3.zero);
-    final gx = List<Vector3>.filled(nn, Vector3.zero);
-    final mx = List<Vector3>.filled(nn, Vector3.zero);
+    final gr = List<Vector3>.filled(nn, Vector3.zero());
+    final mr = List<Vector3>.filled(nn, Vector3.zero());
+    final gx = List<Vector3>.filled(nn, Vector3.zero());
+    final mx = List<Vector3>.filled(nn, Vector3.zero());
 
     // Compute sums for initialization
-    var sumG = Vector3.zero;
-    var sumM = Vector3.zero;
+    var sumG = Vector3.zero();
+    var sumM = Vector3.zero();
     var sumG2 = Matrix3.zero();
     var sumM2 = Matrix3.zero();
     double sa = 0.0;
@@ -151,8 +153,8 @@ class CalibrationAlgorithm {
     // Initialize transforms (identity A, zero B for linear algorithm)
     var aG = Matrix3.identity();
     var aM = Matrix3.identity();
-    var bG = Vector3.zero;
-    var bM = Vector3.zero;
+    var bG = Vector3.zero();
+    var bM = Vector3.zero();
 
     // Compute initial sin/cos of dip angle
     double da = math.sqrt(ca * ca + sa * sa);
@@ -181,8 +183,8 @@ class CalibrationAlgorithm {
           i++;
         } else if (group[i] != group0) {
           group0 = group[i];
-          var grp = Vector3.zero;
-          var mrp = Vector3.zero;
+          var grp = Vector3.zero();
+          var mrp = Vector3.zero();
           int first = i;
 
           // Sum up all measurements in this group
@@ -219,8 +221,8 @@ class CalibrationAlgorithm {
       c = ca / da;
 
       // Compute new transforms using least squares
-      var avGx = Vector3.zero;
-      var avMx = Vector3.zero;
+      var avGx = Vector3.zero();
+      var avMx = Vector3.zero();
       var sumGxG = Matrix3.zero();
       var sumMxM = Matrix3.zero();
 
@@ -272,11 +274,11 @@ class CalibrationAlgorithm {
   /// unit direction vectors that satisfy the dip angle constraint.
   void _optVectors(Vector3 gr, Vector3 mr, double s, double c) {
     var no = gr.cross(mr);
-    no = no.magnitude > 0 ? no.normalized : const Vector3(0, 0, 1);
+    no = no.length > 0 ? no.normalized() : Vector3(0, 0, 1);
 
     // gxp = normalize(mr * c + (mr x no) * s + gr)
     _gxp = (mr * c) + (mr.cross(no) * s) + gr;
-    _gxp = _gxp.magnitude > 0 ? _gxp.normalized : const Vector3(1, 0, 0);
+    _gxp = _gxp.length > 0 ? _gxp.normalized() : Vector3(1, 0, 0);
 
     // mxp = gxp * c + (no x gxp) * s
     _mxp = (_gxp * c) + (no.cross(_gxp) * s);
@@ -312,7 +314,7 @@ class CalibrationAlgorithm {
 
   /// Compute outer product of two vectors.
   Matrix3 _outerProduct(Vector3 a, Vector3 b) {
-    return Matrix3([
+    return matrix3FromRowMajor([
       a.x * b.x, a.x * b.y, a.x * b.z,
       a.y * b.x, a.y * b.y, a.y * b.z,
       a.z * b.x, a.z * b.y, a.z * b.z,
@@ -334,28 +336,28 @@ class CalibrationAlgorithm {
   /// Compute bearing and clino from calibrated G and M vectors.
   /// Returns (bearing, clino) in radians.
   (double, double) _computeBearingClino(Vector3 g, Vector3 m) {
-    final gNorm = g.normalized;
-    final mNorm = m.normalized;
+    final gNorm = g.normalized();
+    final mNorm = m.normalized();
 
     // Clino (inclination) from G - angle from horizontal
     final clino = math.asin(-gNorm.z.clamp(-1.0, 1.0));
 
     // Project M onto horizontal plane perpendicular to G for bearing
     final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
-    if (mHoriz.magnitude < 0.001) {
+    if (mHoriz.length < 0.001) {
       // Device is vertical, bearing is undefined
       return (0.0, clino);
     }
-    final mHorizNorm = mHoriz.normalized;
+    final mHorizNorm = mHoriz.normalized();
 
     // Compute bearing using local reference frame
-    const up = Vector3(0, 0, 1);
+    final up = Vector3(0, 0, 1);
     var east = gNorm.cross(up);
-    if (east.magnitude < 0.01) {
-      east = const Vector3(1, 0, 0);
+    if (east.length < 0.01) {
+      east = Vector3(1, 0, 0);
     }
-    east = east.normalized;
-    final north = up.cross(east).normalized;
+    east = east.normalized();
+    final north = up.cross(east).normalized();
 
     final mEast = mHorizNorm.dot(east);
     final mNorth = mHorizNorm.dot(north);
@@ -469,7 +471,7 @@ class CalibrationAlgorithm {
       final inclination = clinos[i] * 180 / math.pi;
 
       // Roll from G
-      final gNorm = g.normalized;
+      final gNorm = g.normalized();
       final roll = math.atan2(gNorm.y, -gNorm.x) * 180 / math.pi;
 
       results.add(CalibrationResult(

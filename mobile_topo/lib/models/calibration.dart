@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../utils/linear_algebra.dart';
+import 'package:vector_math/vector_math.dart';
+
+import '../utils/matrix_helpers.dart';
 
 /// Raw sensor reading from one calibration measurement.
 class CalibrationMeasurement {
@@ -183,9 +185,9 @@ class CalibrationCoefficients {
   /// Create default (identity) coefficients.
   factory CalibrationCoefficients.identity() => CalibrationCoefficients(
         aG: Matrix3.identity(),
-        bG: Vector3.zero,
+        bG: Vector3.zero(),
         aM: Matrix3.identity(),
-        bM: Vector3.zero,
+        bM: Vector3.zero(),
       );
 
   /// Scaling factors for coefficient serialization.
@@ -277,9 +279,9 @@ class CalibrationCoefficients {
     final aM22 = data.getInt16(46, Endian.little) / _fm;
 
     return CalibrationCoefficients(
-      aG: Matrix3([aG00, aG01, aG02, aG10, aG11, aG12, aG20, aG21, aG22]),
+      aG: matrix3FromRowMajor([aG00, aG01, aG02, aG10, aG11, aG12, aG20, aG21, aG22]),
       bG: Vector3(bGx, bGy, bGz),
-      aM: Matrix3([aM00, aM01, aM02, aM10, aM11, aM12, aM20, aM21, aM22]),
+      aM: matrix3FromRowMajor([aM00, aM01, aM02, aM10, aM11, aM12, aM20, aM21, aM22]),
       bM: Vector3(bMx, bMy, bMz),
     );
   }
@@ -297,8 +299,8 @@ class CalibrationCoefficients {
     Vector3 g,
     Vector3 m,
   ) {
-    final gNorm = g.normalized;
-    final mNorm = m.normalized;
+    final gNorm = g.normalized();
+    final mNorm = m.normalized();
 
     // Inclination from G (angle from horizontal)
     // G points down (gravity), so z component gives inclination
@@ -308,14 +310,14 @@ class CalibrationCoefficients {
     // Horizontal plane is perpendicular to G
     // East direction in device frame: cross(G, vertical) normalized
     // North direction: cross(East, G)
-    const vertical = Vector3(0, 0, -1);
+    final vertical = Vector3(0, 0, -1);
     var east = gNorm.cross(vertical);
-    if (east.magnitude < 0.01) {
+    if (east.length < 0.01) {
       // G is nearly vertical, use device Y as fallback
-      east = const Vector3(0, 1, 0);
+      east = Vector3(0, 1, 0);
     }
-    east = east.normalized;
-    final north = east.cross(gNorm).normalized;
+    east = east.normalized();
+    final north = east.cross(gNorm).normalized();
 
     // Project M onto horizontal plane and compute azimuth
     final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
