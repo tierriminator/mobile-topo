@@ -434,13 +434,33 @@ class CalibrationService extends ChangeNotifier {
     if (isReplace) {
       // Replace a bad measurement
       _measurements[listPosition] = measurement;
+
+      // Update detected position for the replaced measurement
+      while (_detectedPositions.length <= listPosition) {
+        _detectedPositions.add(null);
+      }
+      if (_suggestedNext != null) {
+        _detectedPositions[listPosition] = _suggestedNext;
+      }
+
       _retakeIndex = null;
       debugPrint('CalibrationService: replaced measurement at position $listPosition');
     } else if (_insertPosition != null) {
       // Insert at deleted position (manual delete case)
-      _measurements.insert(_insertPosition!, measurement);
-      debugPrint('CalibrationService: inserted measurement at position $_insertPosition');
+      final insertPos = _insertPosition!;
+      _measurements.insert(insertPos, measurement);
+
+      // Insert into detected positions as well
+      while (_detectedPositions.length < insertPos) {
+        _detectedPositions.add(null);
+      }
+      _detectedPositions.insert(insertPos, _suggestedNext);
+
+      debugPrint('CalibrationService: inserted measurement at position $insertPos');
       _insertPosition = null;
+
+      // Advance to next suggested position
+      _updateSuggestedNext();
     } else {
       // Append new measurement
       _measurements.add(measurement);
@@ -448,13 +468,13 @@ class CalibrationService extends ChangeNotifier {
       // Track the slot as filled (prescriptive: we assume user took the suggested position)
       if (slotIndex != null) {
         _filledSlots[slotIndex] = _measurements.length - 1;
-
-        // Track detected position (will be validated later)
-        while (_detectedPositions.length < _measurements.length) {
-          _detectedPositions.add(null);
-        }
-        _detectedPositions[_measurements.length - 1] = _suggestedNext;
       }
+
+      // Track detected position (will be validated later)
+      while (_detectedPositions.length < _measurements.length) {
+        _detectedPositions.add(null);
+      }
+      _detectedPositions[_measurements.length - 1] = _suggestedNext;
 
       debugPrint('CalibrationService: added measurement #${measurement.index} '
           'for slot $slotIndex (group $group)');
@@ -931,20 +951,20 @@ class CalibrationService extends ChangeNotifier {
   /// Get localized direction name.
   String _getDirectionName(int direction, AppLocalizations l10n) {
     switch (direction) {
-      case 0: return l10n.calibrationDirectionForward;
-      case 1: return l10n.calibrationDirectionRight;
-      case 2: return l10n.calibrationDirectionBack;
-      case 3: return l10n.calibrationDirectionLeft;
-      case 4: return l10n.calibrationDirectionForwardRightUp;
-      case 5: return l10n.calibrationDirectionRightBackUp;
-      case 6: return l10n.calibrationDirectionBackLeftUp;
-      case 7: return l10n.calibrationDirectionLeftForwardUp;
-      case 8: return l10n.calibrationDirectionForwardRightDown;
-      case 9: return l10n.calibrationDirectionRightBackDown;
-      case 10: return l10n.calibrationDirectionBackLeftDown;
-      case 11: return l10n.calibrationDirectionLeftForwardDown;
-      case 12: return l10n.calibrationDirectionUp;
-      case 13: return l10n.calibrationDirectionDown;
+      case 0: return l10n.calibrationDirection0;
+      case 1: return l10n.calibrationDirection1;
+      case 2: return l10n.calibrationDirection2;
+      case 3: return l10n.calibrationDirection3;
+      case 4: return l10n.calibrationDirection4;
+      case 5: return l10n.calibrationDirection5;
+      case 6: return l10n.calibrationDirection6;
+      case 7: return l10n.calibrationDirection7;
+      case 8: return l10n.calibrationDirection8;
+      case 9: return l10n.calibrationDirection9;
+      case 10: return l10n.calibrationDirection10;
+      case 11: return l10n.calibrationDirection11;
+      case 12: return l10n.calibrationDirection12;
+      case 13: return l10n.calibrationDirection13;
       default: return l10n.calibrationDirectionN(direction);
     }
   }
@@ -952,10 +972,10 @@ class CalibrationService extends ChangeNotifier {
   /// Get localized roll name.
   String _getRollName(int rollIndex, AppLocalizations l10n) {
     switch (rollIndex) {
-      case 0: return l10n.calibrationRollFlat;
-      case 1: return l10n.calibrationRoll90CW;
-      case 2: return l10n.calibrationRollUpsideDown;
-      case 3: return l10n.calibrationRoll90CCW;
+      case 0: return l10n.calibrationRoll0;
+      case 1: return l10n.calibrationRoll90;
+      case 2: return l10n.calibrationRoll180;
+      case 3: return l10n.calibrationRoll270;
       default: return l10n.calibrationRollN(rollIndex);
     }
   }

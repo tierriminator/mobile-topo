@@ -1010,8 +1010,14 @@ abstract class AppLocalizations {
   /// Instructions for phase 2 of calibration
   ///
   /// In en, this message translates to:
-  /// **'The remaining 40 measurements are less critical.\n\n• Aim in different directions to cover a sphere (imagine cube vertices)\n• Still use a target point for each shot\n• Allow the reading to stabilize before shooting\n• The exact directions don\'t matter - just get good spread'**
+  /// **'The remaining 40 measurements (10 directions × 4 orientations) cover additional angles.\n\n• Imagine standing in the center of a large cube\n• Point toward the 8 corners (diagonals) plus up and down\n• For each direction, take 4 shots with different device orientations\n• The exact directions are NOT critical - just get good spread\n• Still use a target point and let readings stabilize'**
   String get calibrationPhase2Instructions;
+
+  /// Tip for phase 2 explaining the difference from phase 1
+  ///
+  /// In en, this message translates to:
+  /// **'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.'**
+  String get calibrationPhase2Tip;
 
   /// Button to begin calibration after reading instructions
   ///
@@ -1079,89 +1085,89 @@ abstract class AppLocalizations {
   /// **'α (dip)'**
   String get calibrationAlphaDip;
 
-  /// No description provided for @calibrationDirectionForward.
+  /// Direction 0: forward/north
   ///
   /// In en, this message translates to:
   /// **'Forward'**
-  String get calibrationDirectionForward;
+  String get calibrationDirection0;
 
-  /// No description provided for @calibrationDirectionRight.
+  /// Direction 1: right/east
   ///
   /// In en, this message translates to:
   /// **'Right'**
-  String get calibrationDirectionRight;
+  String get calibrationDirection1;
 
-  /// No description provided for @calibrationDirectionBack.
+  /// Direction 2: back/south
   ///
   /// In en, this message translates to:
   /// **'Back'**
-  String get calibrationDirectionBack;
+  String get calibrationDirection2;
 
-  /// No description provided for @calibrationDirectionLeft.
+  /// Direction 3: left/west
   ///
   /// In en, this message translates to:
   /// **'Left'**
-  String get calibrationDirectionLeft;
+  String get calibrationDirection3;
 
-  /// No description provided for @calibrationDirectionForwardRightUp.
+  /// Direction 4: NE corner, up 45°
   ///
   /// In en, this message translates to:
   /// **'Forward-Right, up 45°'**
-  String get calibrationDirectionForwardRightUp;
+  String get calibrationDirection4;
 
-  /// No description provided for @calibrationDirectionRightBackUp.
+  /// Direction 5: SE corner, up 45°
   ///
   /// In en, this message translates to:
   /// **'Right-Back, up 45°'**
-  String get calibrationDirectionRightBackUp;
+  String get calibrationDirection5;
 
-  /// No description provided for @calibrationDirectionBackLeftUp.
+  /// Direction 6: SW corner, up 45°
   ///
   /// In en, this message translates to:
   /// **'Back-Left, up 45°'**
-  String get calibrationDirectionBackLeftUp;
+  String get calibrationDirection6;
 
-  /// No description provided for @calibrationDirectionLeftForwardUp.
+  /// Direction 7: NW corner, up 45°
   ///
   /// In en, this message translates to:
   /// **'Left-Forward, up 45°'**
-  String get calibrationDirectionLeftForwardUp;
+  String get calibrationDirection7;
 
-  /// No description provided for @calibrationDirectionForwardRightDown.
+  /// Direction 8: NE corner, down 45°
   ///
   /// In en, this message translates to:
   /// **'Forward-Right, down 45°'**
-  String get calibrationDirectionForwardRightDown;
+  String get calibrationDirection8;
 
-  /// No description provided for @calibrationDirectionRightBackDown.
+  /// Direction 9: SE corner, down 45°
   ///
   /// In en, this message translates to:
   /// **'Right-Back, down 45°'**
-  String get calibrationDirectionRightBackDown;
+  String get calibrationDirection9;
 
-  /// No description provided for @calibrationDirectionBackLeftDown.
+  /// Direction 10: SW corner, down 45°
   ///
   /// In en, this message translates to:
   /// **'Back-Left, down 45°'**
-  String get calibrationDirectionBackLeftDown;
+  String get calibrationDirection10;
 
-  /// No description provided for @calibrationDirectionLeftForwardDown.
+  /// Direction 11: NW corner, down 45°
   ///
   /// In en, this message translates to:
   /// **'Left-Forward, down 45°'**
-  String get calibrationDirectionLeftForwardDown;
+  String get calibrationDirection11;
 
-  /// No description provided for @calibrationDirectionUp.
+  /// Direction 12: straight up
   ///
   /// In en, this message translates to:
   /// **'Up'**
-  String get calibrationDirectionUp;
+  String get calibrationDirection12;
 
-  /// No description provided for @calibrationDirectionDown.
+  /// Direction 13: straight down
   ///
   /// In en, this message translates to:
   /// **'Down'**
-  String get calibrationDirectionDown;
+  String get calibrationDirection13;
 
   /// Fallback direction label
   ///
@@ -1169,53 +1175,53 @@ abstract class AppLocalizations {
   /// **'Direction {n}'**
   String calibrationDirectionN(int n);
 
-  /// No description provided for @calibrationRollFlat.
+  /// Roll 0°: display up
   ///
   /// In en, this message translates to:
-  /// **'flat'**
-  String get calibrationRollFlat;
+  /// **'0°'**
+  String get calibrationRoll0;
 
-  /// No description provided for @calibrationRoll90CW.
+  /// Roll 90°: display right
   ///
   /// In en, this message translates to:
-  /// **'90° CW'**
-  String get calibrationRoll90CW;
+  /// **'90°'**
+  String get calibrationRoll90;
 
-  /// No description provided for @calibrationRollUpsideDown.
+  /// Roll 180°: display down
   ///
   /// In en, this message translates to:
-  /// **'upside down'**
-  String get calibrationRollUpsideDown;
+  /// **'180°'**
+  String get calibrationRoll180;
 
-  /// No description provided for @calibrationRoll90CCW.
+  /// Roll 270°: display left
   ///
   /// In en, this message translates to:
-  /// **'90° CCW'**
-  String get calibrationRoll90CCW;
+  /// **'270°'**
+  String get calibrationRoll270;
 
-  /// No description provided for @calibrationRollDescFlat.
+  /// Roll description for 0°
   ///
   /// In en, this message translates to:
-  /// **'Roll: flat (display up)'**
-  String get calibrationRollDescFlat;
+  /// **'Roll: 0° (display up)'**
+  String get calibrationRollDesc0;
 
-  /// No description provided for @calibrationRollDesc90CW.
+  /// Roll description for 90°
   ///
   /// In en, this message translates to:
-  /// **'Roll: 90° CW (display right)'**
-  String get calibrationRollDesc90CW;
+  /// **'Roll: 90° (display right)'**
+  String get calibrationRollDesc90;
 
-  /// No description provided for @calibrationRollDescUpsideDown.
+  /// Roll description for 180°
   ///
   /// In en, this message translates to:
-  /// **'Roll: upside down (display down)'**
-  String get calibrationRollDescUpsideDown;
+  /// **'Roll: 180° (display down)'**
+  String get calibrationRollDesc180;
 
-  /// No description provided for @calibrationRollDesc90CCW.
+  /// Roll description for 270°
   ///
   /// In en, this message translates to:
-  /// **'Roll: 90° CCW (display left)'**
-  String get calibrationRollDesc90CCW;
+  /// **'Roll: 270° (display left)'**
+  String get calibrationRollDesc270;
 
   /// Fallback roll label
   ///

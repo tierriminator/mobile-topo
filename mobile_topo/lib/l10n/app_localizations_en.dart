@@ -490,7 +490,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calibrationPhase2Instructions =>
-      'The remaining 40 measurements are less critical.\n\n• Aim in different directions to cover a sphere (imagine cube vertices)\n• Still use a target point for each shot\n• Allow the reading to stabilize before shooting\n• The exact directions don\'t matter - just get good spread';
+      'The remaining 40 measurements (10 directions × 4 orientations) cover additional angles.\n\n• Imagine standing in the center of a large cube\n• Point toward the 8 corners (diagonals) plus up and down\n• For each direction, take 4 shots with different device orientations\n• The exact directions are NOT critical - just get good spread\n• Still use a target point and let readings stabilize';
+
+  @override
+  String get calibrationPhase2Tip =>
+      'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.';
 
   @override
   String get calibrationBegin => 'Begin';
@@ -531,46 +535,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationAlphaDip => 'α (dip)';
 
   @override
-  String get calibrationDirectionForward => 'Forward';
+  String get calibrationDirection0 => 'Forward';
 
   @override
-  String get calibrationDirectionRight => 'Right';
+  String get calibrationDirection1 => 'Right';
 
   @override
-  String get calibrationDirectionBack => 'Back';
+  String get calibrationDirection2 => 'Back';
 
   @override
-  String get calibrationDirectionLeft => 'Left';
+  String get calibrationDirection3 => 'Left';
 
   @override
-  String get calibrationDirectionForwardRightUp => 'Forward-Right, up 45°';
+  String get calibrationDirection4 => 'Forward-Right, up 45°';
 
   @override
-  String get calibrationDirectionRightBackUp => 'Right-Back, up 45°';
+  String get calibrationDirection5 => 'Right-Back, up 45°';
 
   @override
-  String get calibrationDirectionBackLeftUp => 'Back-Left, up 45°';
+  String get calibrationDirection6 => 'Back-Left, up 45°';
 
   @override
-  String get calibrationDirectionLeftForwardUp => 'Left-Forward, up 45°';
+  String get calibrationDirection7 => 'Left-Forward, up 45°';
 
   @override
-  String get calibrationDirectionForwardRightDown => 'Forward-Right, down 45°';
+  String get calibrationDirection8 => 'Forward-Right, down 45°';
 
   @override
-  String get calibrationDirectionRightBackDown => 'Right-Back, down 45°';
+  String get calibrationDirection9 => 'Right-Back, down 45°';
 
   @override
-  String get calibrationDirectionBackLeftDown => 'Back-Left, down 45°';
+  String get calibrationDirection10 => 'Back-Left, down 45°';
 
   @override
-  String get calibrationDirectionLeftForwardDown => 'Left-Forward, down 45°';
+  String get calibrationDirection11 => 'Left-Forward, down 45°';
 
   @override
-  String get calibrationDirectionUp => 'Up';
+  String get calibrationDirection12 => 'Up';
 
   @override
-  String get calibrationDirectionDown => 'Down';
+  String get calibrationDirection13 => 'Down';
 
   @override
   String calibrationDirectionN(int n) {
@@ -578,29 +582,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calibrationRollFlat => 'flat';
+  String get calibrationRoll0 => '0°';
 
   @override
-  String get calibrationRoll90CW => '90° CW';
+  String get calibrationRoll90 => '90°';
 
   @override
-  String get calibrationRollUpsideDown => 'upside down';
+  String get calibrationRoll180 => '180°';
 
   @override
-  String get calibrationRoll90CCW => '90° CCW';
+  String get calibrationRoll270 => '270°';
 
   @override
-  String get calibrationRollDescFlat => 'Roll: flat (display up)';
+  String get calibrationRollDesc0 => 'Roll: 0° (display up)';
 
   @override
-  String get calibrationRollDesc90CW => 'Roll: 90° CW (display right)';
+  String get calibrationRollDesc90 => 'Roll: 90° (display right)';
 
   @override
-  String get calibrationRollDescUpsideDown =>
-      'Roll: upside down (display down)';
+  String get calibrationRollDesc180 => 'Roll: 180° (display down)';
 
   @override
-  String get calibrationRollDesc90CCW => 'Roll: 90° CCW (display left)';
+  String get calibrationRollDesc270 => 'Roll: 270° (display left)';
 
   @override
   String calibrationRollN(int n) {
