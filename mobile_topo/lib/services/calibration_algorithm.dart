@@ -61,8 +61,11 @@ class CalibrationAlgorithm {
   Future<CalibrationOutput> compute(
     List<CalibrationMeasurement> measurements,
   ) async {
-    // Filter to enabled measurements with groups only
-    final data = measurements.where((m) => m.enabled && m.group != null).toList();
+    // Filter to enabled measurements with groups only, then sort by group.
+    // Sorting is required because the optimization loop processes consecutive
+    // measurements with the same group together.
+    final data = measurements.where((m) => m.enabled && m.group != null).toList()
+      ..sort((a, b) => a.group!.compareTo(b.group!));
     final nn = data.length;
 
     if (nn < minMeasurements) {
