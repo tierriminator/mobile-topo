@@ -558,6 +558,67 @@ class CalibrationService extends ChangeNotifier {
       debugPrint('Calibration computed: RMS error = ${_rmsError?.toStringAsFixed(3)}°, '
           'iterations = $_iterations');
 
+      // Debug: print measurement statistics
+      final enabledMeasurements = _measurements.where((m) => m.enabled && m.group != null).toList();
+      if (enabledMeasurements.isNotEmpty) {
+        final gxRange = enabledMeasurements.map((m) => m.gx).toList()..sort();
+        final gyRange = enabledMeasurements.map((m) => m.gy).toList()..sort();
+        final gzRange = enabledMeasurements.map((m) => m.gz).toList()..sort();
+        final mxRange = enabledMeasurements.map((m) => m.mx).toList()..sort();
+        final myRange = enabledMeasurements.map((m) => m.my).toList()..sort();
+        final mzRange = enabledMeasurements.map((m) => m.mz).toList()..sort();
+        debugPrint('Measurement stats (${enabledMeasurements.length} enabled):');
+        debugPrint('  G ranges: X=[${gxRange.first}, ${gxRange.last}], Y=[${gyRange.first}, ${gyRange.last}], Z=[${gzRange.first}, ${gzRange.last}]');
+        debugPrint('  M ranges: X=[${mxRange.first}, ${mxRange.last}], Y=[${myRange.first}, ${myRange.last}], Z=[${mzRange.first}, ${mzRange.last}]');
+
+        // Print group distribution
+        final groupCounts = <int, int>{};
+        for (final m in enabledMeasurements) {
+          groupCounts[m.group!] = (groupCounts[m.group!] ?? 0) + 1;
+        }
+        debugPrint('  Groups: $groupCounts');
+      }
+
+      // Debug: print coefficient values
+      final c = _coefficients!;
+      debugPrint('Coefficients aG:');
+      debugPrint('  [${c.aG.entry(0,0).toStringAsFixed(4)}, ${c.aG.entry(0,1).toStringAsFixed(4)}, ${c.aG.entry(0,2).toStringAsFixed(4)}]');
+      debugPrint('  [${c.aG.entry(1,0).toStringAsFixed(4)}, ${c.aG.entry(1,1).toStringAsFixed(4)}, ${c.aG.entry(1,2).toStringAsFixed(4)}]');
+      debugPrint('  [${c.aG.entry(2,0).toStringAsFixed(4)}, ${c.aG.entry(2,1).toStringAsFixed(4)}, ${c.aG.entry(2,2).toStringAsFixed(4)}]');
+      debugPrint('Coefficients bG: [${c.bG.x.toStringAsFixed(4)}, ${c.bG.y.toStringAsFixed(4)}, ${c.bG.z.toStringAsFixed(4)}]');
+      debugPrint('Coefficients aM:');
+      debugPrint('  [${c.aM.entry(0,0).toStringAsFixed(4)}, ${c.aM.entry(0,1).toStringAsFixed(4)}, ${c.aM.entry(0,2).toStringAsFixed(4)}]');
+      debugPrint('  [${c.aM.entry(1,0).toStringAsFixed(4)}, ${c.aM.entry(1,1).toStringAsFixed(4)}, ${c.aM.entry(1,2).toStringAsFixed(4)}]');
+      debugPrint('  [${c.aM.entry(2,0).toStringAsFixed(4)}, ${c.aM.entry(2,1).toStringAsFixed(4)}, ${c.aM.entry(2,2).toStringAsFixed(4)}]');
+      debugPrint('Coefficients bM: [${c.bM.x.toStringAsFixed(4)}, ${c.bM.y.toStringAsFixed(4)}, ${c.bM.z.toStringAsFixed(4)}]');
+
+      // Sanity check: A matrices diagonal should be around 1/16000 ≈ 0.0000625
+      // (to transform raw 16-bit values ~16000 to unit vectors ~1.0)
+      // After serialization with FM=16384, this becomes ~1 (stored as int16).
+      // Diagonal values much smaller than 1e-5 would serialize to 0, making
+      // the calibration ineffective.
+      final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
+      final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
+
+      // Check if diagonal values will serialize to non-zero (threshold: ~1e-5)
+      // 1e-5 * 16384 = 0.16, which rounds to 0 when stored as int16
+      const minDiagonal = 1e-5;
+      final aGOk = aGDiag.every((v) => v.abs() > minDiagonal);
+      final aMOk = aMDiag.every((v) => v.abs() > minDiagonal);
+
+      if (!aGOk) {
+        debugPrint('WARNING: aG diagonal values too small - will serialize to 0!');
+        debugPrint('  Values: $aGDiag');
+        debugPrint('  Expected: ~0.00006 (1/16000)');
+        debugPrint('  This usually means the calibration data is not well-distributed.');
+      }
+      if (!aMOk) {
+        debugPrint('WARNING: aM diagonal values too small - will serialize to 0!');
+        debugPrint('  Values: $aMDiag');
+        debugPrint('  Expected: ~0.00006 (1/16000)');
+        debugPrint('  This usually means the calibration data is not well-distributed.');
+      }
+
       // Run auto-detection if enabled
       if (_autoDetectEnabled) {
         _runAutoDetection();
@@ -593,14 +654,42 @@ class CalibrationService extends ChangeNotifier {
       return false;
     }
 
+    // Validate coefficients before writing
+    // The A matrix diagonal should be around 1/16000 = 0.0000625
+    // Values much smaller would serialize to 0, making calibration ineffective
+    final c = _coefficients!;
+    final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
+    final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
+    const minDiagonal = 1e-5;
+
+    final aGOk = aGDiag.every((v) => v.abs() > minDiagonal);
+    final aMOk = aMDiag.every((v) => v.abs() > minDiagonal);
+
+    if (!aGOk || !aMOk) {
+      _error = 'Calibration coefficients are invalid (A matrix diagonal too small). '
+          'This usually means the calibration measurements are not well-distributed. '
+          'Try taking measurements in more varied orientations.';
+      debugPrint('ERROR: Refusing to write invalid coefficients');
+      debugPrint('  aG diagonal: $aGDiag');
+      debugPrint('  aM diagonal: $aMDiag');
+      debugPrint('  Minimum required: $minDiagonal');
+      notifyListeners();
+      return false;
+    }
+
     _state = CalibrationState.writing;
     _error = null;
     notifyListeners();
 
     try {
-      final bytes = _coefficients!.toBytes();
+      final bytes = c.toBytes();
       _writtenBytes = 0;
       _memoryWriteCompleter = Completer<void>();
+
+      // Debug: print bytes being written
+      debugPrint('Writing calibration bytes (48 total):');
+      debugPrint('  G coeffs: ${bytes.sublist(0, 24).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      debugPrint('  M coeffs: ${bytes.sublist(24, 48).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
       // Write 4 bytes at a time to addresses 0x8010-0x803F
       for (int i = 0; i < 48; i += 4) {

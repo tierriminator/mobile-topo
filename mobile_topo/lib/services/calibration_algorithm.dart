@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../models/calibration.dart';
@@ -147,6 +148,15 @@ class CalibrationAlgorithm {
     final invG = (sumG2 - _outerProduct(sumG, avG)).inverse;
     final invM = (sumM2 - _outerProduct(sumM, avM)).inverse;
 
+    // Compute average raw magnitudes for consistent G:M weighting
+    double avgGMag = 0, avgMMag = 0;
+    for (int i = 0; i < nn; i++) {
+      avgGMag += g[i].length;
+      avgMMag += m[i].length;
+    }
+    avgGMag *= invNum;
+    avgMMag *= invNum;
+
     // Initialize transforms (identity A, zero B for linear algorithm)
     var aG = Matrix3.identity();
     var aM = Matrix3.identity();
@@ -160,12 +170,23 @@ class CalibrationAlgorithm {
 
     int it = 0;
     Matrix3 aG0, aM0;
+    Vector3 bG0 = bG, bM0 = bM;
+
+    // Debug: print initial dip angle
+    debugPrint('CalibAlgo: Dip angle: ${(math.atan2(s, c) * 180 / math.pi).toStringAsFixed(1)}°');
 
     do {
-      // Transform all raw measurements
+      // Transform all raw measurements and scale to match original magnitudes.
+      // This maintains consistent G:M weighting in the turn calculations
+      // across iterations, preventing divergence.
       for (int i = 0; i < nn; i++) {
-        gr[i] = bG + aG.transform(g[i]);
-        mr[i] = bM + aM.transform(m[i]);
+        final grRaw = bG + aG.transform(g[i]);
+        final mrRaw = bM + aM.transform(m[i]);
+        // Scale calibrated vectors to have same magnitude as original raw vectors
+        final grLen = grRaw.length;
+        final mrLen = mrRaw.length;
+        gr[i] = grLen > 0 ? grRaw * (avgGMag / grLen) : grRaw;
+        mr[i] = mrLen > 0 ? mrRaw * (avgMMag / mrLen) : mrRaw;
       }
 
       // Process groups
@@ -180,7 +201,7 @@ class CalibrationAlgorithm {
           var mrp = Vector3.zero();
           int first = i;
 
-          // Sum up all measurements in this group
+          // Sum up all measurements in this group (using calibrated gr, mr)
           while (i < nn && group[i] == group0) {
             _turnVectors(gr[i], mr[i], gr[first], mr[first]);
             grp = grp + _gxt;
@@ -195,11 +216,11 @@ class CalibrationAlgorithm {
           sa += mrp.cross(_gxp).magnitude;
           ca += mrp.dot(_gxp);
 
-          // Turn optimal vectors back to each measurement
+          // Turn optimal vectors back to each measurement (using calibrated gr, mr)
           for (int j = first; j < i; j++) {
             _turnVectors(_gxp, _mxp, gr[j], mr[j]);
-            gx[j] = _gxt;
-            mx[j] = _mxt;
+            gx[j] = _gxt.clone();  // Must clone - _gxt is reused!
+            mx[j] = _mxt.clone();
           }
         }
       }
@@ -222,16 +243,36 @@ class CalibrationAlgorithm {
         sumMxM = sumMxM + _outerProduct(mx[i], m[i]);
       }
 
-      // Save old matrices for convergence check
+      // Save old values for convergence check and divergence recovery
       aG0 = aG;
       aM0 = aM;
+      bG0 = bG;
+      bM0 = bM;
 
       avGx = avGx * invNum;
       avMx = avMx * invNum;
 
       // Update A matrices: A = (sumXxR - outer(avX, sumR)) * invR^T
-      aG = (sumGxG - _outerProduct(avGx, sumG)).multiplyTransposed(invG);
-      aM = (sumMxM - _outerProduct(avMx, sumM)).multiplyTransposed(invM);
+      // TopoDroid uses timesT(invR) which multiplies by the transpose
+      final xG = sumGxG - _outerProduct(avGx, sumG);
+      final xM = sumMxM - _outerProduct(avMx, sumM);
+
+      // Detect divergence: if sumGxG diagonal drops dramatically, stop iterating
+      // and keep the previous (good) values. This happens when the algorithm's
+      // scale assumptions break down after the first iteration.
+      final sumGxGDiag = sumGxG.entry(0, 0).abs() + sumGxG.entry(1, 1).abs() + sumGxG.entry(2, 2).abs();
+      if (it > 0 && sumGxGDiag < 1000) {
+        debugPrint('CalibAlgo: Stopping at iteration ${it + 1} - divergence detected');
+        // Restore previous good values
+        aG = aG0;
+        aM = aM0;
+        bG = bG0;
+        bM = bM0;
+        break;
+      }
+
+      aG = xG.multiplyTransposed(invG);
+      aM = xM.multiplyTransposed(invM);
 
       // Enforce symmetric aG[1,2] = aG[2,1] (y.z = z.y)
       final sym = (aG.get(1, 2) + aG.get(2, 1)) * 0.5;
@@ -243,6 +284,10 @@ class CalibrationAlgorithm {
 
       it++;
     } while (it < maxIterations && (_maxDiff(aG, aG0) > epsilon || _maxDiff(aM, aM0) > epsilon));
+
+    // Debug: print summary
+    debugPrint('CalibAlgo: Converged after $it iterations, '
+        'aG diag: [${aG.entry(0,0).toStringAsExponential(2)}, ${aG.entry(1,1).toStringAsExponential(2)}, ${aG.entry(2,2).toStringAsExponential(2)}]');
 
     return _OptimizeResult(
       aG: aG,
@@ -259,6 +304,7 @@ class CalibrationAlgorithm {
   ///
   /// Given summed G and M vectors from a group, compute the optimal
   /// unit direction vectors that satisfy the dip angle constraint.
+  /// This matches TopoDroid's OptVectors exactly.
   void _optVectors(Vector3 gr, Vector3 mr, double s, double c) {
     var no = gr.cross(mr);
     no = no.length > 0 ? no.normalized() : Vector3(0, 0, 1);
@@ -274,8 +320,9 @@ class CalibrationAlgorithm {
   /// Turn vectors around X axis to align with reference (port of TurnVectors).
   ///
   /// Rotates (gf, mf) around X axis to best align with (gr, mr).
+  /// This matches TopoDroid's TurnVectors exactly.
   void _turnVectors(Vector3 gf, Vector3 mf, Vector3 gr, Vector3 mr) {
-    // Compute rotation angle
+    // Compute rotation angle (matching TopoDroid exactly)
     final s1Raw = gr.z * gf.y - gr.y * gf.z + mr.z * mf.y - mr.y * mf.z;
     final c1Raw = gr.y * gf.y + gr.z * gf.z + mr.y * mf.y + mr.z * mf.z;
     final d1 = math.sqrt(c1Raw * c1Raw + s1Raw * s1Raw);

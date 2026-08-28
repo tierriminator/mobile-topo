@@ -406,23 +406,33 @@ class _ControlBar extends StatelessWidget {
           ),
         ),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: (isBusy || !isConnected)
-              ? null
-              : () => _confirmUpdate(context, calibration, l10n),
-          child: isWriting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(l10n.calibrationWrite),
-        ),
+      child: Row(
+        children: [
+          // Recompute button (for debugging)
+          OutlinedButton(
+            onPressed: isBusy ? null : () => calibration.evaluate(),
+            child: const Text('Recompute'),
+          ),
+          const SizedBox(width: 12),
+          // Write button
+          Expanded(
+            child: FilledButton(
+              onPressed: (isBusy || !isConnected)
+                  ? null
+                  : () => _confirmUpdate(context, calibration, l10n),
+              child: isWriting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(l10n.calibrationWrite),
+            ),
+          ),
+        ],
       ),
     );
   }
