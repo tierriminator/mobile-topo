@@ -2,6 +2,14 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## Repository Layout
+
+The git root is **not** the Flutter project root. The Flutter package lives in
+`mobile_topo/`, and all `flutter` and `dart` commands must be run from there.
+
+Unless stated otherwise, paths in this document are relative to `mobile_topo/` —
+so `lib/models/survey.dart` is `mobile_topo/lib/models/survey.dart` on disk.
+
 ## Project Goal
 
 This project aims to re-implement **PocketTopo** in Flutter for modern mobile devices (iOS/Android). PocketTopo is cave surveying software originally written for Windows Mobile by Beat Heeb.
@@ -33,6 +41,9 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 ## Build and Development Commands
 
 ```bash
+# All commands below run from the Flutter package root, not the git root
+cd mobile_topo
+
 # Install dependencies
 flutter pub get
 
@@ -62,7 +73,7 @@ flutter analyze
 Flutter application for cave surveying using MVC architecture.
 
 ```
-lib/
+mobile_topo/lib/
 ├── models/           # Domain models (pure data classes)
 ├── controllers/      # State management
 ├── services/         # Business logic and external device communication
