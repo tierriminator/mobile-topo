@@ -96,6 +96,17 @@ class CalibrationService extends ChangeNotifier {
   /// Error threshold (degrees) for considering a measurement "bad" and needing correction.
   static const double errorThreshold = 0.5;
 
+  /// Plausible range for the diagonal of the A matrices.
+  ///
+  /// A maps raw counts scaled by [CalibrationCoefficients.rawUnit] onto unit
+  /// vectors, so each diagonal element is 24000 / (counts per full scale unit),
+  /// i.e. close to 1. Serialization stores `value * 16384` in an int16, so
+  /// values above ~2 would overflow and values near 0 would quantize away.
+  static const double _minGain = 0.1;
+  static const double _maxGain = 2.0;
+
+  static bool _isPlausibleGain(double v) => v > _minGain && v < _maxGain;
+
   /// Which position slots (0-55) are filled, and by which measurement index.
   /// Key: slot index, Value: measurement list index.
   final Map<int, int> _filledSlots = {};
@@ -592,30 +603,23 @@ class CalibrationService extends ChangeNotifier {
       debugPrint('  [${c.aM.entry(2,0).toStringAsFixed(4)}, ${c.aM.entry(2,1).toStringAsFixed(4)}, ${c.aM.entry(2,2).toStringAsFixed(4)}]');
       debugPrint('Coefficients bM: [${c.bM.x.toStringAsFixed(4)}, ${c.bM.y.toStringAsFixed(4)}, ${c.bM.z.toStringAsFixed(4)}]');
 
-      // Sanity check: A matrices diagonal should be around 1/16000 ≈ 0.0000625
-      // (to transform raw 16-bit values ~16000 to unit vectors ~1.0)
-      // After serialization with FM=16384, this becomes ~1 (stored as int16).
-      // Diagonal values much smaller than 1e-5 would serialize to 0, making
-      // the calibration ineffective.
+      // Sanity check: the A matrices act on raw counts already scaled by
+      // CalibrationCoefficients.rawUnit (1/24000), so their diagonal should be
+      // around 1 — roughly 24000 / (counts per g). Serialization multiplies by
+      // FM = 16384 and stores an int16, so anything much outside [0.1, 2] is
+      // either a bad fit or an overflow waiting to happen.
       final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
       final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
 
-      // Check if diagonal values will serialize to non-zero (threshold: ~1e-5)
-      // 1e-5 * 16384 = 0.16, which rounds to 0 when stored as int16
-      const minDiagonal = 1e-5;
-      final aGOk = aGDiag.every((v) => v.abs() > minDiagonal);
-      final aMOk = aMDiag.every((v) => v.abs() > minDiagonal);
+      final aGOk = aGDiag.every(_isPlausibleGain);
+      final aMOk = aMDiag.every(_isPlausibleGain);
 
       if (!aGOk) {
-        debugPrint('WARNING: aG diagonal values too small - will serialize to 0!');
-        debugPrint('  Values: $aGDiag');
-        debugPrint('  Expected: ~0.00006 (1/16000)');
+        debugPrint('WARNING: implausible aG diagonal: $aGDiag (expected ~1)');
         debugPrint('  This usually means the calibration data is not well-distributed.');
       }
       if (!aMOk) {
-        debugPrint('WARNING: aM diagonal values too small - will serialize to 0!');
-        debugPrint('  Values: $aMDiag');
-        debugPrint('  Expected: ~0.00006 (1/16000)');
+        debugPrint('WARNING: implausible aM diagonal: $aMDiag (expected ~1)');
         debugPrint('  This usually means the calibration data is not well-distributed.');
       }
 
@@ -654,25 +658,20 @@ class CalibrationService extends ChangeNotifier {
       return false;
     }
 
-    // Validate coefficients before writing
-    // The A matrix diagonal should be around 1/16000 = 0.0000625
-    // Values much smaller would serialize to 0, making calibration ineffective
+    // Validate coefficients before writing. The A matrices map raw counts
+    // scaled by rawUnit onto unit vectors, so their diagonal should be ~1.
     final c = _coefficients!;
     final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
     final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
-    const minDiagonal = 1e-5;
 
-    final aGOk = aGDiag.every((v) => v.abs() > minDiagonal);
-    final aMOk = aMDiag.every((v) => v.abs() > minDiagonal);
-
-    if (!aGOk || !aMOk) {
-      _error = 'Calibration coefficients are invalid (A matrix diagonal too small). '
+    if (!aGDiag.every(_isPlausibleGain) || !aMDiag.every(_isPlausibleGain)) {
+      _error = 'Calibration coefficients are invalid (A matrix diagonal out of range). '
           'This usually means the calibration measurements are not well-distributed. '
           'Try taking measurements in more varied orientations.';
       debugPrint('ERROR: Refusing to write invalid coefficients');
       debugPrint('  aG diagonal: $aGDiag');
       debugPrint('  aM diagonal: $aMDiag');
-      debugPrint('  Minimum required: $minDiagonal');
+      debugPrint('  Expected range: [$_minGain, $_maxGain]');
       notifyListeners();
       return false;
     }

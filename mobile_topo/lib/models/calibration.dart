@@ -194,6 +194,16 @@ class CalibrationCoefficients {
   static const double _fv = 24000.0; // For bias vectors (B)
   static const double _fm = 16384.0; // For matrix elements (A)
 
+  /// Scale applied to raw 16-bit sensor counts before the calibration
+  /// transform is applied.
+  ///
+  /// The device firmware works in fixed point: it stores the bias vectors as
+  /// `b * FV` and the matrix elements as `a * FM`, and evaluates
+  /// `result = A * (raw / FV) + B`. Feeding unscaled counts into the
+  /// calibration would produce matrix elements around 1/16000, which
+  /// serialize to 0 or 1 and destroy the calibration.
+  static const double rawUnit = 1.0 / _fv;
+
   /// Serialize to 48 bytes for device memory.
   ///
   /// Layout (from TopoDroid CalibTransform.GetCoeff):
@@ -289,8 +299,8 @@ class CalibrationCoefficients {
   /// Apply calibration to raw measurement.
   /// Returns calibrated (G, M) vectors.
   (Vector3 g, Vector3 m) apply(CalibrationMeasurement raw) {
-    final g = aG.transform(raw.gVector) + bG;
-    final m = aM.transform(raw.mVector) + bM;
+    final g = aG.transformVector(raw.gVector * rawUnit) + bG;
+    final m = aM.transformVector(raw.mVector * rawUnit) + bM;
     return (g, m);
   }
 
@@ -298,36 +308,40 @@ class CalibrationCoefficients {
   (double azimuth, double inclination, double roll) computeAngles(
     Vector3 g,
     Vector3 m,
+  ) =>
+      anglesFromVectors(g, m);
+
+  /// Azimuth, inclination and roll in degrees for a pair of calibrated
+  /// vectors, per equation 3 of Heeb's calibration paper
+  /// (`docs/distox/Calibration.txt`).
+  ///
+  /// The device frame is x = forward (laser beam), y = right, z = down, so
+  /// all three angles are derived from the *forward* axis, not from the
+  /// world vertical.
+  ///
+  ///   inclination = -arctan(g.x, |(g.y, g.z)|)
+  ///   azimuth     =  arctan((g.y*m.z - g.z*m.y) * |g|,
+  ///                          m.x * |g|^2 - g.x * (g . m))
+  ///   roll        =  arctan(g.y, g.z)
+  static (double azimuth, double inclination, double roll) anglesFromVectors(
+    Vector3 g,
+    Vector3 m,
   ) {
-    final gNorm = g.normalized();
-    final mNorm = m.normalized();
+    final gLen = g.length;
+    if (gLen == 0) return (0.0, 0.0, 0.0);
 
-    // Inclination from G (angle from horizontal)
-    // G points down (gravity), so z component gives inclination
-    final inclination = math.asin(-gNorm.z) * 180 / math.pi;
+    final inclination =
+        -math.atan2(g.x, math.sqrt(g.y * g.y + g.z * g.z)) * 180 / math.pi;
 
-    // For azimuth, project M onto horizontal plane
-    // Horizontal plane is perpendicular to G
-    // East direction in device frame: cross(G, vertical) normalized
-    // North direction: cross(East, G)
-    final vertical = Vector3(0, 0, -1);
-    var east = gNorm.cross(vertical);
-    if (east.length < 0.01) {
-      // G is nearly vertical, use device Y as fallback
-      east = Vector3(0, 1, 0);
-    }
-    east = east.normalized();
-    final north = east.cross(gNorm).normalized();
-
-    // Project M onto horizontal plane and compute azimuth
-    final mHoriz = mNorm - gNorm * mNorm.dot(gNorm);
-    final mEast = mHoriz.dot(east);
-    final mNorth = mHoriz.dot(north);
-    var azimuth = math.atan2(mEast, mNorth) * 180 / math.pi;
+    var azimuth = math.atan2(
+          (g.y * m.z - g.z * m.y) * gLen,
+          m.x * gLen * gLen - g.x * g.dot(m),
+        ) *
+        180 /
+        math.pi;
     if (azimuth < 0) azimuth += 360;
 
-    // Roll from G
-    final roll = math.atan2(gNorm.y, -gNorm.x) * 180 / math.pi;
+    final roll = math.atan2(g.y, g.z) * 180 / math.pi;
 
     return (azimuth, inclination, roll);
   }
@@ -394,8 +408,11 @@ class CalibrationPosition {
   /// Expected inclination in degrees (-90 to 90).
   final double inclination;
 
-  /// Expected roll in degrees for this roll index.
-  double get expectedRoll => rollIndex * 90.0 - 180.0; // -180, -90, 0, 90
+  /// Expected roll in degrees for this roll index: 0, 90, 180, 270.
+  ///
+  /// Roll is `arctan(g.y, g.z)`, so an unrolled device (z axis down) reads 0.
+  /// Comparisons must go through an angle difference that wraps at ±180.
+  double get expectedRoll => rollIndex * 90.0;
 
   const CalibrationPosition({
     required this.direction,
@@ -541,7 +558,7 @@ class CalibrationPositions {
           (dirError < directionTolerance && bestDirError >= directionTolerance)) {
         // Find best roll match for this direction
         for (int r = 0; r < 4; r++) {
-          final expRoll = r * 90.0 - 180.0;
+          final expRoll = r * 90.0;
           final rollError = _angleDiff(roll, expRoll).abs();
 
           if (dirError < bestDirError ||

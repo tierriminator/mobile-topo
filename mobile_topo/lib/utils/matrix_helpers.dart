@@ -8,23 +8,17 @@ extension Matrix3Helpers on Matrix3 {
   /// Set element at (row, col) - alias for setEntry().
   void set(int row, int col, double value) => setEntry(row, col, value);
 
-  /// Transform vector and return new vector (doesn't modify input).
-  Vector3 transform(Vector3 v) => transformed(v);
-
-  /// Matrix multiplication.
-  Matrix3 multiply(Matrix3 other) => this * other;
+  /// Transform vector and return a new vector.
+  ///
+  /// Deliberately *not* named `transform`: `Matrix3.transform` is an instance
+  /// method of vector_math that transforms its argument **in place**. An
+  /// extension member can never shadow an instance member, so a `transform`
+  /// alias here would silently resolve to the mutating version and corrupt
+  /// the caller's vector.
+  Vector3 transformVector(Vector3 v) => transformed(v);
 
   /// Get inverse as new matrix.
   Matrix3 get inverse => Matrix3.copy(this)..invert();
-
-  /// Get transpose as new matrix.
-  Matrix3 get transposed => Matrix3.copy(this)..transpose();
-
-  /// Multiply this matrix by transpose of other: this * other^T.
-  Matrix3 multiplyTransposed(Matrix3 other) {
-    final oT = Matrix3.copy(other)..transpose();
-    return this * oT;
-  }
 
   /// Return a copy with one element changed.
   Matrix3 withElement(int row, int col, double value) {

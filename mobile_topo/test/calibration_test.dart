@@ -139,8 +139,7 @@ void main() {
       expect(coeff.bM.z, 0);
     });
 
-    test('apply transforms raw measurement', () {
-      // Create coefficients with 2x scaling
+    test('apply scales raw counts by rawUnit before transforming', () {
       final coeff = CalibrationCoefficients(
         aG: matrix3FromRowMajor([0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5]),
         bG: Vector3(10, 20, 30),
@@ -148,7 +147,7 @@ void main() {
         bM: Vector3(5, 10, 15),
       );
 
-      const m = CalibrationMeasurement(
+      const raw = CalibrationMeasurement(
         gx: 100,
         gy: 200,
         gz: 300,
@@ -158,17 +157,20 @@ void main() {
         index: 1,
       );
 
-      final (g, mag) = coeff.apply(m);
+      final (g, mag) = coeff.apply(raw);
+      const u = CalibrationCoefficients.rawUnit;
+      // vector_math stores components as float32, hence the modest tolerance.
+      const tol = 1e-5;
 
-      // G: 0.5 * [100, 200, 300] + [10, 20, 30] = [60, 120, 180]
-      expect(g.x, closeTo(60, 1e-10));
-      expect(g.y, closeTo(120, 1e-10));
-      expect(g.z, closeTo(180, 1e-10));
+      // G: 0.5 * ([100, 200, 300] * u) + [10, 20, 30]
+      expect(g.x, closeTo(0.5 * 100 * u + 10, tol));
+      expect(g.y, closeTo(0.5 * 200 * u + 20, tol));
+      expect(g.z, closeTo(0.5 * 300 * u + 30, tol));
 
-      // M: 0.25 * [400, 800, 1200] + [5, 10, 15] = [105, 210, 315]
-      expect(mag.x, closeTo(105, 1e-10));
-      expect(mag.y, closeTo(210, 1e-10));
-      expect(mag.z, closeTo(315, 1e-10));
+      // M: 0.25 * ([400, 800, 1200] * u) + [5, 10, 15]
+      expect(mag.x, closeTo(0.25 * 400 * u + 5, tol));
+      expect(mag.y, closeTo(0.25 * 800 * u + 10, tol));
+      expect(mag.z, closeTo(0.25 * 1200 * u + 15, tol));
     });
 
     group('byte serialization', () {
@@ -252,63 +254,72 @@ void main() {
     });
 
     group('computeAngles', () {
-      test('horizontal device returns near-zero inclination', () {
-        // For inclination = asin(-gNorm.z) to be 0, gNorm.z must be 0
-        // When device is horizontal (pointing forward along some horizontal direction),
-        // gravity points down, which is perpendicular to the pointing direction
-        // So G should have z = 0 (gravity has no component in pointing direction)
-        final g = Vector3(0, -1, 0); // Gravity pointing down in device Y axis
-        final m = Vector3(0, 0, 1);
+      // Device frame: x = forward (laser), y = right, z = down.
+      // Ground truth vectors come from equation 2 of the calibration paper.
 
-        final coeff = CalibrationCoefficients.identity();
-        final (_, inclination, _) = coeff.computeAngles(g, m);
+      test('recovers the orientation angles of the true vectors', () {
+        const alpha = 27.0; // angle between gravity and magnetic field
+        final cases = <(double yaw, double pitch, double roll)>[
+          (0, 0, 0),
+          (90, 0, 0),
+          (180, 0, 0),
+          (270, 0, 0),
+          (45, 35.3, 90),
+          (135, -35.3, 180),
+          (315, 60, 270),
+          (200, -70, 45),
+        ];
 
-        // Inclination should be close to 0 (horizontal)
-        expect(inclination.abs(), lessThan(5));
+        for (final (yaw, pitch, roll) in cases) {
+          final (g, m) = _trueVectors(yaw, pitch, roll, alpha);
+          final (azimuth, inclination, gotRoll) =
+              CalibrationCoefficients.anglesFromVectors(g, m);
+
+          // vector_math stores components as float32, hence the tolerance.
+          expect(azimuth, closeTo(yaw, 1e-4), reason: 'azimuth for $yaw/$pitch');
+          expect(inclination, closeTo(pitch, 1e-4),
+              reason: 'inclination for $yaw/$pitch');
+          expect(_angleDiff(gotRoll, roll).abs(), lessThan(1e-4),
+              reason: 'roll for $yaw/$pitch/$roll');
+        }
       });
 
-      test('azimuth differs by 90 degrees when M rotates 90 degrees', () {
-        // Device horizontal, gravity in Y direction
-        final g = Vector3(0, -1, 0);
-        final mA = Vector3(1, 0, 0);
-        final mB = Vector3(0, 0, 1);
+      test('inclination is +90 pointing up and -90 pointing down', () {
+        // Laser is the x axis, so a device pointing straight up has gravity
+        // along -x.
+        final m = Vector3(0, 1, 0);
+        final (_, up, _) =
+            CalibrationCoefficients.anglesFromVectors(Vector3(-1, 0, 0), m);
+        final (_, down, _) =
+            CalibrationCoefficients.anglesFromVectors(Vector3(1, 0, 0), m);
+        final (_, level, _) =
+            CalibrationCoefficients.anglesFromVectors(Vector3(0, 0, 1), m);
 
-        final coeff = CalibrationCoefficients.identity();
-        final (aziA, _, _) = coeff.computeAngles(g, mA);
-        final (aziB, _, _) = coeff.computeAngles(g, mB);
-
-        // The difference should be ~90 degrees
-        var diff = (aziB - aziA).abs();
-        if (diff > 180) diff = 360 - diff;
-        expect(diff, closeTo(90, 10));
+        expect(up, closeTo(90, 1e-6));
+        expect(down, closeTo(-90, 1e-6));
+        expect(level, closeTo(0, 1e-6));
       });
 
-      test('inclination changes with device tilt', () {
-        // Inclination = asin(-gNorm.z)
-        // When gNorm.z = 0, inclination = 0 (horizontal)
-        // When gNorm.z = -1, inclination = +90 (pointing up)
-        // When gNorm.z = +1, inclination = -90 (pointing down)
-        final gHorizontal = Vector3(0, -1, 0);
-        final gPointingUp = Vector3(0, 0, -1);
-        final gPointingDown = Vector3(0, 0, 1);
-        final m = Vector3(1, 0, 0);
+      test('angles are invariant under the roll ambiguity', () {
+        // G' = Rx(w) o G, M' = Rx(w) o M is an equally valid solution, so
+        // azimuth and inclination must not depend on w.
+        const alpha = 27.0;
+        final (g, m) = _trueVectors(123, -40, 15, alpha);
+        final (azimuth, inclination, _) =
+            CalibrationCoefficients.anglesFromVectors(g, m);
 
-        final coeff = CalibrationCoefficients.identity();
-        final (_, inclHoriz, _) = coeff.computeAngles(gHorizontal, m);
-        final (_, inclUp, _) = coeff.computeAngles(gPointingUp, m);
-        final (_, inclDown, _) = coeff.computeAngles(gPointingDown, m);
-
-        expect(inclHoriz, closeTo(0, 5));
-        expect(inclUp, closeTo(90, 5));
-        expect(inclDown, closeTo(-90, 5));
+        for (final w in [17.0, 90.0, 200.0]) {
+          final rx = _rotX(w * math.pi / 180);
+          final (a2, i2, _) = CalibrationCoefficients.anglesFromVectors(
+              rx.transformVector(g), rx.transformVector(m));
+          expect(a2, closeTo(azimuth, 1e-4));
+          expect(i2, closeTo(inclination, 1e-4));
+        }
       });
 
       test('returns valid azimuth in 0-360 range', () {
-        final g = Vector3(0, -1, 0);
-        final m = Vector3(0.5, 0, 0.5);
-
-        final coeff = CalibrationCoefficients.identity();
-        final (azimuth, _, _) = coeff.computeAngles(g, m);
+        final (azimuth, _, _) = CalibrationCoefficients.anglesFromVectors(
+            Vector3(0, 0, 1), Vector3(0.5, 0, 0.5));
 
         expect(azimuth, greaterThanOrEqualTo(0));
         expect(azimuth, lessThan(360));
@@ -434,157 +445,163 @@ void main() {
       );
     });
 
-    test('computes calibration for standard 14-direction data', () async {
-      // Use the standard 56-measurement pattern (14 directions × 4 orientations)
-      final measurements = _generateStandardMeasurements();
+    test('recovers a known sensor distortion from noise-free data', () async {
+      final data = _syntheticCalibration();
+      final result = await algorithm.compute(data.measurements);
 
-      // Run calibration
-      final result = await algorithm.compute(measurements);
-
-      // Check that we got results
       expect(result.iterations, greaterThan(0));
-      expect(result.iterations, lessThanOrEqualTo(CalibrationAlgorithm.maxIterations));
+      expect(result.iterations,
+          lessThanOrEqualTo(CalibrationAlgorithm.maxIterations));
+      expect(result.results.length, data.measurements.length);
 
-      // Results should have same count as input
-      expect(result.results.length, measurements.length);
+      // Noise-free input, so the fit should be essentially exact.
+      expect(result.rmsError, lessThan(0.01),
+          reason: 'RMS error ${result.rmsError} deg on exact data');
 
-      // Coefficients should be non-null
-      expect(result.coefficients, isNotNull);
+      for (int i = 0; i < data.measurements.length; i++) {
+        final r = result.results[i];
+        final orientation = data.orientations[i];
 
-      // RMS error should be computed
-      expect(result.rmsError, greaterThanOrEqualTo(0));
-    });
+        expect(r.gMagnitude, closeTo(1.0, 1e-3), reason: 'shot $i |G|');
+        expect(r.mMagnitude, closeTo(1.0, 1e-3), reason: 'shot $i |M|');
+        expect(r.alpha, closeTo(_alphaDeg, 0.05), reason: 'shot $i alpha');
+        expect(r.inclination, closeTo(orientation.pitch, 0.05),
+            reason: 'shot $i inclination');
 
-    test('handles measurements in orthogonal directions', () async {
-      // Create measurements in 6 orthogonal directions (±X, ±Y, ±Z)
-      // with 4 different roll angles each (24 measurements total, padding to 28)
-      // Note: G and M need to have different orientations (magnetic dip)
-      final measurements = <CalibrationMeasurement>[];
-      const magnitude = 16000;
-      const dipAngle = 0.866; // ~60 degree dip: cos(60) = 0.5, sin(60) = 0.866
-
-      // Directions for G: +X, -X, +Y, -Y, +Z, -Z
-      final gDirections = [
-        [magnitude, 0, 0],
-        [-magnitude, 0, 0],
-        [0, magnitude, 0],
-        [0, -magnitude, 0],
-        [0, 0, magnitude],
-        [0, 0, -magnitude],
-      ];
-
-      int index = 1;
-      for (final gDir in gDirections) {
-        for (int roll = 0; roll < 4; roll++) {
-          // M is rotated from G by dip angle (not aligned with G)
-          final mDip = (magnitude * dipAngle).round(); // sin(60) component
-          measurements.add(CalibrationMeasurement(
-            gx: gDir[0],
-            gy: gDir[1],
-            gz: gDir[2],
-            // M is perpendicular component + dip component
-            mx: gDir[0] ~/ 2 + (gDir[2] != 0 ? 0 : mDip),
-            my: gDir[1] ~/ 2 + (gDir[2] != 0 ? mDip : 0),
-            mz: gDir[2] ~/ 2 + (gDir[0] != 0 ? mDip : (gDir[1] != 0 ? mDip : 0)),
-            index: index,
-            enabled: true,
-            group: CalibrationData.defaultGroup(index),
-          ));
-          index++;
+        // Azimuth is undefined when the laser points straight up or down.
+        if (orientation.pitch.abs() < 85) {
+          expect(_angleDiff(r.azimuth, orientation.yaw).abs(), lessThan(0.05),
+              reason: 'shot $i azimuth');
         }
       }
-
-      // Add 4 more to reach minimum of 28 for good distribution
-      for (int i = 0; i < 4; i++) {
-        measurements.add(CalibrationMeasurement(
-          gx: magnitude,
-          gy: 0,
-          gz: 0,
-          mx: magnitude ~/ 2,
-          my: (magnitude * dipAngle).round(),
-          mz: 0,
-          index: index,
-          enabled: true,
-        ));
-        index++;
-      }
-
-      final result = await algorithm.compute(measurements);
-
-      expect(result.coefficients, isNotNull);
-      // Note: with synthetic data, RMS error may be higher
-      expect(result.rmsError, greaterThanOrEqualTo(0));
-
-      // Calibrated vectors should all have reasonable magnitude (not near zero)
-      for (final r in result.results) {
-        expect(r.gMagnitude, greaterThan(0.01));
-        expect(r.mMagnitude, greaterThan(0.01));
-      }
     });
 
-    test('calibrates with scaled sensor data', () async {
-      // Generate measurements with scale factor applied
-      // This tests that the algorithm handles sensors that need scaling
-      final measurements = _generateStandardMeasurements();
+    test('coefficients survive the 48-byte device round trip', () async {
+      final result = await algorithm.compute(_syntheticCalibration().measurements);
+      final c = result.coefficients;
 
-      final result = await algorithm.compute(measurements);
+      // The A matrices act on raw counts scaled by rawUnit, so their diagonal
+      // must be around 1, not around 1/16000 (which would quantize to 0 or 1).
+      for (final v in [c.aG.get(0, 0), c.aG.get(1, 1), c.aG.get(2, 2)]) {
+        expect(v, greaterThan(0.1), reason: 'aG diagonal $v too small');
+        expect(v, lessThan(2.0), reason: 'aG diagonal $v too large');
+      }
 
-      expect(result.coefficients, isNotNull);
-      expect(result.rmsError, greaterThanOrEqualTo(0));
-
-      // Calibration should produce finite, reasonable matrix elements
-      final aG = result.coefficients.aG;
+      final restored = CalibrationCoefficients.fromBytes(c.toBytes());
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          expect(aG.get(i, j).isFinite, true);
-          expect(aG.get(i, j).abs(), lessThan(10)); // Reasonable bounds
+          expect(restored.aG.get(i, j), closeTo(c.aG.get(i, j), 1e-4));
+          expect(restored.aM.get(i, j), closeTo(c.aM.get(i, j), 1e-4));
         }
       }
+      expect(restored.bG.x, closeTo(c.bG.x, 1e-4));
+      expect(restored.bG.y, closeTo(c.bG.y, 1e-4));
+      expect(restored.bG.z, closeTo(c.bG.z, 1e-4));
     });
 
-    test('converges within max iterations', () async {
-      final measurements = _generateStandardMeasurements();
-      final result = await algorithm.compute(measurements);
-
-      expect(result.iterations, greaterThan(0));
-      expect(result.iterations, lessThanOrEqualTo(CalibrationAlgorithm.maxIterations));
+    test('enforces the y-z symmetry of the G matrix', () async {
+      final result = await algorithm.compute(_syntheticCalibration().measurements);
+      final aG = result.coefficients.aG;
+      expect(aG.get(1, 2), closeTo(aG.get(2, 1), 1e-12));
     });
 
-    test('produces consistent alpha angles', () async {
-      // After good calibration, all alpha angles should be similar
-      // (alpha = angle between G and M, i.e., the dip angle)
-      final measurements = _generateStandardMeasurements();
-      final result = await algorithm.compute(measurements);
+    test('raw sensor vectors are not mutated by the computation', () async {
+      final measurements = _syntheticCalibration().measurements;
+      final before = [for (final m in measurements) m.gVector.clone()];
 
-      expect(result.results.isNotEmpty, true);
+      await algorithm.compute(measurements);
 
-      // Compute mean and check all are within tolerance
-      final alphas = result.results.map((r) => r.alpha).toList();
-      final meanAlpha = alphas.reduce((a, b) => a + b) / alphas.length;
-
-      for (final alpha in alphas) {
-        expect(alpha, closeTo(meanAlpha, 10.0),
-            reason: 'Alpha angles should be consistent');
+      for (int i = 0; i < measurements.length; i++) {
+        expect(measurements[i].gVector.x, before[i].x, reason: 'shot $i gx');
+        expect(measurements[i].gVector.y, before[i].y, reason: 'shot $i gy');
+        expect(measurements[i].gVector.z, before[i].z, reason: 'shot $i gz');
       }
     });
 
-    test('results count matches enabled measurements', () async {
-      final measurements = _generateStandardMeasurements();
+    test('result order follows input order, not group order', () async {
+      final data = _syntheticCalibration();
 
-      // Disable some measurements
-      final modified = measurements.asMap().entries.map((e) {
-        return e.value.copyWith(enabled: e.key % 3 != 0); // Disable every 3rd
-      }).toList();
+      // Interleave the groups so that same-group measurements are no longer
+      // adjacent in the list.
+      final shuffled = <CalibrationMeasurement>[];
+      final orientations = <_Orientation>[];
+      for (int roll = 0; roll < 4; roll++) {
+        for (int dir = 0; dir < 14; dir++) {
+          final i = dir * 4 + roll;
+          shuffled.add(data.measurements[i]);
+          orientations.add(data.orientations[i]);
+        }
+      }
 
-      final enabledCount = modified.where((m) => m.enabled).length;
+      final result = await algorithm.compute(shuffled);
 
-      // Ensure we still have enough
-      if (enabledCount >= CalibrationAlgorithm.minMeasurements) {
-        final result = await algorithm.compute(modified);
-        expect(result.results.length, enabledCount);
+      expect(result.rmsError, lessThan(0.01));
+      for (int i = 0; i < shuffled.length; i++) {
+        expect(result.results[i].inclination,
+            closeTo(orientations[i].pitch, 0.05),
+            reason: 'shot $i inclination');
       }
     });
 
+    test('treats ungrouped measurements as free measurements', () async {
+      final data = _syntheticCalibration();
+
+      // Drop the group from the last roll of every direction. Those become
+      // free measurements and must still get a result.
+      final measurements = [
+        for (int i = 0; i < data.measurements.length; i++)
+          i % 4 == 3
+              ? data.measurements[i].copyWith(clearGroup: true)
+              : data.measurements[i],
+      ];
+
+      final result = await algorithm.compute(measurements);
+
+      expect(result.results.length, measurements.length);
+      expect(result.rmsError, lessThan(0.01));
+      for (int i = 0; i < measurements.length; i++) {
+        expect(result.results[i].inclination,
+            closeTo(data.orientations[i].pitch, 0.05),
+            reason: 'shot $i inclination');
+      }
+    });
+
+    test('results align with the enabled measurements', () async {
+      final data = _syntheticCalibration();
+      final modified = [
+        for (int i = 0; i < data.measurements.length; i++)
+          data.measurements[i].copyWith(enabled: i % 5 != 0),
+      ];
+      final expectedPitches = [
+        for (int i = 0; i < data.measurements.length; i++)
+          if (i % 5 != 0) data.orientations[i].pitch,
+      ];
+
+      final result = await algorithm.compute(modified);
+
+      expect(result.results.length, expectedPitches.length);
+      for (int i = 0; i < expectedPitches.length; i++) {
+        expect(result.results[i].inclination, closeTo(expectedPitches[i], 0.5),
+            reason: 'result $i inclination');
+      }
+    });
+
+    test('tolerates sensor noise', () async {
+      final data = _syntheticCalibration(noiseCounts: 40);
+      final result = await algorithm.compute(data.measurements);
+
+      // 40 counts of noise on a ~16000 count full scale is ~0.25%, which the
+      // paper puts at well under a degree of direction error.
+      expect(result.rmsError, lessThan(1.0),
+          reason: 'RMS error ${result.rmsError} deg');
+      for (int i = 0; i < data.measurements.length; i++) {
+        if (data.orientations[i].pitch.abs() >= 85) continue;
+        expect(_angleDiff(result.results[i].azimuth, data.orientations[i].yaw)
+            .abs(),
+            lessThan(2.0),
+            reason: 'shot $i azimuth');
+      }
+    });
   });
 
   group('CalibrationResult', () {
@@ -610,96 +627,144 @@ void main() {
   });
 }
 
-// Helper functions for generating test data
+// ===========================================================================
+// Ground-truth test data
+//
+// The device frame is x = forward (laser), y = right, z = down. Equation 2 of
+// docs/distox/Calibration.txt gives the exact sensor directions for a device
+// at yaw (azimuth) psi, pitch (inclination) theta and roll phi:
+//
+//   gt = Rx(-phi) o Ry(-theta) o z
+//   mt = Rx(-phi) o Ry(-theta) o Rz(-psi) o Ry(alpha) o z
+//
+// where alpha is the angle between gravity and the magnetic field.
+// A synthetic sensor then turns those unit vectors into raw counts via a
+// known affine distortion, which the calibration has to undo.
+// ===========================================================================
 
-/// Generate 14 well-distributed directions for calibration.
-/// These approximate the recommended calibration orientations:
-/// - 4 horizontal directions (N, E, S, W)
-/// - 4 intermediate horizontal (NE, SE, SW, NW)
-/// - 3 upward tilted
-/// - 3 downward tilted
-List<Vector3> _generate14Directions() {
-  final directions = <Vector3>[];
+/// Angle between gravity and the magnetic field used by the test data
+/// (alpha = 90 - dip; 27 deg is a typical central-European value).
+const double _alphaDeg = 27.0;
 
-  // 4 cardinal horizontal directions
-  directions.add(Vector3(1, 0, 0)); // +X (East)
-  directions.add(Vector3(0, 1, 0)); // +Y (North)
-  directions.add(Vector3(-1, 0, 0)); // -X (West)
-  directions.add(Vector3(0, -1, 0)); // -Y (South)
+double _rad(double deg) => deg * math.pi / 180;
 
-  // 4 intermediate horizontal
-  final sqrt2 = math.sqrt(2) / 2;
-  directions.add(Vector3(sqrt2, sqrt2, 0)); // NE
-  directions.add(Vector3(sqrt2, -sqrt2, 0)); // SE
-  directions.add(Vector3(-sqrt2, -sqrt2, 0)); // SW
-  directions.add(Vector3(-sqrt2, sqrt2, 0)); // NW
+Matrix3 _rotX(double w) => matrix3FromRowMajor([
+      1, 0, 0, //
+      0, math.cos(w), -math.sin(w), //
+      0, math.sin(w), math.cos(w), //
+    ]);
 
-  // 3 upward tilted (~45 degrees up)
-  final tilt = math.sqrt(2) / 2;
-  directions.add(Vector3(tilt, 0, tilt)); // +X up
-  directions.add(Vector3(0, tilt, tilt)); // +Y up
-  directions.add(Vector3(-tilt, 0, tilt)); // -X up
+Matrix3 _rotY(double w) => matrix3FromRowMajor([
+      math.cos(w), 0, math.sin(w), //
+      0, 1, 0, //
+      -math.sin(w), 0, math.cos(w), //
+    ]);
 
-  // 3 downward tilted (~45 degrees down)
-  directions.add(Vector3(tilt, 0, -tilt)); // +X down
-  directions.add(Vector3(0, tilt, -tilt)); // +Y down
-  directions.add(Vector3(0, -tilt, -tilt)); // -Y down
+Matrix3 _rotZ(double w) => matrix3FromRowMajor([
+      math.cos(w), -math.sin(w), 0, //
+      math.sin(w), math.cos(w), 0, //
+      0, 0, 1, //
+    ]);
 
-  return directions;
+/// Exact gravity and magnetic field vectors for a device orientation
+/// (all angles in degrees), per equation 2.
+(Vector3, Vector3) _trueVectors(
+  double yaw,
+  double pitch,
+  double roll,
+  double alpha,
+) {
+  final down = Vector3(0, 0, 1);
+  final body = _rotX(-_rad(roll)).multiplied(_rotY(-_rad(pitch)));
+  final field = body.multiplied(_rotZ(-_rad(yaw))).multiplied(_rotY(_rad(alpha)));
+  return (body.transformVector(down), field.transformVector(down));
 }
 
-/// Rotate a direction vector to simulate magnetic dip angle.
-/// The magnetic field is not parallel to gravity - there's a dip angle.
-Vector3 _rotateForDip(Vector3 dir, double dipAngle) {
-  // Simple rotation: add a vertical component based on dip
-  final cosD = math.cos(dipAngle);
-  final sinD = math.sin(dipAngle);
-
-  // Rotate around an axis perpendicular to dir
-  // For simplicity, we'll just blend horizontal and vertical components
-  return Vector3(
-    dir.x * cosD,
-    dir.y * cosD,
-    dir.z * cosD + sinD,
-  ).normalized();
+/// Difference between two angles in degrees, normalized to [-180, 180].
+double _angleDiff(double a, double b) {
+  var d = (a - b) % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
 }
 
-/// Generate a standard set of 56 measurements for testing.
-List<CalibrationMeasurement> _generateStandardMeasurements() {
+class _Orientation {
+  final double yaw;
+  final double pitch;
+  final double roll;
+  const _Orientation(this.yaw, this.pitch, this.roll);
+}
+
+class _SyntheticCalibration {
+  final List<CalibrationMeasurement> measurements;
+  final List<_Orientation> orientations;
+  const _SyntheticCalibration(this.measurements, this.orientations);
+}
+
+/// The 14 directions of the calibration procedure recommended in the paper:
+/// the 6 face centres and the 8 vertices of a cube seen from its centre.
+const List<(double yaw, double pitch)> _standardDirections = [
+  (0, 0), (90, 0), (180, 0), (270, 0), // 4 horizontal
+  (0, 90), (0, -90), // straight up / down
+  (45, 35.3), (135, 35.3), (225, 35.3), (315, 35.3), // upper vertices
+  (45, -35.3), (135, -35.3), (225, -35.3), (315, -35.3), // lower vertices
+];
+
+/// 56 measurements (14 directions x 4 roll angles) generated from a known
+/// sensor distortion, so the calibration has an exact answer to find.
+///
+/// [noiseCounts] adds a deterministic pseudo-random perturbation of up to
+/// that many raw counts to every sensor axis.
+_SyntheticCalibration _syntheticCalibration({int noiseCounts = 0}) {
+  // Sensor model: counts = P o trueVector + q, with gain/skew errors, a
+  // slight misalignment between sensors and laser, and a sizeable magnetic
+  // offset (the battery).
+  final pG = matrix3FromRowMajor([
+    16200, 130, -90, //
+    -70, 15850, 210, //
+    140, 60, 16050, //
+  ]);
+  final qG = Vector3(180, -240, 95);
+  final pM = matrix3FromRowMajor([
+    14900, -260, 175, //
+    310, 15400, -120, //
+    -85, 195, 15100, //
+  ]);
+  final qM = Vector3(-620, 410, 730);
+
+  // Deterministic "noise" so failures are reproducible.
+  final rng = math.Random(20250831);
+  int noise() => noiseCounts == 0
+      ? 0
+      : (rng.nextDouble() * 2 * noiseCounts - noiseCounts).round();
+
   final measurements = <CalibrationMeasurement>[];
-  const baseMagnitude = 16000.0;
-  const dipAngle = 60 * math.pi / 180; // 60 degree dip
-
-  final directions = _generate14Directions();
+  final orientations = <_Orientation>[];
 
   int index = 1;
-  for (final dir in directions) {
-    for (int roll = 0; roll < 4; roll++) {
-      // Simulate different roll angles with small variations
-      // For simplicity, just use the direction with small variations
-      final gx = (dir.x * baseMagnitude + roll * 10).round();
-      final gy = (dir.y * baseMagnitude + roll * 10).round();
-      final gz = (dir.z * baseMagnitude + roll * 10).round();
-
-      final mDir = _rotateForDip(dir, dipAngle);
-      final mx = (mDir.x * baseMagnitude).round();
-      final my = (mDir.y * baseMagnitude).round();
-      final mz = (mDir.z * baseMagnitude).round();
+  for (int d = 0; d < _standardDirections.length; d++) {
+    final (yaw, pitch) = _standardDirections[d];
+    for (int r = 0; r < 4; r++) {
+      final roll = r * 90.0;
+      final (gt, mt) = _trueVectors(yaw, pitch, roll, _alphaDeg);
+      final gs = pG.transformVector(gt) + qG;
+      final ms = pM.transformVector(mt) + qM;
 
       measurements.add(CalibrationMeasurement(
-        gx: gx,
-        gy: gy,
-        gz: gz,
-        mx: mx,
-        my: my,
-        mz: mz,
+        gx: gs.x.round() + noise(),
+        gy: gs.y.round() + noise(),
+        gz: gs.z.round() + noise(),
+        mx: ms.x.round() + noise(),
+        my: ms.y.round() + noise(),
+        mz: ms.z.round() + noise(),
         index: index,
         enabled: true,
-        group: CalibrationData.defaultGroup(index),
+        group: d,
       ));
+      orientations.add(_Orientation(yaw, pitch, roll));
       index++;
     }
   }
 
-  return measurements;
+  return _SyntheticCalibration(measurements, orientations);
 }

@@ -1,0 +1,1563 @@
+A General Calibration Algorithm for 3-Axis
+Compass/Clinometer Devices
+Beat HEEB, Switzerland
+Sept 2009
+This article describes a general algorithm for the calibration of 3-axis electronic compass/clinometer
+systems and gives an analysis of its properties. The algorithm presented is fast and accurate and
+makes minimal assumptions about the calibration environment.
+Introduction
+Electronic 3-axis compass/clinometer systems proved to be very useful for compact survey
+instruments. They allow the determination of the precise orientation of the device in space relative to
+gravitation and the earth magnetic field. Such a system works for any direction with any orientation of
+the device. There are no levelling requirements and no restriction on steepness.
+Due to manufacturing tolerances and external influences, such a system inevitably reveals certain
+errors. Among them are:
+- Offset and gain errors of the sensors.
+- Sensors mounted with incorrect angles.
+- Angular errors between the sensors and the Laser beam.
+- Influences of the battery and other metal parts on the magnetic field.
+Fortunately, all these errors can be eliminated relatively easily by a linear correction function applied
+to the sensor values before evaluation. The remainder of this article describes a method to calculate
+the coefficients of this correction function from a set of calibration measurements.
+The Calibration Function
+The calculation of the calibration function unavoidably includes a lot of vector and matrix algebra. In
+the following bold capital letters (A) are used for three dimensional matrices and small letters with an
+r
+arrow ( a ) for 3 dimensional (column) vectors. Appendix A contains a summary of the vector and
+matrix operations used.
+For the analysis of the problem, it is convenient to work in the local
+coordinate system of the device instead of a fixed, earth-referenced
+system. We generally use a coordinate system with the x-axis in forward
+(Laser beam) direction, y to the right, and z down (Fig. 1).
+If the gravity and magnetic field sensors are mounted along these axes, the
+values read from them naturally form two vectors in our coordinate
+r
+r
+system: The gravity vector gsi and the magnetic field vector msi , where i
+runs over all measurements used for the calibration.
+r
+To apply calibration corrections we introduce the result vectors gri and
+r
+mri connected to the sensor values by a linear function:
+r
+r
+r
+gri = G o gsi + gd
+1)
+r
+r
+r
+mri = M o msi + md
+
+x
+y
+z
+
+For the final direction measurements, the result vectors are used to compute the azimuth and
+inclination angles.
+During calibration, the goal is to find values for the two matrices G and M and the two offset vectors
+r
+r
+gd and md such that the errors are minimized. To get a measure for the quality of a calibration we
+r
+r
+introduce the ‘true’ vectors gti and mti . These are the theoretical exact gravity and magnetic field
+vectors for a given orientation of the device. The magnitude of the two vectors has no influence on the
+calibration and the final direction calculations. It is therefore arbitrarily set to one.
+To characterize the orientation of the device in space we use the yaw, pitch, and roll angles (also
+known as Tait-Bryan rotations or z-y-x Euler angles) given as follows:
+- Start with the device in normal position, z axis down and x axis pointing to north.
+- Turn the device around the local z-axis by the yaw angle ψ (= azimuth).
+- Turn the device around the local y-axis by the pitch angle θ (= inclination).
+- Turn the device around the local x-axis by the roll angle φ.
+In normal position the gravity vector points down along the z-axis:
+r
+r
+gt normal = z = [0 0 1]
+The magnetic field is slightly more complicated. At the equator it points in the direction of the x-axis.
+At all other places it includes a vertical part. In general it can be written as:
+r
+r
+mt normal = R yr (α ) o z
+Where α is the angle between the magnetic field vector and the gravity vector. It is connected to the
+dip angle, the (negated) inclination of the magnetic field lines as follows:
+
+α = 90° − dip
+At the equator dip is 0 and α is 90°. In the northern hemisphere dip and α are both between 0 and 90°.
+In the southern hemisphere dip is negative and α is between 90° and 180°.
+Now if we turn the device around a given axis by a given angle both
+vectors turn around the same axis but in the opposite direction because it
+is the coordinate system which turns, the vectors are globally fixed (Fig.
+2). If we apply all rotations as stated above we get the following general
+form of the true vectors:
+r
+r
+gti = R xr (−ϕi ) o R yr (−θ i ) o z
+2)
+r
+r
+mti = R xr (−ϕi ) o R yr (−θi ) o R zr (−ψ i ) o R yr (α ) o z
+
+x
+
+x
+m
+
+ψ
+
+m -ψ
+
+Solving these equations for θ and Ψ gives the well known equations needed to get the final azimuth
+and inclination angles from the measured vectors:
+
+r
+
+r
+
+r
+
+θ = − arctan( grx , gry 2 + grz 2 )
+r r
+r r
+r r
+r 2 r
+r r
+ψ = arctan(( gry ⋅ mrz − grz ⋅ mry ) ⋅ gr , mrx ⋅ gr − grx ⋅ ( gr • mr ))
+
+3)
+
+Arctan is used here in the sense of the computer function arctan2(y, x) = argument of the vector [x, y]
+in the range ±π. For an alternate derivation see [1].
+For the calibration the true vectors can be used to define the error of a set of calibration measurements
+as the RMS average of the distances between the calculated and the true vectors:
+
+E2 =
+
+r
+r 2 r
+r 2
+1
+⋅ ∑ gri − gti + mri − mti
+n i
+
+4)
+
+Now suppose for the moment we have a calibration environment which allows us to measure the
+device orientation angles exactly for each of a set of calibration measurements. This allows us to
+calculate the true vectors for each measurement using equations 2). To get an optimal calibration we
+r
+r
+simply search for G, M, gd , and md such that the squared error gets minimal.
+The minimum can be found algebraically by setting all the partial derivatives to zero:
+r
+r
+r
+r
+∇ G E 2 = n2 ⋅ ∑ (G o gsi + gd − gt i ) ⊗ gsi = 0
+i
+
+r
+r
+r
+r
+∇ M E = ⋅ ∑ (M o msi + md − mt i ) ⊗ msi = 0
+2
+
+2
+n
+
+i
+
+r
+r
+r
+r
+∇ grd E = ⋅ ∑ G o gsi + gd − gt i = 0
+2
+
+2
+n
+
+5)
+
+i
+
+r
+r
+r
+r
+∇ mr d E = ⋅ ∑ M o msi + md − mt i = 0
+2
+
+2
+n
+
+i
+
+The Nabla or Del operator ∇ means a vector or matrix consisting of the derivatives to the elements of
+the given vector or matrix. There is no magic behind this operator; it is just a compact representation
+of the large number of derivatives.
+The equation system can be solved algebraically resulting in:
+r
+r
+r
+r
+Gs = gsi ⊗ gsi − gsi ⊗ gsi
+r
+r
+r
+r
+Ms = msi ⊗ msi − msi ⊗ msi
+r
+r
+r
+r
+G = ( gt i ⊗ gsi − gt i ⊗ gsi ) o Gs −1
+6)
+r
+r
+r
+r
+M = (mt i ⊗ msi − mt i ⊗ msi ) o Ms −1
+r
+r
+r
+gd = gt i − G o gs i
+r
+r
+r
+md = mt i − M o msi
+Averages ( K ) over i are used here instead of sums to avoid the numerous 1/n terms.
+We get a result only if the Gs and Ms matrices are invertible. This can easily be guaranteed if we have
+r
+r
+a large number of measurements and the corresponding gsi and msi vectors are evenly spread over all
+r
+r
+possible directions. In this case the average gsi and msi vectors as well as the non-diagonal elements
+r
+r
+r
+r
+of the gsi ⊗ gsi and msi ⊗ msi matrices cancel out statistically. The sum of the diagonal elements of
+either of these matrices is equal to the square of the length of the corresponding sensor vector. The
+average matrices can therefore be approximated as:
+r 2
+Gs ≅ 13 ⋅ gsi ⋅ I
+
+r 2
+Ms ≅ 13 ⋅ msi ⋅ I
+
+with the identity matrix I.
+If the spreading is not perfect, the matrices are no longer diagonal but the diagonal elements are still
+dominant and the matrices are still invertible.
+In reality not all of the orientation angles of the calibration measurements are known. In this case we
+simply treat all not a priori known angles as additional unknown of the optimization problem. This
+results in a much larger but still manageable equation system.
+Three types of measurements are common in practice:
+
+1) Known Direction
+The traditional approach to calibration is to measure a given course of precisely known survey
+stations. A calibration procedure for such a setup is for instance described in [1].
+For given survey stations, we know the direction and therefore the ψ and θ angles but not the roll
+angle φ. This gives us a new unknown ϕi and a new equation for each measurement:
+∀i :
+
+∂E 2 2 r r r 2 r r r
+= n ⋅ [ gt i , gri , x ] + n ⋅ [mt i , mri , x ] = 0
+∂ϕ i
+
+7)
+
+To get a replacement for the no longer known true vectors we define the partially turned vectors:
+r
+r
+r
+gpi = gt i (ϕ i = 0) = R yr (−θ i ) o z
+r
+r
+r
+mpi = mt i (ϕ i = 0) = R yr (−θ i ) o R zr (−ψ i ) o R yr (α ) o z
+r
+r
+The true vectors gti and mti can now be approximated using an estimated ϕi :
+r
+r
+gti = R xr (−ϕi ) o gpi
+r
+r
+mti = R xr (−ϕi ) o mpi
+Substitution in 7) gives
+r r r
+r
+r r
+[R xr (−ϕ i ) o gpi , gri , x ] + [R xr (−ϕ i ) o mpi , mri , x ] = 0
+
+8)
+
+This can be solved as
+r r r
+r
+r r
+[ gpi , gri , x ] + [mpi , mri , x ]
+tan(ϕ i ) = r
+r r r
+r
+r r r
+[ gpi × x , gri , x ] + [mpi × x , mri , x ]
+9)
+r r
+r r
+r
+r
+r
+r
+grz ⋅ gp y − gry ⋅ gp z + mrz ⋅ mp y − mry ⋅ mp z
+= r r
+r r
+r
+r
+r
+r
+gry ⋅ gp y + grz ⋅ gp z + mry ⋅ mp y + mrz ⋅ mp z
+r
+r
+We assume here that gri and mri are given vectors. However, their values depend on the calibration
+coefficients which in turn depend on true vectors and thus on the ϕi . So we have to solve the system
+consisting of equations 5) and 8) simultaneously. This can no longer be done algebraically but it can
+easily be done iteratively by applying 6) and 9) in turn until the result stabilizes.
+2) Free Measurements
+The method mentioned above is only useful if we have access to a set of precisely known survey
+stations. In practice it would be very desirable to have a way to do a calibration any time at any place.
+To approach this goal we examine the case of a set of free measurements without any known direction
+angles. This means all angles ψ, θ, and φ need to be treated as unknown. In contrast to equation 7)
+where we search the optimal turn angle around the x axis, we now search for an optimal rotation
+r
+around any axis. Equation 7) is still valid but in addition we can substitute x by any other vector, in
+r
+r
+particular by y and z :
+r r r
+r r r
+[ gt i , gri , x ] + [mt i , mri , x ] = 0
+r r r
+r r r
+[ gt i , gri , y ] + [mt i , mri , y ] = 0
+r r r
+r r r
+[ gt i , gri , z ] + [mt i , mri , z ] = 0
+The three equations above can be combined to:
+r
+r
+r
+r
+r
+gt i × gri + mt i × mri = 0
+
+10)
+
+In addition we have the general properties:
+r
+r
+r r
+gt i = mt i = 1 ∠gt i , mt i = α
+
+11)
+
+r
+r
+Together equations 10) and 11) uniquely define the vectors gti and mti (except for a mirrored
+r
+r
+r
+r
+solution gti′ = − gti and mt i′ = −mt i ). To satisfy equation 10) they have to reside in the same plane as
+r
+r
+gri and mri . Inside this plane they must be rotated such that:
+r
+r
+r
+r r
+r
+r
+r
+r r
+gti × gri = gri ⋅ sin(∠gti , gri ) = mti × mri = mri ⋅ sin(∠mti , mri )
+
+They can be constructed geometrically (Fig. 3) or calculated
+r
+algebraically using the plane normal vector ni :
+r
+r
+r
+ni = gri × mri
+r
+r
+r
+r
+mri′ = mri ⋅ cos(α ) + (mri × ni ) ⋅ sin(α )
+r
+r
+r
+gt i = gri + mri′
+r
+r
+r r
+mt i = gt i ⋅ cos(α ) + (ni × gt i ) ⋅ sin(α )
+
+gr |gr|·sin
+
+mr'
+
+|mr|·sin
+·
+
+12)
+
+Calibration using free measurements has one major drawback: since
+the Laser direction is not used at all, it cannot be used to calibrate
+the angular error between the sensors and the Laser. We therefore
+have to do at least part of the measurements in a given direction.
+However, as we will see in the next section, there is no need to
+know this direction in advance.
+
+mt
+
+·
+
+gr
+
+mr'
+gt
+
+α
+
+·
+mr
+
+3) Unidirectional Groups
+An alternative to free measurements and measurements of known directions is to measure a fixed but
+not a priori known direction several times with various roll angles. Such a set of measurements with
+common ψ and θ but varying φ is called a unidirectional group. Similar to the case of known
+directions we have an unknown φ for each measurement and equations 7) and 9) still apply. In
+addition we have two unknown angles ψ and θ for each group to fix its direction. The corresponding
+equations are equivalent to the case of free measurements except that they are summed up over all
+measurements of the group:
+r
+r
+r
+r
+r
+13)
+∀k : ∑ gt i × gri + mt i × mri = 0
+i∈Sk
+
+Here k runs over all groups and Sk means the set of measurements belonging to group k.
+As in the case of known directions, we define partially turned vectors for each group:
+r
+r
+gpk = R yr (−θ k ) o z
+r
+r
+mpk = R yr (−θ k ) o R zr (−ψ k ) o R yr (α ) o z
+and write the true vectors as:
+r
+r
+∀i ∈ Sk : gt i = R xr (−ϕ i ) o gp k
+14)
+r
+r
+∀i ∈ Sk : mt i = R xr (−ϕ i ) o mp k
+r
+r
+r
+r
+The gpk and mpk can be seen as adapted versions of the gti and mti turned to a common roll angle.
+r
+r
+To be able to find the unknown direction, we introduce similarly adapted versions of the gri and mri
+vectors:
+
+r
+r
+gai = R xr (ϕ i ) o gri
+r
+r
+mai = R xr (ϕ i ) o mri
+
+15)
+
+The choice of the common roll angle is arbitrary and has no influence on the result. Instead of using φ
+= 0, we can as well conform to the roll angle of the first measurement in each group by replacing the
+ϕ i in 14) and 15) with:
+
+δ i = ϕ i − ϕ ik
+where ik is the first i ∈ Sk .
+This makes the algorithm independent of the global reference system and avoids special handling of
+the roll angle ambiguities at θ = ± 90° (gimbal lock).
+Applying R xr (δ i ) to all terms in 13) and substituting the partially turned and adapted vectors we get:
+r
+r
+r
+r
+r
+gp k × gc k + mp k × mc k = 0
+r
+r
+gc k = ∑ ga i
+i∈Sk
+
+r
+r
+mc k = ∑ ma i
+i∈Sk
+
+r
+r
+r
+r
+This has the same form as 10) and allows us to work out gpk and mpk from the vectors gck and mck
+similar to equations 12):
+r
+r
+r
+ni = gck × mck
+r
+r
+r
+r
+r
+gp k = gck + mck ⋅ cos(α ) + (mck × ni ) ⋅ sin(α )
+16)
+r
+r
+r r
+mp k = gp k ⋅ cos(α ) + (ni × gp k ) ⋅ sin(α )
+Equations 16) and 9) must be solved simultaneously because of their circular dependency. Fortunately
+iteration between the two equations converges so fast that a single iteration suffices to solve it with
+high accuracy. In practice we do the following:
+r
+r
+- Get an approximation of the δ i from the relative roll angles of the result vectors gri and mri .
+- Get the adapted vectors from the δ i using equation 15).
+r
+r
+r
+r
+- Get gpk and mpk from gck and mck using equations 16).
+- Get the final δ i using equation 9).
+r
+r
+- Get gti and mti using equation 14).
+
+The Influence of the Magnetic Field
+The shape of the magnetic field, in particular its inclination, is a critical value in our calculations. The
+precision of the corresponding α angle has a direct influence on the accuracy of the resulting
+calibration coefficients. In principle α is known for any location on earth. In practice, however, α is
+hard to figure out because it changes over time and there is an uncertainty because of local magnetic
+anomalies. It is therefore more convenient and more accurate to treat α as an additional unknown of
+the optimization process. This gives us the following new equation:
+r
+r r
+∂E 2 2
+= n ⋅ ∑ [mri , R xr (−ϕ i ) o R yr (−θ i ) o R zr (−ψ i ) o y, mti ] = 0
+∂α
+i
+Isolation of α gives:
+
+r r
+r
+[∑ R zr (ψ i ) o R yr (θi ) o R xr (ϕi ) o mri , y, R yr (α ) o z ] = 0
+i
+
+This can be solved as:
+r
+r
+r
+r
+r
+r
+(∑ R zr (ψ i ) o R yr (θ i ) o R xr (ϕ i ) o mri ) • x ∑ ( gti × mri ) • gt i × mt i
+i
+tan(α ) = i
+r
+r
+r
+r =
+(∑ R zr (ψ i ) o R yr (θ i ) o R xr (ϕ i ) o mri ) • z
+∑ mri • gti
+i
+
+i
+
+r r
+r
+For free measurements where gti , mti , and mri reside in the same plane, it can be simplified to:
+r
+r
+∑i mri × gti
+tan(α ) =
+r
+r
+∑ mri • gti
+i
+
+For unidirectional groups it can be expressed using the adapted vectors:
+r
+r
+∑k mck × gpk
+tan(α ) =
+r
+r
+∑ mck • gpk
+k
+
+Again, these equations circularly depend on all other equations and their evaluation must be included
+in the main iteration loop.
+Note that, although the inclination of the magnet field is a critical value during calibration, the final
+calibration function is independent of it and a calibrated device works equally well everywhere in the
+world.
+The Roll Angle Ambiguity
+A set of calibration measurements consisting of known directions, free measurements, and
+unidirectional groups does not uniquely define the roll angles. If G and M are part of a solution of the
+equation system, so are G′ and M′ given by:
+G ′ = Rxr (ω ) o G
+M ′ = Rxr (ω ) o M
+for any angle ω. Since we are not interested in measuring roll angles, any of these solutions is equally
+well suited for our needs. However, the ambiguity destabilizes the convergence of the main iteration.
+It is therefore advantageous to define the roll angles somehow. A simple way is to enforce a y-z
+symmetry in the G matrix. This means the roll angle is defined by the mounting angles of the y and z
+acceleration sensors. The symmetry can easily be enforced by a replacement of the relevant elements
+of the G matrix at the end of each iteration step:
+G ′yz = G ′zy = 12 (G yz + G zy )
+
+Convergence and Termination Condition
+The question arises how many iterations we have to make in the main iteration loop until the values
+converge to the desired result. In general, according to the Banach fixed point theorem the error of an
+approximation xn after n iterations compared to the precise solution x can be calculated as follows:
+
+xn − x ≤
+
+q
+⋅ x n − x n −1
+1− q
+
+The Lipschitz constant q is the improvement of the precision from step to step. For our algorithm, q is
+mostly independent of the exact values used and can be assumed to be between 0.8 and 0.9 in practice.
+If we repeat the iteration step as long as
+
+max( G n − G n −1 , M n − M n −1 ) > 10 −6
+we can be sure all elements of the final matrices are within 10 −5 of the exact values. This assures the
+error introduced is negligible compared to the uncertainty of the measurements. The errors of the
+offset vectors are ignored here because the elements of these vectors always converge faster than
+those of the matrices.
+The Main Iteration
+The main iteration can be summarized as follows:
+1) Calculate Gs and Ms and their inverse and a first estimation of α .
+r
+r
+r
+2) Set G = M = I and gd = md = 0 .
+r
+r
+r
+r
+r
+r
+3) Get the gri and mri vectors from G, M, gd , md and the gsi and msi .
+r
+r
+r r
+4) Get the gti and mti from gri , mri and α.
+r
+r
+r
+r
+5) Get a new α from mri and gti or mck and gpk .
+r
+r
+r
+r
+6) Get new G, M, gd , and md from the gti and mti .
+7) Enforce G yz = G zy .
+8) Loop to 3) as long as the changes in G and M > 10 −6 .
+Remarks:
+- The matrix inversions of Gs and Ms need to be done only once because the two matrices depend on
+the sensor values only.
+- Measurements with known direction, free measurements, and unidirectional groups may be mixed
+freely inside a set of calibration measurements.
+- Free measurements can be handled as unidirectional groups consisting of a single measurement.
+A pseudo code version of the full algorithm is included in appendix B.
+
+The Calibration Procedure
+As stated earlier, the set of measurements used to calculate a calibration should be taken such that the
+device orientations are evenly spread over the rotation group. Just using randomly selected
+orientations is not a good idea because it turns out to be badly spread in practise. A good choice for a
+well spread set is for instance the rotational symmetry group of a cube. A cube can be placed with any
+of the 6 faces up and in each case any of the 4 side faces may be in front, giving a total of 24
+orientations. Unfortunately it turns out that 24 measurements are not enough for a good calibration. A
+perfect set of 60 orientations is contained in the symmetry group of the
+dodecahedron or icosahedron. However, this set of orientations is not
+useful in practice because it is too complex to be reproduced in the field.
+A proven set of measurements is the following:
+Use the 14 directions given by the middle of the 6 faces and the 8 vertices
+of a cube as seen from its centre. Measure each direction with four evenly
+spread roll angles, giving a total of 56 measurements (Fig. 4).
+
+Representative numerical values:
+Directions 1-4:
+Directions 5-6:
+Directions 7-14:
+
+Azimuth (ψ)
+
+Inclination (θ)
+
+Roll Angle (φ)
+
+0º, 90º, 180º, 270º
+0º
+45º, 135º, 225º, 315º
+
+0º
+90º, -90º
+35.3º, -35.3º
+
+0º, 90º, 180º, 270º
+0º, 90º, 180º, 270º
+0º, 90º, 180º, 270º
+
+How Precise is it?
+Generally, a measuring device is useless if we have no idea how precise it is. It is therefore necessary
+to find a way to quantify the error of the device and the influence of the calibration on it.
+Assume for the moment all the sensors are perfect except for the proposed linear errors and we are
+able to execute the calibration measurements without introducing any additional error. In this case a
+calibration function exists which exactly compensates all the errors leading to a total error E of zero.
+This is obviously the minimum we are running into when the algorithm converges.
+In practice there are additional errors, namely random errors (noise), nonlinearities, and sighting errors
+during the measurements. Since these are all small errors on the input variables of our algorithm, we
+can use error propagation to analyze their influence on the resulting precision.
+Let us first look at a single measurement ignoring calibration for the moment. Equations 3) are used to
+get θ and ψ directly from the measured sensor values. If we assume the sensor errors are random and
+independent, we can use statistical error propagation:
+2
+
+2
+ ∂θ
+r 
+∆g 2
+∆θ = ∑  r ⋅ ∆g i  = ∇ grθ ⋅ ∆g 2 = r 2 = ∆g~ 2
+g
+i  ∂g i
+
+2
+
+2
+
+2
+
+2
+ ∂ψ r 
+ ∂ψ
+r 
+2
+∆ψ = ∑  r ⋅ ∆g i  + ∑  r ⋅ ∆mi  = ∇ grtψ ⋅ ∆g 2 + ∇ mr tψ ⋅ ∆m 2
+i  ∂g i
+i  ∂mi
+
+
+sin(2 ⋅ α ) ⋅ tan(θ ) ⋅ cos(ψ ) + cos(α ) 2 + sin(α ) 2 ⋅ tan(θ ) 2 ~ 2
+1
+~2
+=
+⋅ ∆g +
+⋅ ∆m
+2
+sin(α )
+sin(α ) 2
+2
+
+Where ∆θ and ∆ψ are the errors of the resulting angles, ∆g and ∆m are the absolute errors of the
+~ are the relative errors of the sensors. All of them must be
+individual sensors, and ∆g~ and ∆m
+interpreted as standard deviations of the corresponding values.
+The error of ψ approaches infinity when θ gets near 90°. This is not a bad
+behaviour of the compass; it is a property of the Euler angles. When the
+angles are used to get a direction vector, the influence of ψ decreases
+when θ approaches 90°, and the error of the vector remains small for all
+directions. It is therefore appropriate to use the horizontal and vertical
+components of the error of a unit direction vector instead of the errors of
+the angles (Fig. 5):
+
+∆ψ
+∆h
+∆v=∆θ
+
+∆h = cos(θ ) ⋅ ∆ψ
+∆v = ∆θ
+The horizontal error depends slightly on the direction of the measurement. To get a general
+characteristic value, we use the RMS average of the error over all directions:
+
+∆h 2 =
+
+(
+
+)
+
+1
+2
+~ 2 − 1 ⋅ ∆g~ 2
+∆h 2 ⋅ cos(θ ) ⋅ dθ ⋅ dψ =
+⋅ ∆g~ 2 + ∆m
+2
+∫∫
+4π
+3 ⋅ sin(α )
+3
+
+Not surprisingly, the error increases with decreasing α, i.e. towards the poles. Note, however, that this
+r
+is partially compensated by the fact that the magnitude of the magnetic field ( m ) increases at the
+same time.
+The sighting error is another independent directional error which adds to the sensor induced errors. In
+summary we have:
+
+(
+
+)
+
+2
+~ 2 − 1 ⋅ ∆g~ 2 + ∆d 2
+⋅ ∆g~ 2 + ∆m
+2
+3 ⋅ sin(α )
+3
+2
+2
+2
+~
+∆v = ∆g + ∆d
+
+∆h 2 =
+
+The Influence of the Calibration
+If we add calibration, there is no relevant change to the measurement errors above, but we introduce
+an additional error because of the limited precision of the calibration coefficients. The errors of the
+coefficients are induced by the sensor and sighting errors of the calibration measurements.
+r
+Again they can be calculated using statistical error propagation. To keep things clear, a vector xs is
+r
+r
+used here as a short for all sensor values of all the calibration measurements ( gs & ms ). Another
+r
+r
+r
+vector C represents all 24 calibration coefficients given by G, M, gd , and md :
+2
+r
+2
+
+ ∂ψ ∂C k  
+ ∂h 
+r2
+r2
+∆hcal = ∑  r  ⋅ ∆xi = ∑  cos(θ ) ⋅ ∑  r ⋅ r   ⋅ ∆xi
+
+∂xi  
+i  ∂xi 
+i 
+k  ∂C k
+r
+2
+2
+  ∂θ ∂C k  
+ ∂v 
+r2
+r2
+2
+∆vcal = ∑  r  ⋅ ∆xi = ∑  ∑  r ⋅ r   ⋅ ∆xi
+
+
+∂xi  
+i  ∂xi 
+i  k  ∂C k
+2
+
+Reordering gives:
+r
+r
+∂C k ∂Cl r 2
+∆hcal = ∑ chkl ⋅ r ⋅ r ⋅ ∆xi
+∂xi ∂xi
+ikl
+r
+r
+∂C k ∂Cl r 2
+2
+∆vcal = ∑ cvkl ⋅ r ⋅ r ⋅ ∆xi
+∂xi ∂xi
+ikl
+2
+
+∂ψ ∂ψ
+chkl = cos(θ ) 2 ⋅ r ⋅ r
+∂C k ∂Cl
+cvkl =
+
+∂θ ∂θ
+r ⋅ r
+∂C k ∂Cl
+
+chkl and cvkl are universal coefficients given by equations 3) and 1). To remove their dependency on
+the device orientation during the final measurement, we use the RMS average over all orientations:
+r
+r
+∂C k ∂Cl r 2
+1
+2
+∆hcal = ∑ chkl ⋅
+⋅
+⋅ ∆xi
+chkl = 2 ∫∫∫ chkl ⋅ cos(θ ) ⋅ dθ ⋅ dψ ⋅ dϕ
+∂xi ∂xi
+8π
+ikl
+r
+r
+∂C ∂C
+r2
+1
+2
+∆vcal = ∑ cvkl ⋅ k ⋅ l ⋅ ∆xi
+cvkl = 2 ∫∫∫ cvkl ⋅ cos(θ ) ⋅ dθ ⋅ dψ ⋅ dϕ
+∂xi ∂xi
+8π
+ikl
+Fortunately, most of these coefficients evaluate to zero and some can be eliminated using symmetries.
+The remaining derivatives of C to x are given by the calibration algorithm and depend on the
+calibration procedure used, but not on the final measurement. They cannot be calculated algebraically
+because we do not have a closed representation of the algorithm. They can, however, easily be
+evaluated numerically for any given calibration procedure and a given α angle. To do this, we evaluate
+the full calibration algorithm several times with one of the input values offset by a small amount at
+each run.
+
+In summary, both the measurement error and the influence of the calibration can be written in a simple
+form using 6 coefficients given for a specific calibration:
+2
+~ 2 + hd ⋅ ∆d 2
+∆h = hg ⋅ ∆g~ 2 + hm ⋅ ∆m
+2
+~ 2 + vd ⋅ ∆d 2
+∆v = vg ⋅ ∆g~ 2 + vm ⋅ ∆m
+
+17)
+
+The following table shows the values of these coefficients for the measurement errors and some
+selected calibration procedures:
+M:
+Ug4:
+Ug6:
+Uga:
+Kd:
+Kd+:
+
+Error of individual measurement.
+Influence of calibration using 4 unidirectional groups (horizontal directions).
+Influence of calibration using 6 unidirectional groups (horizontal and vertical directions).
+Influence of calibration using unidirectional groups for all directions.
+Influence of calibration using known directions.
+Influence of error of known directions.
+hg
+0.33
+0.07
+0.05
+0.04
+0.03
+
+M
+Ug4
+Ug6
+Uga
+Kd
+Kd+
+
+hm
+0.67
+0.12
+0.09
+0.07
+0.06
+
+α =90°
+hd
+vg
+1.00 1.00
+0.08 0.13
+0.06 0.11
+0.05 0.09
+0.05 0.07
+0.04
+
+vm
+0.00
+0.05
+0.02
+0.01
+0.01
+
+vd
+1.00
+0.08
+0.06
+0.04
+0.06
+0.06
+
+hg
+2.33
+0.30
+0.26
+0.22
+0.18
+
+hm
+2.67
+0.35
+0.31
+0.26
+0.22
+
+α =30°
+hd
+vg
+1.00 1.00
+0.12 0.13
+0.09 0.11
+0.07 0.09
+0.09 0.07
+0.06
+
+vm
+0.00
+0.04
+0.02
+0.01
+0.01
+
+vd
+1.00
+0.11
+0.07
+0.04
+0.06
+0.06
+
+The main usage of these numbers is to assure the error induced by the calibration is small compared to
+the error of the measurement itself. As can be seen, this is achieved even if we use unidirectional
+groups for the 4 horizontal directions only and use free measurements otherwise (row Ug4). All
+calibration coefficients are less than 20% of the corresponding coefficients of the measurement errors.
+Since the errors are squared in the equations, we can be sure the calibration adds less than 10% to the
+total error.
+In the case of measurements of known directions an additional error is introduced because the given
+directions are themselves not precisely known. The coefficients belonging to these additional errors
+are given in the row Kd+. It can be seen that known directions do not lead to significantly better
+results compared to unidirectional groups. Even worse, if the predefined directions are not very
+precisely known, the additional errors easily outweigh the improvements.
+Quantifying the Error
+So far, we still have no absolute measure for the resulting error. To get a hint for the achieved
+precision, we calculate the error value E given by equation 4) during evaluation of the calibration
+algorithm. To relate E to the precision, we work out the standard deviation of a set of values d i
+r
+r
+r
+r
+consisting of the components of the differences grij − gtij and mrij − mtij such that:
+E2 =
+
+r
+r 2 r
+r 2 1
+1
+2
+⋅ ∑ gri − gti + mri − mti = ⋅ ∑ d i
+n i
+n i
+
+The standard deviation of this set can be computed statistically:
+S (d i ) 2 =
+
+2
+1
+1
+1
+2
+2
+⋅ ∑ d i −d i =
+⋅ ∑ di = ⋅ E 2
+6n i
+6n i
+6
+
+Or analytically using error propagation:
+
+2
+
+2
+
+ ∂d 
+ ∂E 
+r2 1
+r2
+1
+1
+2
+S (d i ) =
+⋅ ∑ ∆d i =
+⋅ ∑  r i  ⋅ ∆x j = ⋅ ∑  r  ⋅ ∆x j
+6n i
+6n ij  ∂x j 
+6 j  ∂x j 
+2
+
+Comparison of the two representations gives:
+2
+
+ ∂E 
+r2
+E = ∑  r  ⋅ ∆x j
+
+
+j  ∂x j 
+2
+
+As above, the derivatives of E can be evaluated numerically for any given calibration procedure,
+resulting in an equation for the error function E similar to equations 17):
+~ 2 + ed ⋅ ∆d 2
+E 2 = eg ⋅ ∆g~ 2 + em ⋅ ∆m
+This equation does not suffice to calculate the errors exactly but it gives us some constraints and in
+particular it can be used to a get an upper bound of the relevant errors:
+∆h 2 ≤ E 2 ⋅ max(
+
+hg hm hd
+,
+, )
+eg em ed
+
+∆v 2 ≤ E 2 ⋅ max(
+
+vg vm vd
+, , )
+eg em ed
+
+For hg, hm, hd, vg, vm, and vd we have to use the sum of the measurement and calibration errors.
+For the standard procedure with 4 unidirectional groups we get the following numbers:
+
+Ug4
+Ug4
+
+eg
+1.46
+
+em
+1.54
+
+α =90°
+ed
+0.45
+
+hg/eg
+
+hm/em
+
+hd/ed
+
+vg/eg
+
+vm/em
+
+0.27
+
+0.51
+
+2.38
+
+0.77
+
+0.03
+
+eg
+1.50
+
+em
+1.50
+
+α =30°
+ed
+0.37
+
+vd/ed
+
+hg/eg
+
+hm/em
+
+hd/ed
+
+vg/eg
+
+vm/em
+
+vd/ed
+
+2.38
+
+1.76
+
+2.01
+
+3.01
+
+0.76
+
+0.03
+
+2.99
+
+The table shows a maximal quotient of 3 and therefore we have a maximal error of
+measures this corresponds to an error of 1° for an E of 1%.
+
+3 ⋅E . In angular
+
+Be aware that this relation must be used with care. It is not a strict limit for the error of each individual
+measurement. Instead it is a statistical measure for the average error over many measurements. In
+addition we postulated independent random errors which is not necessarily the case, especially for
+nonlinearities and systematic errors during calibration.
+Conclusions
+It can be shown that 3-axis compass/clinometer devices can be calibrated without relying on a given
+calibration course. This allows recalibration of the device at any time in the field.
+The precision degradation introduced by improper calibration measurements can be analyzed
+mathematically. For the presented standard calibration procedure, the additional errors are negligible
+compared to the error of the measurement itself.
+The algorithm presented is used in the “paperless caving” system [2] to calibrate the DistoX, an all-inone electronic cave surveying device [3].
+Experience shows that calibration must be repeated from time to time to avoid performance
+degradation due to component drift and aging. In devices using primary batteries, a calibration is
+needed after each battery change because the battery is unavoidably the main source of magnetic
+disturbance and new batteries never have exactly the same behaviour as the old ones.
+
+References
+[1] Phil Underwood: Calibrating a combined electronic compass/clinometer; Compass Points 37, 5-7;
+BCRA Cave Surveying Group; http://shetlandattackpony.co.uk.
+[2] Beat Heeb: Paperless Caving - An Electronic Cave Surveying System; Proceedings of the IV
+European Speleological Congress 2008, p. 130-133; http://paperless.bheeb.ch.
+[3] Beat Heeb: An All-In-One Electronic Cave Surveying Device; CREG Journal 72; BCRA Cave
+Radio and Electronics Group.
+
+Appendix A: Vector and Matrix Operations Used
+Operators:
+
+⋅ : Standard Product of scalar numbers
+
+r
+r
+o : Matrix Product ( (M o N) ij = ∑ M ik ⋅ N kj , (M o a ) i = ∑ M ik ⋅ a k )
+r r r r
+r r
+• : Dot or Scalar Product (a • b = a T o b = ∑ ai ⋅ bi )
+r r r r r r r r r r r r r r
+× : Cross or Vector Product (a × b = a y ⋅ bz − a z ⋅ b y a z ⋅ bx − a x ⋅ bz a x ⋅ b y − a y ⋅ bx )
+r r r r r r
+r r
+⊗ : Outer or Kronecker Product (a ⊗ b = a o b T , (a ⊗ b ) ij = ai ⋅ b j )
+r r r r r r
+r r r
+r r r
+[, , ] : Scalar Triple Product ([a , b , c ] = (a × b ) • c = (b × c ) • a = (c × a ) • b )
+r
+r r
+: Norm or Length of Vector ( a = a • a )
+r
+r
+: NormalizedVector ( a = 1 ar ⋅ a )
+r
+r r
+r
+∠ : Angle between two vectors (∠a , b = arccos( a • b )
+
+[
+
+]
+
+: Max Norm of Matrix ( M = max (M ij ))
+ij
+
+Rotation matrices:
+
+0
+1
+
+R xr (ω ) = 0 cos ω
+0 sin ω
+
+
+− sin ω 
+cos ω 
+0
+
+ cos ω 0 sin ω 
+R yr (ω ) =  0
+1
+0 
+− sin ω 0 cos ω 
+
+cos ω
+R zr (ω ) =  sin ω
+ 0
+
+− sin ω 0
+cos ω 0
+0
+1
+
+Useful Identities:
+r r r r r r r r r
+a × (b × c ) = b ⋅ (a • c ) − c ⋅ (a • b )
+r r r r r r r r r
+(a × b ) × c = b ⋅ (a • c ) − a ⋅ (b • c )
+r r
+r r
+r r r r
+r r r r
+r r r r r r r r
+r r r r
+(a × b ) • (c × d ) = [a × b , c , d ] = [a , b , c × d ] = ((a × b ) × c ) • d = (a • c ) ⋅ (b • d ) − (a • d ) ⋅ (b • c )
+r r r
+r
+(R vr (ω ) o a ) • (R vr (ω ) o b ) = a • b
+r
+r
+r r
+(R vr (ω ) o a ) × (R vr (ω ) o b ) = R vr (ω ) o (a × b )
+r
+r
+r
+r r r
+[R vr (ω ) o a , R vr (ω ) o b , R vr (ω ) o c ] = [a , b , c ]
+Derivatives:
+r2
+r
+∇ vr v = 2 ⋅ v
+r r r
+r
+r r
+∇ M (a T o M o b ) = a o b T = a ⊗ b
+
+r r
+r
+∂ r
+R v (ω ) o a = v × (R vr (ω ) o a )
+∂ω
+
+Appendix B: The Calibration Algorithm
+// Get calibration coefficients from a set of sensor values
+r r
+r r
+Calibrate( gsi , msi → G , M, gd , md ) {
+r
+r
+r
+avgs = avms = 0; avG = avM = 0; sa = ca = 0;
+for (all i ) {
+r
+r
+sa = sa + gsi × msi ; // sum up sine of angle
+r
+r
+ca = ca + gsi • msi ; // sum up cosine of angle
+r
+r r
+avgs = avgs + gsi ; // sum up g values
+r
+r
+r
+avms = avms + msi ; // sum up m values
+r
+r
+avG = avG + gs i ⊗ gs i ; // sum up outer product of g
+r
+r
+avM = avM + msi ⊗ msi ; // sum up outer product of m
+}
+
+r
+r
+r
+r
+avgs = 1 n ⋅ avgs; avms = 1 n ⋅ avms; // build average
+avG = 1 n ⋅ avG; avM = 1 n ⋅ avM;
+α = arctan(sa, ca); // first estimate of α
+r
+r
+Gi = inverse(avG − avgs ⊗ avgs ); // inverted matrices
+r
+r
+Mi = inverse(avM − avms ⊗ avms );
+r
+r
+r
+G = M = 1; gd = md = 0; // first estimate of coefficients
+do {
+for (all i ) { // get result vectors using current cofficients
+r
+r
+r
+gri = G o gs i + gd ;
+r
+r
+r
+mri = M o msi + md ;
+
+}
+sa = ca = 0;
+for (all unidirectional groups k ) {
+r
+r
+r
+gc = mc = 0;
+for (all i in group k ) { // adapt vectors to first vector
+r r r r
+r r
+AdaptPhi( gri , mri , grik , mrik → ga, ma );
+r
+r
+r
+gc = gc + ga; // sum up vectors
+r
+r
+r
+mc = mc + ma;
+}
+r r
+r r
+GetTrueVectors( gc, mc, α → gp, mp ); // get true vector
+r
+r
+sa = sa + mc × gp ; // sum up for α caculation
+r r
+ca = ca + mc • gp;
+for (all i in group k ) { // get individual roll angles
+r r r r
+r r
+AdaptPhi( gp, mp, gri , mri → gt i , mt i );
+}
+}
+
+for (all free measurements i ) {
+r r
+r r
+GetTrueVectors( gri , mri ,α → gt i , mt i ); // get true vector
+r
+r
+sa = sa + mri × gt i ; // sum up for α caculation
+r
+r
+ca = ca + mri • gt i ;
+}
+
+α = arctan( sa, ca); // get new α
+
+r
+r r
+avG = avM = 0; avgt = avmt = 0;
+for (all i ) {
+r
+r r
+avgt = avgt + gt i ; // sum up true vectors
+r
+r
+r
+avmt = avmt + mt i ;
+r
+r
+avG = avG + gt i ⊗ gsi ; // sum up outer products
+r
+r
+avM = avM + mt i ⊗ msi ;
+
+}
+r
+r
+r
+r
+avgt = 1 n ⋅ avgt ; avmt = 1 n ⋅ avmt ; // build average
+avG = 1 n ⋅ avG; avM = 1 n ⋅ avM;
+r
+r
+oldG = G; G = (avG − avgt ⊗ avgs ) o Gi; // get new matrices
+r
+r
+oldM = M; M = (avM − avmt ⊗ avms ) o Mi;
+G yz = G zy = 1 2 ⋅ (G yz + G zy ); // enforce symmetry
+r
+r
+r
+gd = (avgt − G o avgs ); // get new vectors
+r
+r
+r
+md = (avmt − M o avms );
+} while (max( G − oldG , M − oldM ) > 10 −6 ) // termination condition
+}
+// Get estimated true vectors for given result vectors
+r r
+r r
+GetTrueVectors( gr , mr ,α → gt , mt ) {
+r
+r r
+n = normalized( gr × mr ); // plane normal
+r
+r
+r
+r r
+gt = normalized( gr + mr ⋅ cos(α ) + (mr × n ) ⋅ sin(α ));
+r
+r
+r r
+mt = gt ⋅ cos(α ) + (n × gt ) ⋅ sin(α );
+}
+
+r r
+r r
+// Turn ga / ma to the roll angle of gb / mb
+r r r r
+r r
+AdaptPhi( ga, ma, gb, mb → gx, mx) {
+r
+r
+r
+r
+r
+r
+r
+r
+s = ga y ⋅ gbz − ga z ⋅ gb y + ma y ⋅ mbz − ma z ⋅ mb y ;
+r
+r
+r
+r
+r
+r
+r
+r
+c = ga y ⋅ gb y + ga z ⋅ gbz + ma y ⋅ mb y + ma z ⋅ mbz ;
+
+δ = arctan( s, c); // roll angle difference
+r
+r
+gx = Txr (δ ) o ga;
+r
+r
+mx = Txr (δ ) o ma;
+}
+
+
