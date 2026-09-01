@@ -1,0 +1,49 @@
+[tools]
+# Floor is 3.27: lib/ uses Color.withValues and ColorScheme.surfaceContainer*.
+# (mobile_topo/.metadata still says 3.16.9 — that's the *create* revision, not
+# what the code is written against.)
+flutter = "3.47.2"
+# JDK 17: minimum for AGP 8.x, and the max the checked-in Gradle 7.5 wrapper
+# supports. Satisfies both, so it survives an Android config modernization.
+java = "temurin-17"
+
+[env]
+# Headless Android SDK from `brew install --cask android-commandlinetools`.
+ANDROID_HOME = "/opt/homebrew/share/android-commandlinetools"
+_.path = ["/opt/homebrew/share/android-commandlinetools/platform-tools"]
+
+# The Flutter package root is not the git root; every task runs from there.
+[tasks.get]
+description = "Fetch Dart/Flutter dependencies"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter pub get"
+
+[tasks.analyze]
+description = "Lint the codebase"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter analyze"
+
+[tasks.test]
+description = "Run tests"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter test"
+
+[tasks.l10n]
+description = "Regenerate localizations from l10n/*.arb"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter gen-l10n"
+
+[tasks.run]
+description = "Run the app (pass -- -d <device_id> to target a device)"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter run"
+
+[tasks.build-macos]
+description = "Build the macOS desktop app (primary dev target)"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter build macos --debug"
+
+[tasks.doctor]
+description = "Check the toolchain"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter doctor -v"
