@@ -23,6 +23,12 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 
 **Core Functionality:**
 - **DistoX integration**: Bluetooth connection to receive measurements; supports "smart mode" (auto-detect 3 identical shots as a survey shot)
+  - The DistoX speaks **Bluetooth Classic SPP (RFCOMM)**, not BLE. BLE packages
+    (`flutter_blue_plus` and friends) cannot talk to it — do not suggest them.
+  - Available on **Android and macOS only**. iOS cannot reach classic SPP
+    devices without Apple MFi enrollment, which the DistoX does not have, so
+    this is permanently out of reach rather than unimplemented. See
+    "Platform support" in `mobile_topo/README.md`.
 - **Station IDs**: Format `a.b` where `a` is typically the series/corridor number and `b` is the point number
 - **Cross-sections**: Multiple measurements at arbitrary angles per station for passage dimensions
 - **Trip settings**: Metadata per survey session (date, declination correction, surveyors)
@@ -129,7 +135,7 @@ Business logic and external device communication:
   - `DistoXService`: Handles discovery, connection, auto-reconnect
   - `DistoXDevice`: Represents a discovered DistoX device
   - `DistoXConnectionState`: Connection state enum
-  - Supports Android (flutter_bluetooth_serial) and macOS (platform channel)
+  - Delegates all platform work to `BluetoothAdapter`; see `bluetooth_channel.dart`
 
 - **`distox_protocol.dart`**: DistoX binary protocol implementation
   - `DistoXProtocol`: Parses 8-byte measurement packets, builds commands
@@ -137,9 +143,17 @@ Business logic and external device communication:
   - `DistoXPacketType`, `DistoXCommand`: Protocol constants
   - Handles sequence bit tracking and duplicate detection
 
-- **`bluetooth_channel.dart`**: Platform channel for macOS Bluetooth
-  - `BluetoothChannel`: Method/event channel interface to native code
-  - Used when flutter_bluetooth_serial is unavailable
+- **`bluetooth_adapter.dart`**: Platform-agnostic Bluetooth interface
+  - `BluetoothAdapter`: The seam every platform implements; `main.dart` picks one
+  - Implementations: `bluetooth_adapter_android.dart`, `bluetooth_adapter_macos.dart`
+
+- **`bluetooth_channel.dart`**: Platform channel shared by Android and macOS
+  - `BluetoothChannel`: Method/event channel interface to native RFCOMM code
+  - Native sides: `android/.../BluetoothPlugin.kt` (`BluetoothSocket`) and
+    `macos/Runner/BluetoothPlugin.swift` (`IOBluetooth`). There is no
+    third-party Bluetooth package — classic SPP support is written in-house.
+  - `requestEnable`/`ensurePermissions` are Android-only; they degrade
+    gracefully on macOS via `MissingPluginException`
 
 - **`measurement_service.dart`**: Measurement processing and smart mode
   - `MeasurementService`: Routes DistoX measurements to survey data
