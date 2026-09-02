@@ -78,14 +78,11 @@ class CalibrationService extends ChangeNotifier {
   /// Pending acceleration packet waiting for matching magnetic packet.
   CalibrationAccelPacket? _pendingAccel;
 
-  /// Memory read state for reading coefficients.
-  final List<int> _memoryBuffer = [];
-  int _memoryBytesExpected = 0;
-  Completer<Uint8List>? _memoryReadCompleter;
-
-  /// Memory write state.
-  int _writtenBytes = 0;
-  Completer<void>? _memoryWriteCompleter;
+  /// In-flight memory transaction. The DistoX answers every read and write
+  /// command with a memory reply for the same address, so only one command may
+  /// be outstanding at a time.
+  Completer<Uint8List>? _memoryReplyCompleter;
+  int? _memoryReplyAddress;
 
   /// Whether auto-detection mode is enabled.
   bool _autoDetectEnabled = true;
@@ -95,6 +92,17 @@ class CalibrationService extends ChangeNotifier {
 
   /// Error threshold (degrees) for considering a measurement "bad" and needing correction.
   static const double errorThreshold = 0.5;
+
+  /// First address of the calibration coefficients in the device's
+  /// configuration store: 0x8010-0x8027 hold G, 0x8028-0x803F hold M.
+  static const int coefficientAddress = 0x8010;
+
+  /// How long to wait for the reply to a single memory command.
+  static const Duration _memoryReplyTimeout = Duration(seconds: 2);
+
+  /// How many times to repeat a memory command that is not answered, or whose
+  /// write is not echoed back correctly.
+  static const int _memoryAttempts = 4;
 
 
   /// Which position slots (0-55) are filled, and by which measurement index.
@@ -493,24 +501,95 @@ class CalibrationService extends ChangeNotifier {
 
   /// Called when a memory reply packet is received.
   void onMemoryReply(DistoXMemoryReply reply) {
-    debugPrint(
-        'CalibrationService: memory reply addr=0x${reply.address.toRadixString(16)}, '
-        'data=${reply.data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+    final hex = reply.data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+    final completer = _memoryReplyCompleter;
 
-    if (_memoryReadCompleter != null && !_memoryReadCompleter!.isCompleted) {
-      _memoryBuffer.addAll(reply.data);
-      if (_memoryBuffer.length >= _memoryBytesExpected) {
-        _memoryReadCompleter!.complete(Uint8List.fromList(_memoryBuffer));
-      }
+    // Only the reply for the address we are waiting on is meaningful. Replies
+    // are matched by address rather than by arrival order because a dropped
+    // reply would otherwise shift every following chunk onto the wrong offset.
+    if (completer != null &&
+        !completer.isCompleted &&
+        reply.address == _memoryReplyAddress) {
+      _memoryReplyCompleter = null;
+      _memoryReplyAddress = null;
+      completer.complete(reply.data);
+      return;
     }
 
-    if (_memoryWriteCompleter != null && !_memoryWriteCompleter!.isCompleted) {
-      _writtenBytes += 4;
-      if (_writtenBytes >= 48) {
-        _memoryWriteCompleter!.complete();
+    debugPrint('CalibrationService: ignoring unexpected memory reply at '
+        '0x${reply.address.toRadixString(16)} (data=$hex)');
+  }
+
+  /// Send one memory command and wait for the reply for [address].
+  ///
+  /// Returns the four reply bytes, or null if no reply arrived in time. The
+  /// DistoX protocol is strictly request/response — one command outstanding at
+  /// a time, and the spec says to repeat a command that goes unanswered.
+  Future<Uint8List?> _memoryCommand(Uint8List command, int address) async {
+    final completer = Completer<Uint8List>();
+    _memoryReplyCompleter = completer;
+    _memoryReplyAddress = address;
+    try {
+      await _distoX.sendCommand(command);
+      return await completer.future.timeout(_memoryReplyTimeout);
+    } catch (e) {
+      debugPrint('CalibrationService: no reply for '
+          '0x${address.toRadixString(16)} ($e)');
+      return null;
+    } finally {
+      if (_memoryReplyCompleter == completer) {
+        _memoryReplyCompleter = null;
+        _memoryReplyAddress = null;
       }
     }
   }
+
+  /// Write four bytes to [address], verifying the device's echo.
+  ///
+  /// The reply to a write command contains the memory contents after the
+  /// write, so a mismatch means the write did not take and is worth retrying.
+  Future<bool> _writeMemoryChunk(int address, List<int> data) async {
+    for (int attempt = 1; attempt <= _memoryAttempts; attempt++) {
+      final echo = await _memoryCommand(
+        _protocol.buildWriteMemoryCommand(address, data),
+        address,
+      );
+      if (echo != null && _bytesEqual(echo, data)) return true;
+
+      debugPrint('CalibrationService: write to '
+          '0x${address.toRadixString(16)} '
+          '${echo == null ? "unacknowledged" : "echoed back ${_hex(echo)} "
+              "instead of ${_hex(data)}"} '
+          '(attempt $attempt of $_memoryAttempts)');
+    }
+    return false;
+  }
+
+  /// Read four bytes from [address], retrying if the reply is lost.
+  Future<Uint8List?> _readMemoryChunk(int address) async {
+    for (int attempt = 1; attempt <= _memoryAttempts; attempt++) {
+      final data = await _memoryCommand(
+        _protocol.buildReadMemoryCommand(address),
+        address,
+      );
+      if (data != null) return data;
+      debugPrint('CalibrationService: retrying read of '
+          '0x${address.toRadixString(16)} '
+          '(attempt $attempt of $_memoryAttempts)');
+    }
+    return null;
+  }
+
+  static bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static String _hex(List<int> bytes) =>
+      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
 
   /// Compute calibration coefficients from collected measurements.
   Future<void> evaluate() async {
@@ -631,15 +710,21 @@ class CalibrationService extends ChangeNotifier {
     }
   }
 
-  /// Write computed coefficients to device memory.
+  /// Write the computed coefficients to device memory.
   /// Returns true if successful, false otherwise.
   Future<bool> writeCoefficients() async {
-    if (_coefficients == null) {
+    final c = _coefficients;
+    if (c == null) {
       _error = 'No coefficients to write';
       notifyListeners();
       return false;
     }
+    return writeCoefficientsFor(c);
+  }
 
+  /// Write [c] to the device's coefficient memory, verifying every chunk.
+  /// Returns true if successful, false otherwise.
+  Future<bool> writeCoefficientsFor(CalibrationCoefficients c) async {
     if (!isConnected) {
       _error = 'Not connected to DistoX';
       notifyListeners();
@@ -650,7 +735,6 @@ class CalibrationService extends ChangeNotifier {
     // represent: toBytes would silently clamp them, leaving the device with a
     // near-singular transform (typically showing up as an azimuth stuck near
     // 0/180).
-    final c = _coefficients!;
     final saturated = c.saturatedElements;
     if (saturated.isNotEmpty) {
       _error = 'Calibration coefficients exceed the range the DistoX can store '
@@ -668,32 +752,30 @@ class CalibrationService extends ChangeNotifier {
 
     try {
       final bytes = c.toBytes();
-      _writtenBytes = 0;
-      _memoryWriteCompleter = Completer<void>();
 
-      // Debug: print bytes being written
       debugPrint('Writing calibration bytes (48 total):');
-      debugPrint('  G coeffs: ${bytes.sublist(0, 24).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
-      debugPrint('  M coeffs: ${bytes.sublist(24, 48).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+      debugPrint('  G coeffs: ${_hex(bytes.sublist(0, 24))}');
+      debugPrint('  M coeffs: ${_hex(bytes.sublist(24, 48))}');
 
-      // Write 4 bytes at a time to addresses 0x8010-0x803F
+      // Write 4 bytes at a time to 0x8010-0x803F, confirming each chunk before
+      // moving on. Firing all twelve writes back to back loses most of the
+      // replies and, worse, most of the writes: the device is then left with a
+      // mix of new and stale coefficients.
       for (int i = 0; i < 48; i += 4) {
-        final address = 0x8010 + i;
-        final data = bytes.sublist(i, i + 4);
-        await _distoX.sendCommand(
-            _protocol.buildWriteMemoryCommand(address, data.toList()));
+        final address = coefficientAddress + i;
+        final chunk = bytes.sublist(i, i + 4);
 
-        // Small delay between writes
-        await Future.delayed(const Duration(milliseconds: 50));
+        if (!await _writeMemoryChunk(address, chunk)) {
+          _error = 'The DistoX did not confirm the calibration data at '
+              '0x${address.toRadixString(16)}. The coefficients are only '
+              'partly written — reconnect and try again.';
+          debugPrint('ERROR: giving up writing coefficients at '
+              '0x${address.toRadixString(16)} after $_memoryAttempts attempts');
+          _state = CalibrationState.idle;
+          notifyListeners();
+          return false;
+        }
       }
-
-      // Wait for confirmation (or timeout)
-      await _memoryWriteCompleter!.future
-          .timeout(const Duration(seconds: 5))
-          .catchError((_) {
-        // Continue even if we don't get confirmation
-        debugPrint('Write confirmation timeout (may still have succeeded)');
-      });
 
       // Exit calibration mode on the device
       await _distoX.sendCommand(_protocol.buildStopCalibrationCommand());
@@ -701,7 +783,7 @@ class CalibrationService extends ChangeNotifier {
       // Clear measurements after successful write
       clear();
 
-      debugPrint('Calibration coefficients written to device');
+      debugPrint('Calibration coefficients written to device and verified');
       return true;
     } catch (e) {
       _error = 'Failed to write coefficients: $e';
@@ -724,26 +806,28 @@ class CalibrationService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _memoryBuffer.clear();
-      _memoryBytesExpected = 48;
-      _memoryReadCompleter = Completer<Uint8List>();
-
-      // Read 4 bytes at a time from addresses 0x8010-0x803F
+      // Read 4 bytes at a time from 0x8010-0x803F, one command at a time.
+      // Assembling the buffer from replies in arrival order would silently
+      // shift every following chunk if one reply were dropped.
+      final bytes = Uint8List(48);
       for (int i = 0; i < 48; i += 4) {
-        final address = 0x8010 + i;
-        await _distoX.sendCommand(_protocol.buildReadMemoryCommand(address));
-
-        // Small delay between reads
-        await Future.delayed(const Duration(milliseconds: 50));
+        final address = coefficientAddress + i;
+        final chunk = await _readMemoryChunk(address);
+        if (chunk == null) {
+          _error = 'The DistoX did not answer the read of '
+              '0x${address.toRadixString(16)}.';
+          _state = CalibrationState.idle;
+          notifyListeners();
+          return null;
+        }
+        bytes.setRange(i, i + 4, chunk);
       }
-
-      // Wait for all data (or timeout)
-      final bytes = await _memoryReadCompleter!.future
-          .timeout(const Duration(seconds: 5));
 
       final coeff = CalibrationCoefficients.fromBytes(bytes);
       _state = CalibrationState.idle;
-      debugPrint('Read calibration coefficients from device');
+      debugPrint('Read calibration coefficients from device:');
+      debugPrint('  G coeffs: ${_hex(bytes.sublist(0, 24))}');
+      debugPrint('  M coeffs: ${_hex(bytes.sublist(24, 48))}');
       notifyListeners();
       return coeff;
     } catch (e) {
@@ -1056,8 +1140,8 @@ class CalibrationService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _memoryReadCompleter = null;
-    _memoryWriteCompleter = null;
+    _memoryReplyCompleter = null;
+    _memoryReplyAddress = null;
     super.dispose();
   }
 }
