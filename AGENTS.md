@@ -4,11 +4,10 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## Repository Layout
 
-The git root is **not** the Flutter project root. The Flutter package lives in
-`mobile_topo/`, and all `flutter` and `dart` commands must be run from there.
-
-Unless stated otherwise, paths in this document are relative to `mobile_topo/` —
-so `lib/models/survey.dart` is `mobile_topo/lib/models/survey.dart` on disk.
+The git root **is** the Flutter project root: `pubspec.yaml`, `lib/`, `test/`
+and the platform directories all live directly at the top level, so `flutter`
+and `dart` commands work from anywhere in the repo. All paths in this document
+are relative to the git root.
 
 ## Project Goal
 
@@ -28,7 +27,7 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   - Available on **Android and macOS only**. iOS cannot reach classic SPP
     devices without Apple MFi enrollment, which the DistoX does not have, so
     this is permanently out of reach rather than unimplemented. See
-    "Platform support" in `mobile_topo/README.md`.
+    "Platform support" in `README.md`.
 - **Station IDs**: Format `a.b` where `a` is typically the series/corridor number and `b` is the point number
 - **Cross-sections**: Multiple measurements at arbitrary angles per station for passage dimensions
 - **Trip settings**: Metadata per survey session (date, declination correction, surveyors)
@@ -47,11 +46,11 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 ## Build and Development Commands
 
 The toolchain is pinned with [mise](https://mise.jdx.dev/) in `mise.toml` at the
-**git root**. mise is shell-activated, so `flutter`, `dart`, and `java` are on
+repo root. mise is shell-activated, so `flutter`, `dart`, and `java` are on
 `PATH` directly — **never prefix commands with `mise exec`**.
 
-Prefer the mise tasks: each one sets its own working directory, so they work
-from anywhere in the repo and remove the need to remember the `cd`.
+Prefer the mise tasks: they run in the repo root regardless of where you invoke
+them from.
 
 ```bash
 mise run get           # flutter pub get
@@ -65,17 +64,15 @@ mise run build-ios     # flutter build ios --no-codesign --debug
 mise run doctor        # flutter doctor -v
 ```
 
-For anything without a task, `cd mobile_topo` first — raw `flutter`/`dart`
-commands fail at the git root because `pubspec.yaml` is not there:
+For anything without a task, run `flutter`/`dart` directly from the repo root:
 
 ```bash
-cd mobile_topo
 flutter test test/widget_test.dart    # single test file
 flutter pub outdated
 ```
 
 Setup prerequisites (Xcode, Android SDK, why CocoaPods must not be installed)
-are documented in `mobile_topo/README.md`.
+are documented in `README.md`.
 
 Two `flutter doctor` warnings are expected and must not be "fixed":
 `CocoaPods not installed` (both Apple targets are Swift Package Manager only)
@@ -86,7 +83,7 @@ and `Chrome not found` (web target only).
 Flutter application for cave surveying using MVC architecture.
 
 ```
-mobile_topo/lib/
+lib/
 ├── models/           # Domain models (pure data classes)
 ├── controllers/      # State management
 ├── services/         # Business logic and external device communication

@@ -1,7 +1,7 @@
 [tools]
 # Floor is 3.27: lib/ uses Color.withValues and ColorScheme.surfaceContainer*.
-# (mobile_topo/.metadata still says 3.16.9 — that's the *create* revision, not
-# what the code is written against.)
+# (.metadata still says 3.16.9 — that's the *create* revision, not what the
+# code is written against.)
 flutter = "3.47.2"
 # JDK 17 is the floor Flutter 3.47 enforces for Android (errorJavaMinVersion)
 # and the minimum for AGP 8+. Newer JDKs also work with Gradle 9.x if needed.
@@ -12,48 +12,40 @@ java = "temurin-17"
 ANDROID_HOME = "/opt/homebrew/share/android-commandlinetools"
 _.path = ["/opt/homebrew/share/android-commandlinetools/platform-tools"]
 
-# The Flutter package root is not the git root; every task runs from there.
+# Tasks default to running in the config root, which is also the Flutter
+# package root — so they work from any subdirectory.
 [tasks.get]
 description = "Fetch Dart/Flutter dependencies"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter pub get"
 
 [tasks.analyze]
 description = "Lint the codebase"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter analyze"
 
 [tasks.test]
 description = "Run tests"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter test"
 
 [tasks.l10n]
 description = "Regenerate localizations from l10n/*.arb"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter gen-l10n"
 
 [tasks.run]
 description = "Run the app (pass -- -d <device_id> to target a device)"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter run"
 
 [tasks.build-macos]
 description = "Build the macOS desktop app (primary dev target)"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter build macos --debug"
 
 [tasks.build-apk]
 description = "Build the Android APK"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter build apk --debug"
 
 [tasks.build-ios]
 description = "Build for iOS device (unsigned; needs the Xcode iOS platform)"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter build ios --no-codesign --debug"
 
 [tasks.doctor]
 description = "Check the toolchain"
-dir = "{{config_root}}/mobile_topo"
 run = "flutter doctor -v"
