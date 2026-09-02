@@ -5,7 +5,12 @@ import 'package:flutter/services.dart';
 
 /// Platform channel interface for Classic Bluetooth operations.
 ///
-/// Used on macOS where flutter_bluetooth_serial is not available.
+/// Backed by a native RFCOMM/SPP plugin on each supported platform:
+/// `macos/Runner/BluetoothPlugin.swift` (IOBluetooth) and
+/// `android/.../BluetoothPlugin.kt` (BluetoothSocket).
+///
+/// [requestEnable] and [ensurePermissions] are only implemented on Android;
+/// on macOS they resolve to the current adapter power state.
 class BluetoothChannel {
   static const MethodChannel _channel = MethodChannel('mobile_topo/bluetooth');
   static const EventChannel _dataChannel =
@@ -18,12 +23,41 @@ class BluetoothChannel {
 
   BluetoothChannel._() {
     _stateChannel.receiveBroadcastStream().listen(_onStateEvent);
+    _channel.setMethodCallHandler(_onMethodCall);
   }
 
   final _connectionStateController =
       StreamController<BluetoothChannelState>.broadcast();
   Stream<BluetoothChannelState> get connectionState =>
       _connectionStateController.stream;
+
+  final _discoveredController =
+      StreamController<BluetoothChannelDevice>.broadcast();
+  final _discoveryCompleteController = StreamController<void>.broadcast();
+
+  /// Devices reported by the native side while discovery is running.
+  Stream<BluetoothChannelDevice> get discoveredDevices =>
+      _discoveredController.stream;
+
+  /// Fires once the native discovery scan finishes.
+  Stream<void> get discoveryComplete => _discoveryCompleteController.stream;
+
+  Future<dynamic> _onMethodCall(MethodCall call) async {
+    switch (call.method) {
+      case 'onDeviceDiscovered':
+        final map = Map<String, dynamic>.from(call.arguments as Map);
+        final address = map['address'] as String?;
+        if (address != null) {
+          _discoveredController.add(BluetoothChannelDevice(
+            name: map['name'] as String? ?? 'Unknown',
+            address: address,
+          ));
+        }
+      case 'onDiscoveryComplete':
+        _discoveryCompleteController.add(null);
+    }
+    return null;
+  }
 
   Stream<Uint8List>? _dataStream;
   BluetoothChannelState _currentState = BluetoothChannelState.disconnected;
@@ -62,6 +96,37 @@ class BluetoothChannel {
       return result ?? false;
     } on PlatformException catch (e) {
       debugPrint('Bluetooth power check failed: $e');
+      return false;
+    }
+  }
+
+  /// Ask the user to enable Bluetooth (Android only; shows a system dialog).
+  ///
+  /// On macOS the adapter cannot be enabled programmatically, so this reports
+  /// the current power state instead.
+  Future<bool> requestEnable() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('requestEnable');
+      return result ?? false;
+    } on MissingPluginException {
+      return isPoweredOn();
+    } on PlatformException catch (e) {
+      debugPrint('Failed to request Bluetooth enable: $e');
+      return false;
+    }
+  }
+
+  /// Request the runtime Bluetooth permissions (Android 12+).
+  ///
+  /// Returns true on platforms that do not require them.
+  Future<bool> ensurePermissions() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('ensurePermissions');
+      return result ?? false;
+    } on MissingPluginException {
+      return true;
+    } on PlatformException catch (e) {
+      debugPrint('Permission request failed: $e');
       return false;
     }
   }
@@ -154,6 +219,8 @@ class BluetoothChannel {
 
   void dispose() {
     _connectionStateController.close();
+    _discoveredController.close();
+    _discoveryCompleteController.close();
   }
 }
 

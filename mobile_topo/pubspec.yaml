@@ -19,7 +19,9 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.6 <4.0.0'
+  # Must not lag far behind the pinned Flutter in ../mise.toml: an old floor
+  # makes pub resolve plugin versions that still use the removed v1 embedding.
+  sdk: '>=3.13.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -37,7 +39,6 @@ dependencies:
   provider: ^6.1.1
   uuid: ^4.2.1
   shared_preferences: ^2.2.2
-  flutter_bluetooth_serial: ^0.4.0
   vector_math: ^2.1.0
 
   # The following adds the Cupertino Icons font to your application.

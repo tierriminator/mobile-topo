@@ -1,4 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The DistoX is a Classic Bluetooth (RFCOMM/SPP) device, not BLE. -->
+
+    <!-- Android 11 and below: install-time permissions. -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- Discovery required a location permission before Android 12. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- Android 12 (API 31) and above: runtime permissions. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+
     <application
         android:label="mobile_topo"
         android:name="${applicationName}"

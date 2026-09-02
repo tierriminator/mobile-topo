@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -87,7 +88,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String mapStatusStation(
-      String id, String east, String north, String altitude) {
+    String id,
+    String east,
+    String north,
+    String altitude,
+  ) {
     return 'Station $id: E ${east}m, N ${north}m, Alt ${altitude}m';
   }
 
@@ -612,7 +617,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String calibrationShotDescription(
-      String direction, String roll, int progress) {
+    String direction,
+    String roll,
+    int progress,
+  ) {
     return '$direction, roll $roll ($progress/4)';
   }
 

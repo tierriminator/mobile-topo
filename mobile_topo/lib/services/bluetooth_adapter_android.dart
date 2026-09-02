@@ -1,148 +1,139 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'dart:typed_data';
 
 import 'bluetooth_adapter.dart';
+import 'bluetooth_channel.dart';
 import 'distox_service.dart';
 
-/// Android implementation of BluetoothAdapter using flutter_bluetooth_serial.
+/// Android implementation of BluetoothAdapter.
+///
+/// Talks to the app's own RFCOMM plugin
+/// (`android/.../BluetoothPlugin.kt`) over the shared `mobile_topo/bluetooth`
+/// platform channel. The DistoX is a Classic Bluetooth SPP device, so BLE
+/// packages cannot be used here.
 class AndroidBluetoothAdapter implements BluetoothAdapter {
-  BluetoothConnection? _connection;
   final _connectionStateController = StreamController<bool>.broadcast();
-  final _dataController = StreamController<Uint8List>.broadcast();
 
-  StreamSubscription<Uint8List>? _inputSubscription;
+  StreamSubscription<BluetoothChannelState>? _stateSubscription;
 
-  @override
-  Future<bool> isAvailable() async {
-    try {
-      return await FlutterBluetoothSerial.instance.isAvailable ?? false;
-    } catch (e) {
-      debugPrint('Bluetooth not available: $e');
-      return false;
-    }
+  AndroidBluetoothAdapter() {
+    _stateSubscription =
+        BluetoothChannel.instance.connectionState.listen((state) {
+      _connectionStateController.add(state == BluetoothChannelState.connected);
+    });
   }
 
   @override
-  Future<bool> isEnabled() async {
-    try {
-      return await FlutterBluetoothSerial.instance.isEnabled ?? false;
-    } catch (e) {
-      return false;
-    }
-  }
+  Future<bool> isAvailable() => BluetoothChannel.instance.isAvailable();
 
   @override
-  Future<bool> requestEnable() async {
-    try {
-      return await FlutterBluetoothSerial.instance.requestEnable() ?? false;
-    } catch (e) {
-      debugPrint('Failed to request Bluetooth enable: $e');
-      return false;
-    }
-  }
+  Future<bool> isEnabled() => BluetoothChannel.instance.isPoweredOn();
+
+  @override
+  Future<bool> requestEnable() => BluetoothChannel.instance.requestEnable();
 
   @override
   Future<List<DistoXDevice>> getBondedDevices() async {
-    try {
-      final devices = await FlutterBluetoothSerial.instance.getBondedDevices();
-      return devices
-          .where((d) => _isDistoXDevice(d.name))
-          .map((d) => DistoXDevice(
-                name: d.name ?? 'Unknown',
-                address: d.address,
-                isBonded: d.isBonded,
-              ))
-          .toList();
-    } catch (e) {
-      debugPrint('Failed to get bonded devices: $e');
-      return [];
-    }
+    // Android 12+ returns nothing without BLUETOOTH_CONNECT.
+    await BluetoothChannel.instance.ensurePermissions();
+
+    final devices = await BluetoothChannel.instance.getPairedDevices();
+    return devices
+        .where((d) => _isDistoXDevice(d.name))
+        .map((d) => DistoXDevice(
+              name: d.name,
+              address: d.address,
+              isBonded: true,
+            ))
+        .toList();
   }
 
   @override
-  Stream<DistoXDevice> startDiscovery() async* {
-    try {
-      await for (final result
-          in FlutterBluetoothSerial.instance.startDiscovery()) {
-        if (_isDistoXDevice(result.device.name)) {
-          yield DistoXDevice(
-            name: result.device.name ?? 'Unknown',
-            address: result.device.address,
-            isBonded: result.device.isBonded,
-          );
-        }
+  Stream<DistoXDevice> startDiscovery() {
+    final controller = StreamController<DistoXDevice>();
+    StreamSubscription<BluetoothChannelDevice>? deviceSubscription;
+    StreamSubscription<void>? completeSubscription;
+
+    Future<void> cleanUp() async {
+      await deviceSubscription?.cancel();
+      await completeSubscription?.cancel();
+      deviceSubscription = null;
+      completeSubscription = null;
+    }
+
+    controller.onListen = () async {
+      // Scanning needs BLUETOOTH_SCAN on Android 12+, location below that.
+      if (!await BluetoothChannel.instance.ensurePermissions()) {
+        await controller.close();
+        return;
       }
-    } catch (e) {
-      debugPrint('Discovery error: $e');
-    }
+
+      deviceSubscription =
+          BluetoothChannel.instance.discoveredDevices.listen((device) {
+        if (_isDistoXDevice(device.name)) {
+          controller.add(DistoXDevice(
+            name: device.name,
+            address: device.address,
+            isBonded: false,
+          ));
+        }
+      });
+
+      completeSubscription =
+          BluetoothChannel.instance.discoveryComplete.listen((_) {
+        controller.close();
+      });
+
+      await BluetoothChannel.instance.startDiscovery();
+    };
+
+    controller.onCancel = () async {
+      await cleanUp();
+      await BluetoothChannel.instance.stopDiscovery();
+    };
+
+    return controller.stream;
   }
 
   @override
-  Future<void> stopDiscovery() async {
-    try {
-      await FlutterBluetoothSerial.instance.cancelDiscovery();
-    } catch (e) {
-      debugPrint('Failed to cancel discovery: $e');
-    }
-  }
+  Future<void> stopDiscovery() => BluetoothChannel.instance.stopDiscovery();
 
   @override
   Future<void> connect(String address) async {
-    // Add timeout to prevent hanging on unavailable device
-    _connection = await BluetoothConnection.toAddress(address)
-        .timeout(const Duration(seconds: 10));
+    if (!await BluetoothChannel.instance.ensurePermissions()) {
+      throw Exception('Bluetooth permission denied');
+    }
 
-    // Listen for incoming data
-    _inputSubscription = _connection!.input?.listen(
-      (data) => _dataController.add(data),
-      onDone: () => _connectionStateController.add(false),
-      onError: (e) {
-        debugPrint('Bluetooth error: $e');
-        _connectionStateController.add(false);
-      },
-    );
-
-    _connectionStateController.add(true);
+    // Dart-side fallback slightly longer than the 5s native timeout.
+    final success = await BluetoothChannel.instance
+        .connect(address)
+        .timeout(const Duration(seconds: 7));
+    if (!success) {
+      throw Exception('Connection failed');
+    }
   }
 
   @override
-  Future<void> disconnect() async {
-    await _inputSubscription?.cancel();
-    _inputSubscription = null;
-
-    try {
-      await _connection?.finish();
-    } catch (e) {
-      debugPrint('Disconnect error: $e');
-    }
-
-    _connection = null;
-    _connectionStateController.add(false);
-  }
+  Future<void> disconnect() => BluetoothChannel.instance.disconnect();
 
   @override
   Future<void> send(Uint8List data) async {
-    if (_connection == null || !_connection!.isConnected) {
-      throw StateError('Not connected');
+    final success = await BluetoothChannel.instance.send(data);
+    if (!success) {
+      throw Exception('Send failed');
     }
-    _connection!.output.add(data);
-    await _connection!.output.allSent;
   }
 
   @override
-  Stream<Uint8List> get dataStream => _dataController.stream;
+  Stream<Uint8List> get dataStream => BluetoothChannel.instance.dataStream;
 
   @override
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
   @override
   void dispose() {
-    _inputSubscription?.cancel();
-    _connection?.dispose();
+    _stateSubscription?.cancel();
     _connectionStateController.close();
-    _dataController.close();
   }
 
   bool _isDistoXDevice(String? name) {
