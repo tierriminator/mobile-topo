@@ -204,6 +204,38 @@ class CalibrationCoefficients {
   /// serialize to 0 or 1 and destroy the calibration.
   static const double rawUnit = 1.0 / _fv;
 
+  /// Largest magnitude an A matrix element can have and still round-trip
+  /// through the device's int16 fixed point format.
+  static const double maxMatrixElement = 32767.0 / _fm; // ~2.0
+
+  /// Largest magnitude a B vector component can have and still round-trip.
+  static const double maxBiasComponent = 32767.0 / _fv; // ~1.365
+
+  /// Names of the coefficient elements that do not fit the device's 48-byte
+  /// fixed point format, and would therefore be silently clamped by
+  /// [toBytes]. Empty when the coefficients serialize losslessly.
+  ///
+  /// A matrix element out of range means the sensor's counts per unit field
+  /// are far enough from `FV` that the device cannot express the required
+  /// gain, so the calibration must not be written.
+  List<String> get saturatedElements {
+    final bad = <String>[];
+    const names = ['x', 'y', 'z'];
+    for (final (label, a, b) in [('G', aG, bG), ('M', aM, bM)]) {
+      for (int i = 0; i < 3; i++) {
+        if (b[i].abs() > maxBiasComponent) {
+          bad.add('b$label.${names[i]}=${b[i].toStringAsFixed(3)}');
+        }
+        for (int j = 0; j < 3; j++) {
+          if (a.get(i, j).abs() > maxMatrixElement) {
+            bad.add('a$label[$i,$j]=${a.get(i, j).toStringAsFixed(3)}');
+          }
+        }
+      }
+    }
+    return bad;
+  }
+
   /// Serialize to 48 bytes for device memory.
   ///
   /// Layout (from TopoDroid CalibTransform.GetCoeff):

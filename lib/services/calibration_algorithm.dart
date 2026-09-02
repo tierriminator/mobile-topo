@@ -60,6 +60,11 @@ class CalibrationAlgorithm {
   /// Minimum number of measurements required.
   static const int minMeasurements = 16;
 
+  /// Minimum RMS spread of the calibrated vectors around their centroid.
+  /// A valid solution puts them on the unit sphere, so this is ~1; the
+  /// degenerate solution collapses it to 0.
+  static const double _minSpread = 0.5;
+
   static const double _radToDeg = 180.0 / math.pi;
 
   /// Compute calibration coefficients from measurements.
@@ -93,6 +98,25 @@ class CalibrationAlgorithm {
     final ms = [for (final d in data) d.mVector * unit];
 
     final result = _optimize(gs, ms, _buildGroups(data));
+
+    // A correct calibration turns the readings into unit vectors spread over
+    // the sphere, so their RMS distance from their centroid is ~1. The
+    // iteration also has a degenerate fixed point where every calibrated
+    // vector is the same constant (A -> 0, b -> +/-x): it reports a perfect
+    // RMS error but leaves the azimuth stuck at 0/180 on the device, so it
+    // must never reach the coefficient write.
+    final spreadG = _spread(result.gr);
+    final spreadM = _spread(result.mr);
+    if (spreadG < _minSpread || spreadM < _minSpread) {
+      throw CalibrationException(
+        'Calibration collapsed to a degenerate solution '
+        '(G spread ${spreadG.toStringAsFixed(3)}, '
+        'M spread ${spreadM.toStringAsFixed(3)}, expected ~1). '
+        'The measurements are most likely not grouped by direction correctly, '
+        'or the directions are not spread out enough.',
+      );
+    }
+
     final results = _buildResults(result);
 
     final rmsError = results.isEmpty
@@ -160,8 +184,6 @@ class CalibrationAlgorithm {
     double ca = 0.0;
 
     for (int i = 0; i < nn; i++) {
-      sa += gs[i].cross(ms[i]).length; // sum up sine of angle
-      ca += gs[i].dot(ms[i]); // sum up cosine of angle
       sumGs += gs[i];
       sumMs += ms[i];
       sumGs2 += _outer(gs[i], gs[i]);
@@ -173,17 +195,42 @@ class CalibrationAlgorithm {
     // Note: `Matrix3.operator*` is declared to return `dynamic`, and extension
     // members do not resolve on `dynamic`. Use the explicitly typed
     // `scaled`/`multiplied` instead.
-    final gi = (sumGs2.scaled(invN) - _outer(avGs, avGs)).inverse;
-    final mi = (sumMs2.scaled(invN) - _outer(avMs, avMs)).inverse;
+    final avGs2 = sumGs2.scaled(invN);
+    final avMs2 = sumMs2.scaled(invN);
+    final gi = (avGs2 - _outer(avGs, avGs)).inverse;
+    final mi = (avMs2 - _outer(avMs, avMs)).inverse;
+
+    // Step 2 of the paper's main iteration starts from G = M = I and
+    // gd = md = 0. That assumes the raw readings are already close to unit
+    // vectors: `_trueVectors` adds gr and mr together, so if the two sensors
+    // differ a lot in offset or gain the very first pass produces nonsense and
+    // the iteration converges to the degenerate fixed point A -> 0,
+    // b -> +/-x, where every calibrated vector is the same constant and the
+    // azimuth is stuck at 0/180.
+    //
+    // Starting from the data instead costs nothing and removes that
+    // sensitivity: the centroid of a well spread set of readings is the sensor
+    // offset, and the RMS distance from the centroid is the sphere radius. The
+    // fixed point of the iteration is unchanged, only the starting guess is.
+    final rG = _sphereRadius(avGs2, avGs);
+    final rM = _sphereRadius(avMs2, avMs);
+
+    var g = Matrix3.identity().scaled(1.0 / rG);
+    var m = Matrix3.identity().scaled(1.0 / rM);
+    var gd = avGs * (-1.0 / rG);
+    var md = avMs * (-1.0 / rM);
 
     // First estimate of alpha, the angle between the gravity and the magnetic
-    // field vector. Kept as sin/cos so no arctan/sincos round trip is needed.
+    // field vector, taken from those normalized vectors rather than from the
+    // raw readings so that a large magnetometer offset cannot skew it.
+    // Kept as sin/cos so no arctan/sincos round trip is needed.
+    for (int i = 0; i < nn; i++) {
+      final g0 = g.transformVector(gs[i]) + gd;
+      final m0 = m.transformVector(ms[i]) + md;
+      sa += g0.cross(m0).length; // sum up sine of angle
+      ca += g0.dot(m0); // sum up cosine of angle
+    }
     var (sinA, cosA) = _normalizeSinCos(sa, ca);
-
-    var g = Matrix3.identity();
-    var m = Matrix3.identity();
-    var gd = Vector3.zero();
-    var md = Vector3.zero();
 
     final gr = List<Vector3>.generate(nn, (_) => Vector3.zero());
     final mr = List<Vector3>.generate(nn, (_) => Vector3.zero());
@@ -360,6 +407,31 @@ class CalibrationAlgorithm {
       }
     }
     return maxD;
+  }
+
+  /// RMS distance of a set of vectors from its own centroid, given the average
+  /// outer product and the average vector. For readings spread over a sphere
+  /// this is the sphere's radius.
+  double _sphereRadius(Matrix3 avOuter, Vector3 average) {
+    final variance = avOuter.entry(0, 0) +
+        avOuter.entry(1, 1) +
+        avOuter.entry(2, 2) -
+        average.length2;
+    return math.sqrt(math.max(variance, 1e-12));
+  }
+
+  /// RMS distance of a set of vectors from its own centroid.
+  double _spread(List<Vector3> vs) {
+    var centroid = Vector3.zero();
+    for (final v in vs) {
+      centroid += v;
+    }
+    centroid *= 1.0 / vs.length;
+    double sum = 0;
+    for (final v in vs) {
+      sum += (v - centroid).length2;
+    }
+    return math.sqrt(sum / vs.length);
   }
 
   /// Turn a (sum of sines, sum of cosines) pair into a unit sin/cos pair.

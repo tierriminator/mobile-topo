@@ -245,6 +245,30 @@ void main() {
         expect(restored.bM.z, closeTo(original.bM.z, 0.001));
       });
 
+      test('saturatedElements is empty for representable coefficients', () {
+        expect(CalibrationCoefficients.identity().saturatedElements, isEmpty);
+      });
+
+      test('saturatedElements names elements toBytes would clamp', () {
+        // A magnetometer whose counts per unit field are far below FV needs a
+        // gain the int16 format cannot express; clamping it would leave the
+        // device with a near-singular transform.
+        final tooBig = CalibrationCoefficients(
+          aG: Matrix3.identity(),
+          bG: Vector3.zero(),
+          aM: matrix3FromRowMajor([12, 0, 0, 0, 1, 0, 0, 0, 1]),
+          bM: Vector3(0, 3.0, 0),
+        );
+
+        expect(tooBig.saturatedElements, containsAll(<String>['aM[0,0]=12.000']));
+        expect(tooBig.saturatedElements.join(), contains('bM.y'));
+
+        // And the clamping it warns about really does happen.
+        final restored =
+            CalibrationCoefficients.fromBytes(tooBig.toBytes());
+        expect(restored.aM.get(0, 0), lessThan(12));
+      });
+
       test('fromBytes throws for short buffer', () {
         expect(
           () => CalibrationCoefficients.fromBytes(Uint8List(40)),
@@ -586,6 +610,49 @@ void main() {
       }
     });
 
+    test('recovers alpha despite a large magnetometer offset and gain', () async {
+      // The magnetometer sphere sits far from the accelerometer's: a quarter
+      // of the gain and a hard-iron offset bigger than the field itself.
+      // Starting the iteration from G = M = I collapses on this input, with
+      // every calibrated M vector becoming the same constant along the laser
+      // axis and the device reporting azimuth 0/180 only.
+      final data = _syntheticCalibration(
+        magGain: 4000,
+        magOffset: Vector3(-3000, 2200, 4100),
+      );
+      final result = await algorithm.compute(data.measurements);
+
+      expect(result.rmsError, lessThan(0.05));
+
+      final azimuths = <double>{};
+      for (int i = 0; i < data.measurements.length; i++) {
+        final r = result.results[i];
+        expect(r.alpha, closeTo(_alphaDeg, 0.1), reason: 'shot $i alpha');
+        if (data.orientations[i].pitch.abs() < 85) {
+          expect(_angleDiff(r.azimuth, data.orientations[i].yaw).abs(),
+              lessThan(0.2),
+              reason: 'shot $i azimuth');
+          azimuths.add(r.azimuth);
+        }
+      }
+      // Guard the actual symptom: azimuth must span the circle, not sit on
+      // two opposite values.
+      expect(azimuths.length, greaterThan(4));
+    });
+
+    test('rejects a degenerate fit instead of returning it', () async {
+      // Randomly assigned groups give the unidirectional constraint nothing
+      // consistent to fit, and the iteration heads for the A -> 0 fixed point.
+      // That solution reports a flattering RMS error, so it has to be caught
+      // here rather than silently written to the device.
+      final data = _syntheticCalibration(scrambleGroups: true);
+
+      await expectLater(
+        algorithm.compute(data.measurements),
+        throwsA(isA<CalibrationException>()),
+      );
+    });
+
     test('tolerates sensor noise', () async {
       final data = _syntheticCalibration(noiseCounts: 40);
       final result = await algorithm.compute(data.measurements);
@@ -714,11 +781,19 @@ const List<(double yaw, double pitch)> _standardDirections = [
 /// sensor distortion, so the calibration has an exact answer to find.
 ///
 /// [noiseCounts] adds a deterministic pseudo-random perturbation of up to
-/// that many raw counts to every sensor axis.
-_SyntheticCalibration _syntheticCalibration({int noiseCounts = 0}) {
+/// that many raw counts to every sensor axis. [magGain] sets the
+/// magnetometer's counts per unit field and [magOffset] its hard-iron offset
+/// (the battery), which together decide how far the raw magnetometer sphere
+/// sits from the accelerometer's. [scrambleGroups] assigns groups at random,
+/// simulating a user who did not shoot the suggested directions.
+_SyntheticCalibration _syntheticCalibration({
+  int noiseCounts = 0,
+  double magGain = 15000,
+  Vector3? magOffset,
+  bool scrambleGroups = false,
+}) {
   // Sensor model: counts = P o trueVector + q, with gain/skew errors, a
-  // slight misalignment between sensors and laser, and a sizeable magnetic
-  // offset (the battery).
+  // slight misalignment between sensors and laser, and a magnetic offset.
   final pG = matrix3FromRowMajor([
     16200, 130, -90, //
     -70, 15850, 210, //
@@ -726,11 +801,11 @@ _SyntheticCalibration _syntheticCalibration({int noiseCounts = 0}) {
   ]);
   final qG = Vector3(180, -240, 95);
   final pM = matrix3FromRowMajor([
-    14900, -260, 175, //
-    310, 15400, -120, //
-    -85, 195, 15100, //
+    magGain, -260, 175, //
+    310, magGain * 1.03, -120, //
+    -85, 195, magGain * 0.97, //
   ]);
-  final qM = Vector3(-620, 410, 730);
+  final qM = magOffset ?? Vector3(-620, 410, 730);
 
   // Deterministic "noise" so failures are reproducible.
   final rng = math.Random(20250831);
@@ -759,7 +834,7 @@ _SyntheticCalibration _syntheticCalibration({int noiseCounts = 0}) {
         mz: ms.z.round() + noise(),
         index: index,
         enabled: true,
-        group: d,
+        group: scrambleGroups ? rng.nextInt(14) : d,
       ));
       orientations.add(_Orientation(yaw, pitch, roll));
       index++;

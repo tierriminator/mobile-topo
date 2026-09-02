@@ -96,16 +96,6 @@ class CalibrationService extends ChangeNotifier {
   /// Error threshold (degrees) for considering a measurement "bad" and needing correction.
   static const double errorThreshold = 0.5;
 
-  /// Plausible range for the diagonal of the A matrices.
-  ///
-  /// A maps raw counts scaled by [CalibrationCoefficients.rawUnit] onto unit
-  /// vectors, so each diagonal element is 24000 / (counts per full scale unit),
-  /// i.e. close to 1. Serialization stores `value * 16384` in an int16, so
-  /// values above ~2 would overflow and values near 0 would quantize away.
-  static const double _minGain = 0.1;
-  static const double _maxGain = 2.0;
-
-  static bool _isPlausibleGain(double v) => v > _minGain && v < _maxGain;
 
   /// Which position slots (0-55) are filled, and by which measurement index.
   /// Key: slot index, Value: measurement list index.
@@ -603,24 +593,22 @@ class CalibrationService extends ChangeNotifier {
       debugPrint('  [${c.aM.entry(2,0).toStringAsFixed(4)}, ${c.aM.entry(2,1).toStringAsFixed(4)}, ${c.aM.entry(2,2).toStringAsFixed(4)}]');
       debugPrint('Coefficients bM: [${c.bM.x.toStringAsFixed(4)}, ${c.bM.y.toStringAsFixed(4)}, ${c.bM.z.toStringAsFixed(4)}]');
 
-      // Sanity check: the A matrices act on raw counts already scaled by
-      // CalibrationCoefficients.rawUnit (1/24000), so their diagonal should be
-      // around 1 — roughly 24000 / (counts per g). Serialization multiplies by
-      // FM = 16384 and stores an int16, so anything much outside [0.1, 2] is
-      // either a bad fit or an overflow waiting to happen.
-      final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
-      final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
+      // The A matrices act on raw counts already scaled by
+      // CalibrationCoefficients.rawUnit (1/24000), so their diagonal should
+      // come out around 1 — roughly 24000 / (counts per unit field). Report
+      // the raw sphere radii too: those are what decide whether the required
+      // gain fits the device's fixed point format at all.
+      debugPrint('  aG diagonal: [${c.aG.entry(0,0).toStringAsFixed(4)}, '
+          '${c.aG.entry(1,1).toStringAsFixed(4)}, ${c.aG.entry(2,2).toStringAsFixed(4)}]');
+      debugPrint('  aM diagonal: [${c.aM.entry(0,0).toStringAsFixed(4)}, '
+          '${c.aM.entry(1,1).toStringAsFixed(4)}, ${c.aM.entry(2,2).toStringAsFixed(4)}]');
 
-      final aGOk = aGDiag.every(_isPlausibleGain);
-      final aMOk = aMDiag.every(_isPlausibleGain);
-
-      if (!aGOk) {
-        debugPrint('WARNING: implausible aG diagonal: $aGDiag (expected ~1)');
-        debugPrint('  This usually means the calibration data is not well-distributed.');
-      }
-      if (!aMOk) {
-        debugPrint('WARNING: implausible aM diagonal: $aMDiag (expected ~1)');
-        debugPrint('  This usually means the calibration data is not well-distributed.');
+      final saturated = c.saturatedElements;
+      if (saturated.isNotEmpty) {
+        debugPrint('WARNING: coefficients exceed the device fixed point range '
+            '(|a| <= ${CalibrationCoefficients.maxMatrixElement}, '
+            '|b| <= ${CalibrationCoefficients.maxBiasComponent}): '
+            '${saturated.join(", ")}');
       }
 
       // Run auto-detection if enabled
@@ -658,20 +646,18 @@ class CalibrationService extends ChangeNotifier {
       return false;
     }
 
-    // Validate coefficients before writing. The A matrices map raw counts
-    // scaled by rawUnit onto unit vectors, so their diagonal should be ~1.
+    // Never write coefficients the device's 48-byte fixed point format cannot
+    // represent: toBytes would silently clamp them, leaving the device with a
+    // near-singular transform (typically showing up as an azimuth stuck near
+    // 0/180).
     final c = _coefficients!;
-    final aGDiag = [c.aG.entry(0,0), c.aG.entry(1,1), c.aG.entry(2,2)];
-    final aMDiag = [c.aM.entry(0,0), c.aM.entry(1,1), c.aM.entry(2,2)];
-
-    if (!aGDiag.every(_isPlausibleGain) || !aMDiag.every(_isPlausibleGain)) {
-      _error = 'Calibration coefficients are invalid (A matrix diagonal out of range). '
-          'This usually means the calibration measurements are not well-distributed. '
-          'Try taking measurements in more varied orientations.';
-      debugPrint('ERROR: Refusing to write invalid coefficients');
-      debugPrint('  aG diagonal: $aGDiag');
-      debugPrint('  aM diagonal: $aMDiag');
-      debugPrint('  Expected range: [$_minGain, $_maxGain]');
+    final saturated = c.saturatedElements;
+    if (saturated.isNotEmpty) {
+      _error = 'Calibration coefficients exceed the range the DistoX can store '
+          '(${saturated.join(", ")}). The sensor gain is too far from the '
+          'device scale factor for these measurements to be written.';
+      debugPrint('ERROR: Refusing to write unrepresentable coefficients: '
+          '${saturated.join(", ")}');
       notifyListeners();
       return false;
     }
