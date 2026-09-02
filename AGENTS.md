@@ -46,33 +46,40 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 
 ## Build and Development Commands
 
+The toolchain is pinned with [mise](https://mise.jdx.dev/) in `mise.toml` at the
+**git root**. mise is shell-activated, so `flutter`, `dart`, and `java` are on
+`PATH` directly — **never prefix commands with `mise exec`**.
+
+Prefer the mise tasks: each one sets its own working directory, so they work
+from anywhere in the repo and remove the need to remember the `cd`.
+
 ```bash
-# All commands below run from the Flutter package root, not the git root
-cd mobile_topo
-
-# Install dependencies
-flutter pub get
-
-# Run the app (debug mode)
-flutter run
-
-# Run on specific device
-flutter run -d <device_id>
-
-# Build for release
-flutter build apk          # Android
-flutter build ios          # iOS
-flutter build macos        # macOS
-
-# Run tests
-flutter test
-
-# Run a single test file
-flutter test test/widget_test.dart
-
-# Analyze code (linting)
-flutter analyze
+mise run get           # flutter pub get
+mise run analyze       # flutter analyze
+mise run test          # flutter test
+mise run run           # flutter run  (append -- -d <device_id> for a device)
+mise run l10n          # flutter gen-l10n
+mise run build-macos   # flutter build macos --debug
+mise run build-apk     # flutter build apk --debug
+mise run build-ios     # flutter build ios --no-codesign --debug
+mise run doctor        # flutter doctor -v
 ```
+
+For anything without a task, `cd mobile_topo` first — raw `flutter`/`dart`
+commands fail at the git root because `pubspec.yaml` is not there:
+
+```bash
+cd mobile_topo
+flutter test test/widget_test.dart    # single test file
+flutter pub outdated
+```
+
+Setup prerequisites (Xcode, Android SDK, why CocoaPods must not be installed)
+are documented in `mobile_topo/README.md`.
+
+Two `flutter doctor` warnings are expected and must not be "fixed":
+`CocoaPods not installed` (both Apple targets are Swift Package Manager only)
+and `Chrome not found` (web target only).
 
 ## Architecture
 

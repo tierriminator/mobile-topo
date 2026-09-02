@@ -3,8 +3,8 @@
 # (mobile_topo/.metadata still says 3.16.9 — that's the *create* revision, not
 # what the code is written against.)
 flutter = "3.47.2"
-# JDK 17: minimum for AGP 8.x, and the max the checked-in Gradle 7.5 wrapper
-# supports. Satisfies both, so it survives an Android config modernization.
+# JDK 17 is the floor Flutter 3.47 enforces for Android (errorJavaMinVersion)
+# and the minimum for AGP 8+. Newer JDKs also work with Gradle 9.x if needed.
 java = "temurin-17"
 
 [env]
@@ -42,6 +42,16 @@ run = "flutter run"
 description = "Build the macOS desktop app (primary dev target)"
 dir = "{{config_root}}/mobile_topo"
 run = "flutter build macos --debug"
+
+[tasks.build-apk]
+description = "Build the Android APK"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter build apk --debug"
+
+[tasks.build-ios]
+description = "Build for iOS device (unsigned; needs the Xcode iOS platform)"
+dir = "{{config_root}}/mobile_topo"
+run = "flutter build ios --no-codesign --debug"
 
 [tasks.doctor]
 description = "Check the toolchain"

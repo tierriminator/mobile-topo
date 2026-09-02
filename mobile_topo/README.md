@@ -33,25 +33,120 @@ macOS is unaffected because `IOBluetooth` exposes RFCOMM to any app.
 **Practical consequence:** use Android (or macOS) for surveying in the cave.
 iOS is limited to viewing, sketching, and exporting data captured elsewhere.
 
-## Getting started
+## Development setup
 
-The toolchain is pinned with [mise](https://mise.jdx.dev/) in `mise.toml` at the
-repository root — note that this is one level *above* this Flutter package.
+Verified on macOS (Apple Silicon). Steps 3 and 4 are per-target — install only
+what you intend to build for.
 
-```bash
-mise install      # Flutter + JDK, versions pinned in mise.toml
-mise run get      # flutter pub get
-```
+### 1. Toolchain
 
-All tasks run from the correct directory automatically:
+The Flutter SDK and JDK are pinned with [mise](https://mise.jdx.dev/) in
+`mise.toml` at the **repository root** — one level *above* this Flutter package.
 
 ```bash
-mise run analyze       # flutter analyze
-mise run test          # flutter test
-mise run run           # flutter run
-mise run build-macos   # build the macOS desktop app
-mise run doctor        # flutter doctor -v
+brew install mise
+echo 'eval "$(mise activate zsh)"' >> ~/.zshrc   # then restart your shell
+mise install                                     # Flutter + JDK, versions pinned
+mise run get                                     # flutter pub get
 ```
+
+Once mise is shell-activated, `flutter`, `dart`, and `java` resolve through its
+shims. Do **not** prefix commands with `mise exec` — it is redundant.
+
+`mise.toml` also exports `ANDROID_HOME`, so no shell export is needed for it.
+
+### 2. Editor
+
+Any editor with Dart/Flutter support. No IDE is required — Android Studio in
+particular is **not** needed (see step 3).
+
+### 3. Android target
+
+The headless command-line tools are sufficient; Android Studio only adds an IDE
+and the emulator, and the emulator is useless here anyway (it has no Classic
+Bluetooth, so the DistoX needs a physical device regardless).
+
+```bash
+brew install --cask android-commandlinetools
+android sdk install platform-tools
+android sdk install "platforms;android-36"
+android sdk install "build-tools;36.0.0"
+```
+
+Note that `sdkmanager` is deprecated in current SDK releases; `android sdk` is
+its replacement. SDK licenses are accepted automatically on the first Gradle
+build, or explicitly with `flutter doctor --android-licenses`.
+
+The Android build config tracks Flutter 3.47's template: Gradle 9.3.1,
+AGP 9.1.0, KGP 2.4.0, Kotlin DSL (`.kts`).
+
+### 4. Apple targets (macOS / iOS)
+
+**Full Xcode is required** — the Command Line Tools alone are not enough,
+because the macOS target contains a native Swift plugin
+(`macos/Runner/BluetoothPlugin.swift`). Install Xcode from the App Store, then:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -runFirstLaunch
+sudo xcodebuild -license accept
+```
+
+For **iOS** builds you additionally need Xcode's iOS platform component, which
+is a multi-gigabyte download separate from Xcode itself:
+
+```bash
+xcodebuild -downloadPlatform iOS
+```
+
+Without it, iOS builds fail with `Unable to find a destination matching the
+provided destination specifier` / `iOS <version> is not installed`. To *run* on
+the Simulator rather than just build, also install a runtime via
+**Xcode → Settings → Components**.
+
+**CocoaPods is not required and should not be installed.** Both Apple targets
+use Swift Package Manager and there are no `Podfile`s in the repository.
+
+### 5. Verify
+
+```bash
+mise run doctor
+mise run test
+```
+
+Two `flutter doctor` warnings are expected and can be ignored:
+
+- `CocoaPods not installed` — correct for this project, see above.
+- `Chrome ... not found` — only affects the web target.
+
+## Commands
+
+Every task runs from the correct directory automatically, so they work from
+anywhere in the repository.
+
+| Command | Purpose |
+|---------|---------|
+| `mise run get` | `flutter pub get` |
+| `mise run analyze` | Lint |
+| `mise run test` | Run tests |
+| `mise run run` | Run the app (`-- -d <device_id>` to pick a device) |
+| `mise run l10n` | Regenerate localizations from `l10n/*.arb` |
+| `mise run build-macos` | Build the macOS desktop app |
+| `mise run build-apk` | Build the Android APK |
+| `mise run build-ios` | Build for iOS device (unsigned) |
+| `mise run doctor` | `flutter doctor -v` |
+
+## Maintenance notes
+
+**Keep `environment.sdk` in `pubspec.yaml` close to the pinned Flutter version.**
+A stale lower bound makes `pub` resolve plugin versions old enough to still use
+Flutter's removed v1 Android embedding. That surfaces as a confusing native
+compile error (`cannot find symbol: class Registrar`) that looks like a Gradle
+problem but is really dependency resolution.
+
+**Do not apply `org.jetbrains.kotlin.android` in `android/app/build.gradle.kts`.**
+The Flutter Gradle Plugin applies Kotlin itself; applying it explicitly triggers
+a deprecation warning about future build failures.
 
 ## Architecture
 
