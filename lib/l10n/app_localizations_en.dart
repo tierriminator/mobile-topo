@@ -656,7 +656,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String calibrationReasonHighError(String error) {
-    return 'error $error°';
+    return 'error $error';
   }
 
   @override

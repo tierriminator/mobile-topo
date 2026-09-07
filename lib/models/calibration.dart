@@ -116,7 +116,23 @@ class CalibrationMeasurement {
 
 /// Computed results for one measurement after applying calibration.
 class CalibrationResult {
-  /// Error estimate in degrees (should be < 0.5 for good calibration).
+  /// Scale applied to the raw deviation `sqrt(|gr-gt|^2 + |mr-mt|^2)` to get
+  /// the reported [error].
+  ///
+  /// The deviation, and its RMS average E (eq. 4 of Heeb's paper), are
+  /// dimensionless distances between unit vectors. The paper bounds the
+  /// resulting angular error at `sqrt(3) * E` radians:
+  ///
+  ///   sqrt(3) * E * 180/pi = 99.2 * E degrees
+  ///
+  /// so E in percent is, to within 1%, the angular error in degrees. That is
+  /// the scale the "should be smaller than 0.5" limit in
+  /// `docs/distox/DistoX2_CalibrationManual.txt` is quoted on.
+  static const double errorScale = 100.0;
+
+  /// Deviation of this measurement from the fitted direction, as a multiple of
+  /// [errorScale]. Approximately the angular error in degrees; under 0.5 is
+  /// good.
   final double error;
 
   /// Magnitude of calibrated G vector (should be ~1).

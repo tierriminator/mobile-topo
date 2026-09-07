@@ -1285,10 +1285,10 @@ abstract class AppLocalizations {
   /// **'All 56 positions filled!'**
   String get calibrationAllPositionsFilled;
 
-  /// Reason for correction: high error
+  /// Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.
   ///
   /// In en, this message translates to:
-  /// **'error {error}°'**
+  /// **'error {error}'**
   String calibrationReasonHighError(String error);
 
   /// Reason for correction: misaligned

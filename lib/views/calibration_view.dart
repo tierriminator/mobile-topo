@@ -443,7 +443,7 @@ class _ControlBar extends StatelessWidget {
     AppLocalizations l10n,
   ) {
     final rmsError = calibration.rmsError ?? 0;
-    final isGood = rmsError < 0.5;
+    final isGood = rmsError < CalibrationService.errorThreshold;
 
     showDialog(
       context: context,
@@ -635,7 +635,9 @@ class _CalibrationTable extends StatelessWidget {
       final filledRolls = groupMeas.map((m) => m.rollIndex).toSet().length;
 
       // Check if any measurement has high error
-      final hasError = groupMeas.any((m) => m.result != null && m.result!.error >= 0.5);
+      final hasError = groupMeas.any((m) =>
+          m.result != null &&
+          m.result!.error >= CalibrationService.errorThreshold);
 
       return _DirectionGroupData(
         direction: direction,
@@ -900,7 +902,8 @@ class _GroupedMeasurementRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = groupedMeasurement.measurement;
     final r = groupedMeasurement.result;
-    final hasError = r != null && r.error >= 0.5;
+    final hasError =
+        r != null && r.error >= CalibrationService.errorThreshold;
     final disabledColor = Theme.of(context).colorScheme.outline;
 
     return InkWell(
@@ -946,7 +949,7 @@ class _GroupedMeasurementRow extends StatelessWidget {
                 SizedBox(
                   width: 50,
                   child: Text(
-                    'Δ ${r.error.toStringAsFixed(2)}°',
+                    'Δ ${r.error.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 11,
                       color: hasError ? Colors.orange : Colors.green,
@@ -999,7 +1002,8 @@ class _MeasurementDetailsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final hasError = result != null && result!.error >= 0.5;
+    final hasError =
+        result != null && result!.error >= CalibrationService.errorThreshold;
 
     return Scaffold(
       appBar: AppBar(
@@ -1069,7 +1073,7 @@ class _MeasurementDetailsView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _buildDataCard(context, [
-              _DataRow(l10n.calibrationError, '${result!.error.toStringAsFixed(3)}°',
+              _DataRow(l10n.calibrationError, result!.error.toStringAsFixed(3),
                   highlight: hasError),
               _DataRow(l10n.calibrationAzimuth, '${result!.azimuth.toStringAsFixed(1)}°'),
               _DataRow(l10n.calibrationInclination, '${result!.inclination.toStringAsFixed(1)}°'),
@@ -1184,7 +1188,9 @@ class _CalibrationGuidance extends StatelessWidget {
 
     for (int i = 0; i < results.length && i < measurements.length; i++) {
       final r = results[i];
-      if (r != null && measurements[i].enabled && r.error >= 0.5) {
+      if (r != null &&
+          measurements[i].enabled &&
+          r.error >= CalibrationService.errorThreshold) {
         return i;
       }
     }
@@ -1459,7 +1465,9 @@ class _StatusBar extends StatelessWidget {
             Text(
               l10n.calibrationStatusError(rmsError!.toStringAsFixed(2)),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: rmsError! < 0.5 ? Colors.green : Colors.orange,
+                    color: rmsError! < CalibrationService.errorThreshold
+                        ? Colors.green
+                        : Colors.orange,
                     fontWeight: FontWeight.bold,
                   ),
             ),

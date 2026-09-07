@@ -825,9 +825,9 @@
   "@calibrationAllPositionsFilled": {
     "description": "Message when all positions are filled"
   },
-  "calibrationReasonHighError": "error {error}°",
+  "calibrationReasonHighError": "error {error}",
   "@calibrationReasonHighError": {
-    "description": "Reason for correction: high error",
+    "description": "Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.",
     "placeholders": {
       "error": {
         "type": "String"
