@@ -443,6 +443,21 @@ void main() {
       algorithm = CalibrationAlgorithm();
     });
 
+    test('splits the error into parts that add up to it', () async {
+      final data = _syntheticCalibration(noiseCounts: 40, procedureGroups: true);
+
+      final output = await algorithm.compute(data.measurements);
+      final b = output.errorBreakdown;
+
+      final sumOfSquares = b.gravityLength * b.gravityLength +
+          b.magneticLength * b.magneticLength +
+          b.dip * b.dip +
+          b.aiming * b.aiming;
+      expect(output.rmsError, greaterThan(0.05));
+      expect(math.sqrt(sumOfSquares), closeTo(output.rmsError, 1e-3));
+      expect(output.alpha, closeTo(_alphaDeg, 0.2));
+    });
+
     test('throws for too few measurements', () async {
       final measurements = List.generate(
         10,

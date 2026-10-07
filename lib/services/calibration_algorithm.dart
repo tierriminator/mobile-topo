@@ -36,18 +36,71 @@ class CalibrationOutput {
 
   final int iterations;
 
+  /// Fitted angle between the gravity and the magnetic field vector, in
+  /// degrees: 90° minus the magnetic dip.
+  final double alpha;
+
+  /// [rmsError] split by cause.
+  final ErrorBreakdown errorBreakdown;
+
   const CalibrationOutput({
     required this.coefficients,
     required this.results,
     required this.rmsError,
     required this.directionCoverage,
     required this.iterations,
+    required this.alpha,
+    required this.errorBreakdown,
   });
 
   /// Whether the measurements are spread widely enough for [rmsError] and the
   /// per-measurement errors to be meaningful.
   bool get hasUsefulCoverage =>
       directionCoverage >= CalibrationAlgorithm.minUsefulCoverage;
+}
+
+/// The calibration error E split into parts with different physical causes,
+/// each scaled like [CalibrationOutput.rmsError]. Their squares add up to the
+/// square of [CalibrationOutput.rmsError].
+///
+/// A measurement's error is the distance of its calibrated vectors `gr`, `mr`
+/// from the fitted unit vectors `gt`, `mt`. For a vector `v` fitted by a unit
+/// vector `t` at an angle θ,
+///
+///   |v − t|² = (|v| − 1)² + 2|v|(1 − cos θ)
+///
+/// exactly, which separates a length part from an angular part. The angular
+/// part of a free measurement comes only from the angle between `gr` and `mr`
+/// differing from the fitted alpha, by δ: the fit splits δ evenly between the
+/// two vectors, giving about δ²/2. What the angular part of a grouped
+/// measurement has beyond that comes from the group's shots not pointing in
+/// one direction.
+class ErrorBreakdown {
+  /// From gravity readings whose length differs between shots: the
+  /// accelerometer also measuring the device's movement.
+  final double gravityLength;
+
+  /// From magnetic readings whose length differs between shots.
+  final double magneticLength;
+
+  /// From the angle between gravity and magnetic field differing between
+  /// shots.
+  final double dip;
+
+  /// From the shots of a unidirectional group not pointing in one direction.
+  final double aiming;
+
+  const ErrorBreakdown({
+    required this.gravityLength,
+    required this.magneticLength,
+    required this.dip,
+    required this.aiming,
+  });
+
+  @override
+  String toString() => 'gravity length ${gravityLength.toStringAsFixed(3)}, '
+      'magnetic length ${magneticLength.toStringAsFixed(3)}, '
+      'dip ${dip.toStringAsFixed(3)}, aiming ${aiming.toStringAsFixed(3)}';
 }
 
 /// Implements Beat Heeb's iterative calibration algorithm.
@@ -98,7 +151,11 @@ class CalibrationAlgorithm {
   /// Throws [CalibrationException] if there are insufficient measurements.
   Future<CalibrationOutput> compute(
     List<CalibrationMeasurement> measurements,
-  ) async {
+  ) async =>
+      computeNow(measurements);
+
+  /// [compute], returning the result directly.
+  CalibrationOutput computeNow(List<CalibrationMeasurement> measurements) {
     // Input order is preserved: callers map the results back onto the enabled
     // measurements positionally.
     final data = measurements.where((m) => m.enabled).toList();
@@ -158,8 +215,44 @@ class CalibrationAlgorithm {
       rmsError: rmsError,
       directionCoverage: result.coverage,
       iterations: result.iterations,
+      alpha: math.atan2(result.sinA, result.cosA) * _radToDeg,
+      errorBreakdown: _breakdown(result),
     );
   }
+
+  /// See [ErrorBreakdown].
+  ErrorBreakdown _breakdown(_OptimizeResult r) {
+    final alpha = math.atan2(r.sinA, r.cosA);
+    var gravityLength = 0.0;
+    var magneticLength = 0.0;
+    var dip = 0.0;
+    var aiming = 0.0;
+
+    for (int i = 0; i < r.gr.length; i++) {
+      final gr = r.gr[i];
+      final mr = r.mr[i];
+      gravityLength += _square(gr.length - 1);
+      magneticLength += _square(mr.length - 1);
+
+      final angular = 2 * gr.length * (1 - math.cos(gr.angleTo(r.gt[i]))) +
+          2 * mr.length * (1 - math.cos(mr.angleTo(r.mt[i])));
+      final dipPart = math.min(angular, _square(gr.angleTo(mr) - alpha) / 2);
+      dip += dipPart;
+      aiming += angular - dipPart;
+    }
+
+    final n = r.gr.length;
+    double scaled(double sum) =>
+        math.sqrt(sum / n) * CalibrationResult.errorScale;
+    return ErrorBreakdown(
+      gravityLength: scaled(gravityLength),
+      magneticLength: scaled(magneticLength),
+      dip: scaled(dip),
+      aiming: scaled(aiming),
+    );
+  }
+
+  static double _square(double x) => x * x;
 
   /// How well a set of readings constrains the least squares step, from 0 to 1.
   ///
@@ -307,6 +400,8 @@ class CalibrationAlgorithm {
       gd: gd,
       m: m,
       md: md,
+      sinA: sinA,
+      cosA: cosA,
       iterations: it,
       coverage: _coverageOf(gCovariance),
       gr: gr,
@@ -463,6 +558,11 @@ class _OptimizeResult {
   final Vector3 gd;
   final Matrix3 m;
   final Vector3 md;
+
+  /// Sine and cosine of the fitted alpha the fitted vectors were built with.
+  final double sinA;
+  final double cosA;
+
   final int iterations;
 
   /// Conditioning of the accelerometer covariance the fit inverts, 0 to 1.
@@ -481,6 +581,8 @@ class _OptimizeResult {
     required this.gd,
     required this.m,
     required this.md,
+    required this.sinA,
+    required this.cosA,
     required this.iterations,
     required this.coverage,
     required this.gr,
