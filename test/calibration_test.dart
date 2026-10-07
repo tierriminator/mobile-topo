@@ -173,6 +173,16 @@ void main() {
       expect(mag.z, closeTo(0.25 * 1200 * u + 15, tol));
     });
 
+    test('error scale matches the paper angular error relation', () {
+      // Heeb bounds the angular error of a calibration at sqrt(3) * E radians
+      // (E being the dimensionless error measure of eq. 4), so E expressed as
+      // a percentage is within 1% of the angular error in degrees. That is why
+      // the DistoX2 calibration manual can ask for "smaller than 0.5" and
+      // still expect a device that reads to a few tenths of a degree.
+      final degreesPerUnitE = math.sqrt(3) * 180 / math.pi; // 99.2
+      expect(CalibrationResult.errorScale, closeTo(degreesPerUnitE, 1.0));
+    });
+
     group('byte serialization', () {
       test('toBytes produces 48 bytes', () {
         final coeff = CalibrationCoefficients.identity();
@@ -638,6 +648,39 @@ void main() {
       // Guard the actual symptom: azimuth must span the circle, not sit on
       // two opposite values.
       expect(azimuths.length, greaterThan(4));
+    });
+
+    test('reports low coverage while directions are still missing', () async {
+      // The standard procedure starts with the four horizontal directions,
+      // which barely vary along the laser (x) axis. Until a vertical shot
+      // arrives, the x column of G is unconstrained by any measurement and
+      // the RMS error reflects that free parameter rather than the shots.
+      final data = _syntheticCalibration();
+      final horizontalOnly = data.measurements.take(16).toList();
+
+      final partial = await algorithm.compute(horizontalOnly);
+      final full = await algorithm.compute(data.measurements);
+
+      // The four horizontal directions alone leave the laser axis flat.
+      expect(partial.directionCoverage, lessThan(0.01));
+      expect(partial.hasUsefulCoverage, isFalse);
+
+      // The full evenly spread set covers the rotation group completely.
+      expect(full.directionCoverage, closeTo(1.0, 0.01));
+      expect(full.hasUsefulCoverage, isTrue);
+
+      // Coverage climbs as soon as the vertical directions arrive, which is
+      // also where the x column of G stops being determined by noise. It is
+      // graded, not a step: two vertical shots reach ~0.56 and the full six
+      // cube faces ~1.0.
+      final twoVertical =
+          await algorithm.compute(data.measurements.take(18).toList());
+      expect(twoVertical.directionCoverage, closeTo(0.56, 0.05));
+      expect(twoVertical.hasUsefulCoverage, isTrue);
+
+      final sixFaces =
+          await algorithm.compute(data.measurements.take(24).toList());
+      expect(sixFaces.directionCoverage, closeTo(1.0, 0.01));
     });
 
     test('rejects a degenerate fit instead of returning it', () async {

@@ -21,8 +21,18 @@ class CalibrationOutput {
   /// One entry per *enabled* input measurement, in input order.
   final List<CalibrationResult> results;
 
-  /// RMS of the per-measurement errors, in degrees.
+  /// RMS of the per-measurement errors: the paper's error measure E, scaled by
+  /// [CalibrationResult.errorScale]. Under 0.5 is a good calibration.
   final double rmsError;
+
+  /// How evenly the device orientations are spread over the rotation group,
+  /// from 0 (all measurements in one direction) to 1 (evenly spread).
+  ///
+  /// The paper's least squares step only determines a column of G along an
+  /// axis the measurements actually vary on, so a low value means part of the
+  /// solution is unconstrained and [rmsError] says nothing about the quality
+  /// of the calibration. See [CalibrationAlgorithm.minUsefulCoverage].
+  final double directionCoverage;
 
   final int iterations;
 
@@ -30,8 +40,14 @@ class CalibrationOutput {
     required this.coefficients,
     required this.results,
     required this.rmsError,
+    required this.directionCoverage,
     required this.iterations,
   });
+
+  /// Whether the measurements are spread widely enough for [rmsError] and the
+  /// per-measurement errors to be meaningful.
+  bool get hasUsefulCoverage =>
+      directionCoverage >= CalibrationAlgorithm.minUsefulCoverage;
 }
 
 /// Implements Beat Heeb's iterative calibration algorithm.
@@ -59,6 +75,11 @@ class CalibrationAlgorithm {
 
   /// Minimum number of measurements required.
   static const int minMeasurements = 16;
+
+  /// Minimum [CalibrationOutput.directionCoverage] for the reported errors to
+  /// mean anything. Calibrated against the procedure in the DistoX2
+  /// calibration manual: see the coverage tests in `test/calibration_test.dart`.
+  static const double minUsefulCoverage = 0.25;
 
   /// Minimum RMS spread of the calibrated vectors around their centroid.
   /// A valid solution puts them on the unit sphere, so this is ~1; the
@@ -135,8 +156,39 @@ class CalibrationAlgorithm {
       ),
       results: results,
       rmsError: rmsError,
+      directionCoverage: result.coverage,
       iterations: result.iterations,
     );
+  }
+
+  /// How well a set of readings constrains the least squares step, from 0 to 1.
+  ///
+  /// [covariance] is the paper's Gs, the matrix eq. 6 inverts to get G. Since
+  /// `G = Cov(gt, gs) o Gs^-1`, the uncertainty in G scales with `Gs^-1`, so
+  /// along an eigenvector of Gs it goes as the inverse of that eigenvalue: a
+  /// direction the device was never turned along collapses an eigenvalue and
+  /// leaves that part of G determined by noise alone.
+  ///
+  /// The paper's condition for a solvable system is that the readings are
+  /// "evenly spread over all possible directions", which it expresses as
+  /// `Gs = |gs|^2 / 3 * I` — isotropic. Gravity has constant magnitude, so the
+  /// readings lie on an ellipsoid (a sphere up to the sensor's gain and skew
+  /// errors) and an even spread over it gives exactly that.
+  ///
+  /// The determinant over the cube of the mean eigenvalue is the ratio of the
+  /// eigenvalues' geometric to arithmetic mean, cubed. By AM-GM that is at
+  /// most 1, with equality only when all three are equal, so it reads 1 when
+  /// isotropic and 0 when flat along any direction, whatever the sensor's
+  /// gain — the clamp only guards float error. Per-axis gain differences
+  /// distort it by the same few percent by which they differ.
+  double _coverageOf(Matrix3 covariance) {
+    final meanEigenvalue = (covariance.entry(0, 0) +
+            covariance.entry(1, 1) +
+            covariance.entry(2, 2)) /
+        3.0;
+    if (meanEigenvalue <= 0) return 0.0;
+    final isotropic = meanEigenvalue * meanEigenvalue * meanEigenvalue;
+    return (covariance.determinant() / isotropic).clamp(0.0, 1.0);
   }
 
   /// Partition measurement indices into unidirectional groups.
@@ -195,10 +247,13 @@ class CalibrationAlgorithm {
     // Note: `Matrix3.operator*` is declared to return `dynamic`, and extension
     // members do not resolve on `dynamic`. Use the explicitly typed
     // `scaled`/`multiplied` instead.
-    final avGs2 = sumGs2.scaled(invN);
-    final avMs2 = sumMs2.scaled(invN);
-    final gi = (avGs2 - _outer(avGs, avGs)).inverse;
-    final mi = (avMs2 - _outer(avMs, avMs)).inverse;
+    // The paper's Gs and Ms: the covariance of the sensor readings. Eq. 6 is a
+    // regression, G = Cov(gt, gs) o Cov(gs)^-1, so these invert once and are
+    // reused every iteration — they depend on the sensor values only.
+    final gCovariance = sumGs2.scaled(invN) - _outer(avGs, avGs);
+    final mCovariance = sumMs2.scaled(invN) - _outer(avMs, avMs);
+    final gi = gCovariance.inverse;
+    final mi = mCovariance.inverse;
 
     // Step 2 of the paper's main iteration starts from G = M = I and
     // gd = md = 0. That assumes the raw readings are already close to unit
@@ -212,8 +267,8 @@ class CalibrationAlgorithm {
     // sensitivity: the centroid of a well spread set of readings is the sensor
     // offset, and the RMS distance from the centroid is the sphere radius. The
     // fixed point of the iteration is unchanged, only the starting guess is.
-    final rG = _sphereRadius(avGs2, avGs);
-    final rM = _sphereRadius(avMs2, avMs);
+    final rG = _sphereRadius(gCovariance);
+    final rM = _sphereRadius(mCovariance);
 
     var g = Matrix3.identity().scaled(1.0 / rG);
     var m = Matrix3.identity().scaled(1.0 / rM);
@@ -297,6 +352,7 @@ class CalibrationAlgorithm {
       m: m,
       md: md,
       iterations: it,
+      coverage: _coverageOf(gCovariance),
       gr: gr,
       mr: mr,
       gt: gt,
@@ -409,14 +465,13 @@ class CalibrationAlgorithm {
     return maxD;
   }
 
-  /// RMS distance of a set of vectors from its own centroid, given the average
-  /// outer product and the average vector. For readings spread over a sphere
-  /// this is the sphere's radius.
-  double _sphereRadius(Matrix3 avOuter, Vector3 average) {
-    final variance = avOuter.entry(0, 0) +
-        avOuter.entry(1, 1) +
-        avOuter.entry(2, 2) -
-        average.length2;
+  /// RMS distance of a set of readings from its own centroid, given their
+  /// centred [covariance]. For readings spread over the sphere of orientations
+  /// this is its radius, which is the scale that takes them to unit vectors.
+  double _sphereRadius(Matrix3 covariance) {
+    final variance = covariance.entry(0, 0) +
+        covariance.entry(1, 1) +
+        covariance.entry(2, 2);
     return math.sqrt(math.max(variance, 1e-12));
   }
 
@@ -444,11 +499,9 @@ class CalibrationAlgorithm {
   /// Per-measurement results, in the same order as the enabled input
   /// measurements.
   ///
-  /// The error is the distance between the measured and the fitted direction,
-  /// `sqrt(|gr - gt|^2 + |mr - mt|^2)`. That is exactly the quantity the
-  /// paper's error measure E (eq. 4) is the RMS average of. For (near) unit
-  /// vectors the distance equals the angle in radians, so reporting it in
-  /// degrees gives a directly interpretable number.
+  /// The error is `sqrt(|gr - gt|^2 + |mr - mt|^2)`, the per-measurement
+  /// deviation the paper's error measure E (eq. 4) is the RMS average of,
+  /// scaled by [CalibrationResult.errorScale].
   List<CalibrationResult> _buildResults(_OptimizeResult r) {
     final results = <CalibrationResult>[];
     for (int i = 0; i < r.gr.length; i++) {
@@ -460,7 +513,7 @@ class CalibrationAlgorithm {
           CalibrationCoefficients.anglesFromVectors(gr, mr);
 
       results.add(CalibrationResult(
-        error: error * _radToDeg,
+        error: error * CalibrationResult.errorScale,
         gMagnitude: gr.length,
         mMagnitude: mr.length,
         alpha: gr.angleTo(mr) * _radToDeg,
@@ -481,6 +534,9 @@ class _OptimizeResult {
   final Vector3 md;
   final int iterations;
 
+  /// Conditioning of the accelerometer covariance the fit inverts, 0 to 1.
+  final double coverage;
+
   /// Calibrated sensor vectors for the converged coefficients.
   final List<Vector3> gr;
   final List<Vector3> mr;
@@ -495,6 +551,7 @@ class _OptimizeResult {
     required this.m,
     required this.md,
     required this.iterations,
+    required this.coverage,
     required this.gr,
     required this.mr,
     required this.gt,
