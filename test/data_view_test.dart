@@ -23,30 +23,28 @@ class _InMemoryCaveRepository implements CaveRepository {
 void main() {
   final now = DateTime(2026);
 
-  Section section(String id) => Section(
+  Section section(String id, [Survey? survey]) => Section(
         id: id,
         name: id,
-        survey: const Survey(stretches: [], referencePoints: []),
+        survey: survey ?? const Survey(stretches: [], referencePoints: []),
         createdAt: now,
         modifiedAt: now,
       );
 
-  testWidgets('measurements go to the section selected when they arrive',
-      (tester) async {
-    final first = section('first');
-    final second = section('second');
-    final cave = Cave(
-      id: 'cave',
-      name: 'Cave',
-      sections: [first, second],
-      createdAt: now,
-      modifiedAt: now,
-    );
+  Cave cave(List<Section> sections) => Cave(
+        id: 'cave',
+        name: 'Cave',
+        sections: sections,
+        createdAt: now,
+        modifiedAt: now,
+      );
 
-    final selectionState = SelectionState()..selectSection(cave, first);
-    final measurementService = MeasurementService(SettingsController());
-
-    await tester.pumpWidget(
+  Future<void> pumpDataView(
+    WidgetTester tester,
+    SelectionState selectionState,
+    MeasurementService measurementService,
+  ) {
+    return tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: selectionState),
@@ -60,8 +58,26 @@ void main() {
         ),
       ),
     );
+  }
 
-    selectionState.selectSection(cave, second);
+  Future<void> startHereOn(WidgetTester tester, String cellText) async {
+    await tester.longPress(find.text(cellText).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start here'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('measurements go to the section selected when they arrive',
+      (tester) async {
+    final first = section('first');
+    final second = section('second');
+    final c = cave([first, second]);
+
+    final selectionState = SelectionState()..selectSection(c, first);
+    final measurementService = MeasurementService(SettingsController());
+    await pumpDataView(tester, selectionState, measurementService);
+
+    selectionState.selectSection(c, second);
     await tester.pumpAndSettle();
 
     measurementService.addMeasurement(
@@ -74,5 +90,66 @@ void main() {
 
     expect(selectionState.selectedSection!.id, 'second');
     expect(selectionState.selectedSection!.survey.stretches, hasLength(1));
+  });
+
+  group('Start Here', () {
+    // Another section of the cave already uses series 2
+    final other = section(
+      'other',
+      const Survey(
+        stretches: [MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0)],
+        referencePoints: [],
+      ),
+    );
+
+    testWidgets('on a survey shot starts a new series at its To station',
+        (tester) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([other, current]), current);
+      final measurementService = MeasurementService(SettingsController());
+      await pumpDataView(tester, selectionState, measurementService);
+
+      await startHereOn(tester, '5.00');
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches, hasLength(2));
+      final dummy = stretches.last;
+      expect(dummy.from, const Point(1, 1));
+      expect(dummy.to, const Point(3, 0));
+      expect(dummy.distance, 0);
+      expect(measurementService.currentStation, const Point(3, 0));
+    });
+
+    testWidgets('on a reference point starts a new series at its station',
+        (tester) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [],
+          referencePoints: [ReferencePoint(Point(1, 0), 600, 200, 1500)],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([other, current]), current);
+      final measurementService = MeasurementService(SettingsController());
+      await pumpDataView(tester, selectionState, measurementService);
+
+      await tester.tap(find.byTooltip('Reference Points'));
+      await tester.pumpAndSettle();
+      await startHereOn(tester, '600');
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches, hasLength(1));
+      expect(stretches.single.from, const Point(1, 0));
+      expect(stretches.single.to, const Point(3, 0));
+      expect(measurementService.currentStation, const Point(3, 0));
+    });
   });
 }

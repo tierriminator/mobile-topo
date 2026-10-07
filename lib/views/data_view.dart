@@ -298,25 +298,18 @@ class _DataViewState extends State<DataView> {
     );
   }
 
+  /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
+  /// first station of a new series and continues measuring from there.
   Future<void> _startNewSeries(Section section, Point fromStation) async {
     final measurementService = context.read<MeasurementService>();
 
-    // Find the maximum corridor ID used in the survey
-    int maxCorridorId = 0;
-    for (final stretch in section.survey.stretches) {
-      if (stretch.from.corridorId.toInt() > maxCorridorId) {
-        maxCorridorId = stretch.from.corridorId.toInt();
-      }
-      if (stretch.to != null && stretch.to!.corridorId.toInt() > maxCorridorId) {
-        maxCorridorId = stretch.to!.corridorId.toInt();
-      }
-    }
+    // Station IDs must be unique in the whole cave, so the new series number
+    // is taken from all sections, not just this one
+    final cave = context.read<SelectionState>().selectedCave;
+    final newStation =
+        (cave?.replaceSection(section).combinedSurvey ?? section.survey)
+            .nextSeriesStart;
 
-    // New series starts at (maxCorridorId + 1).0
-    final newCorridorId = maxCorridorId + 1;
-    final newStation = Point(newCorridorId, 0);
-
-    // Create empty stretch connecting the selected station to the new series
     final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0);
     await _applySurveyChange(section, section.survey.addStretch(emptyStretch));
 
@@ -555,6 +548,7 @@ class _DataViewState extends State<DataView> {
                 onUpdate: (index, point) =>
                     _updateReferencePoint(section, index, point),
                 onDelete: (index) => _deleteReferencePoint(section, index),
+                onStartHere: (station) => _startNewSeries(section, station),
                 onAdd: () => _addReferencePoint(section),
               ),
       ],

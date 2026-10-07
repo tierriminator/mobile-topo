@@ -349,7 +349,8 @@ class StretchesTableState
       String? value, int index, MeasuredDistance item) {
     switch (value) {
       case 'startHere':
-        widget.onStartHere?.call(item.from);
+        // A survey shot defines its To station, a cross section its From
+        widget.onStartHere?.call(item.to ?? item.from);
       case 'continueHere':
         widget.onContinueHere?.call(item.from.corridorId);
       case 'insertAbove':
@@ -368,6 +369,7 @@ class StretchesTableState
 
 class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
   final void Function(int index, ReferencePoint point)? onUpdate;
+  final void Function(Point station)? onStartHere;
 
   const ReferencePointsTable({
     super.key,
@@ -378,6 +380,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onAdd,
     super.editMode,
     this.onUpdate,
+    this.onStartHere,
   });
 
   @override
@@ -450,6 +453,7 @@ class ReferencePointsTableState
   List<PopupMenuEntry<String>> buildContextMenuItems(
       AppLocalizations l10n, int index, ReferencePoint item) {
     return [
+      PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
       PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
       PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
@@ -460,6 +464,8 @@ class ReferencePointsTableState
   void handleContextMenuSelection(
       String? value, int index, ReferencePoint item) {
     switch (value) {
+      case 'startHere':
+        widget.onStartHere?.call(item.id);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

@@ -205,6 +205,15 @@ class Survey {
         ],
       };
 
+  /// First station of a new series: the series after the highest one in use
+  Point get nextSeriesStart {
+    var maxSeries = 0;
+    for (final station in stations) {
+      maxSeries = math.max(maxSeries, station.corridorId.toInt());
+    }
+    return Point(maxSeries + 1, 0);
+  }
+
   /// Calculates total surveyed length (sum of all stretch distances)
   double get totalLength {
     double total = 0;
