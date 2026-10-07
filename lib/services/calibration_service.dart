@@ -758,9 +758,9 @@ class CalibrationService extends ChangeNotifier {
       debugPrint('  M coeffs: ${_hex(bytes.sublist(24, 48))}');
 
       // Write 4 bytes at a time to 0x8010-0x803F, confirming each chunk before
-      // moving on. Firing all twelve writes back to back loses most of the
-      // replies and, worse, most of the writes: the device is then left with a
-      // mix of new and stale coefficients.
+      // sending the next. The device only keeps up with one command at a time,
+      // and a chunk it never acknowledges is a chunk it never stored — leaving
+      // a mix of new and stale coefficients behind.
       for (int i = 0; i < 48; i += 4) {
         final address = coefficientAddress + i;
         final chunk = bytes.sublist(i, i + 4);
