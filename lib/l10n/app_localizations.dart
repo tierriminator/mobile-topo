@@ -753,47 +753,11 @@ abstract class AppLocalizations {
   /// **'Start'**
   String get calibrationStart;
 
-  /// Button to stop calibration mode
-  ///
-  /// In en, this message translates to:
-  /// **'Stop'**
-  String get calibrationStop;
-
-  /// Button to clear and start new calibration
-  ///
-  /// In en, this message translates to:
-  /// **'New'**
-  String get calibrationNew;
-
-  /// Button to compute calibration coefficients
-  ///
-  /// In en, this message translates to:
-  /// **'Evaluate'**
-  String get calibrationEvaluate;
-
-  /// Button to write coefficients to device
-  ///
-  /// In en, this message translates to:
-  /// **'Update'**
-  String get calibrationUpdate;
-
   /// Button to write coefficients to device
   ///
   /// In en, this message translates to:
   /// **'Write'**
   String get calibrationWrite;
-
-  /// Button to clear measurements
-  ///
-  /// In en, this message translates to:
-  /// **'Clear'**
-  String get calibrationClear;
-
-  /// Confirmation message for clearing calibration
-  ///
-  /// In en, this message translates to:
-  /// **'Clear all measurements and start over?'**
-  String get calibrationClearConfirm;
 
   /// Title for cancel calibration dialog
   ///
@@ -813,179 +777,11 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get calibrationDiscard;
 
-  /// Confirmation message for updating device
-  ///
-  /// In en, this message translates to:
-  /// **'Write calibration coefficients to device?'**
-  String get calibrationUpdateConfirm;
-
-  /// Message when calibration error is below 0.5
-  ///
-  /// In en, this message translates to:
-  /// **'Good calibration'**
-  String get calibrationQualityGood;
-
-  /// Message when calibration error is 0.5 or above
-  ///
-  /// In en, this message translates to:
-  /// **'Poor calibration'**
-  String get calibrationQualityPoor;
-
-  /// Message when no measurements have been taken
-  ///
-  /// In en, this message translates to:
-  /// **'No calibration measurements yet'**
-  String get calibrationNoMeasurements;
-
-  /// Column header for enabled checkbox
-  ///
-  /// In en, this message translates to:
-  /// **'*'**
-  String get calibrationColumnEnabled;
-
-  /// Column header for group assignment
-  ///
-  /// In en, this message translates to:
-  /// **'Grp'**
-  String get calibrationColumnGroup;
-
-  /// Column header for error value
-  ///
-  /// In en, this message translates to:
-  /// **'Δ'**
-  String get calibrationColumnError;
-
-  /// Column header for G vector magnitude
-  ///
-  /// In en, this message translates to:
-  /// **'|G|'**
-  String get calibrationColumnGMag;
-
-  /// Column header for M vector magnitude
-  ///
-  /// In en, this message translates to:
-  /// **'|M|'**
-  String get calibrationColumnMMag;
-
-  /// Column header for alpha angle (dip)
-  ///
-  /// In en, this message translates to:
-  /// **'α'**
-  String get calibrationColumnAlpha;
-
-  /// Status when collecting measurements
-  ///
-  /// In en, this message translates to:
-  /// **'Measuring...'**
-  String get calibrationMeasuring;
-
-  /// Status when computing coefficients
-  ///
-  /// In en, this message translates to:
-  /// **'Computing...'**
-  String get calibrationComputing;
-
-  /// Status when writing to device
-  ///
-  /// In en, this message translates to:
-  /// **'Writing...'**
-  String get calibrationWriting;
-
-  /// Status when reading from device
-  ///
-  /// In en, this message translates to:
-  /// **'Reading...'**
-  String get calibrationReading;
-
-  /// Status bar measurement count
-  ///
-  /// In en, this message translates to:
-  /// **'n: {count}'**
-  String calibrationStatusCount(int count);
-
-  /// Status bar iteration count
-  ///
-  /// In en, this message translates to:
-  /// **'i: {iterations}'**
-  String calibrationStatusIterations(int iterations);
-
-  /// Status bar RMS error
-  ///
-  /// In en, this message translates to:
-  /// **'Δ: {error}'**
-  String calibrationStatusError(String error);
-
   /// Error when trying to calibrate without connection
   ///
   /// In en, this message translates to:
   /// **'Connect to DistoX first'**
   String get calibrationNotConnected;
-
-  /// Label for a calibration measurement
-  ///
-  /// In en, this message translates to:
-  /// **'Measurement'**
-  String get calibrationMeasurement;
-
-  /// Badge shown when measurement has high error
-  ///
-  /// In en, this message translates to:
-  /// **'High error'**
-  String get calibrationHighError;
-
-  /// Badge shown when measurement is good
-  ///
-  /// In en, this message translates to:
-  /// **'Good'**
-  String get calibrationGood;
-
-  /// Section header for raw sensor values
-  ///
-  /// In en, this message translates to:
-  /// **'Raw sensor values'**
-  String get calibrationRawValues;
-
-  /// Section header for computed calibration values
-  ///
-  /// In en, this message translates to:
-  /// **'Computed values'**
-  String get calibrationComputedValues;
-
-  /// Label for calibration error value
-  ///
-  /// In en, this message translates to:
-  /// **'Error'**
-  String get calibrationError;
-
-  /// Label for azimuth value
-  ///
-  /// In en, this message translates to:
-  /// **'Azimuth'**
-  String get calibrationAzimuth;
-
-  /// Label for inclination value
-  ///
-  /// In en, this message translates to:
-  /// **'Inclination'**
-  String get calibrationInclination;
-
-  /// Label for roll value
-  ///
-  /// In en, this message translates to:
-  /// **'Roll'**
-  String get calibrationRoll;
-
-  /// Button to disable a measurement
-  ///
-  /// In en, this message translates to:
-  /// **'Disable'**
-  String get calibrationDisable;
-
-  /// Button to enable a measurement
-  ///
-  /// In en, this message translates to:
-  /// **'Enable'**
-  String get calibrationEnable;
 
   /// Delete button text
   ///
@@ -1035,12 +831,6 @@ abstract class AppLocalizations {
   /// **'Continue'**
   String get calibrationContinue;
 
-  /// Warning section title about magnetic environment
-  ///
-  /// In en, this message translates to:
-  /// **'Magnetic Environment'**
-  String get calibrationEnvironmentWarning;
-
   /// Warning text about magnetic environment
   ///
   /// In en, this message translates to:
@@ -1064,30 +854,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'16 precise measurements done'**
   String get calibrationPreciseMeasurementsDone;
-
-  /// Message when all 56 measurements are done
-  ///
-  /// In en, this message translates to:
-  /// **'Calibration complete'**
-  String get calibrationComplete;
-
-  /// Warning about the measurement the next shot replaces
-  ///
-  /// In en, this message translates to:
-  /// **'Measurement #{index} needs a retake ({reason}):'**
-  String calibrationRetakeNeeded(int index, String reason);
-
-  /// Guidance when all shots done but some have errors
-  ///
-  /// In en, this message translates to:
-  /// **'Take more shots or retake bad ones'**
-  String get calibrationTakeMoreOrRetake;
-
-  /// Label for alpha/dip angle
-  ///
-  /// In en, this message translates to:
-  /// **'α (dip)'**
-  String get calibrationAlphaDip;
 
   /// Direction 0: forward/north
   ///
@@ -1178,60 +944,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Direction {n}'**
   String calibrationDirectionN(int n);
-
-  /// Roll 0°: display up
-  ///
-  /// In en, this message translates to:
-  /// **'0°'**
-  String get calibrationRoll0;
-
-  /// Roll 90°: display right
-  ///
-  /// In en, this message translates to:
-  /// **'90°'**
-  String get calibrationRoll90;
-
-  /// Roll 180°: display down
-  ///
-  /// In en, this message translates to:
-  /// **'180°'**
-  String get calibrationRoll180;
-
-  /// Roll 270°: display left
-  ///
-  /// In en, this message translates to:
-  /// **'270°'**
-  String get calibrationRoll270;
-
-  /// Roll description for 0°
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 0° (display up)'**
-  String get calibrationRollDesc0;
-
-  /// Roll description for 90°
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 90° (display right)'**
-  String get calibrationRollDesc90;
-
-  /// Roll description for 180°
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 180° (display down)'**
-  String get calibrationRollDesc180;
-
-  /// Roll description for 270°
-  ///
-  /// In en, this message translates to:
-  /// **'Roll: 270° (display left)'**
-  String get calibrationRollDesc270;
-
-  /// Fallback roll label
-  ///
-  /// In en, this message translates to:
-  /// **'Roll {n}'**
-  String calibrationRollN(int n);
 
   /// Device orientation for roll 0°, shown prominently for the next calibration shot
   ///
@@ -1329,34 +1041,6 @@ abstract class AppLocalizations {
   /// **'All directions look good'**
   String get calibrationAllDirectionsGood;
 
-  /// Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups
-  ///
-  /// In en, this message translates to:
-  /// **'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot'**
-  String get calibrationAimPrecise;
-
-  /// Aiming guidance for the ten calibration directions whose shots are free measurements
-  ///
-  /// In en, this message translates to:
-  /// **'Aim roughly in this direction – it doesn\'t need to be exact'**
-  String get calibrationAimRough;
-
-  /// Description of a calibration shot
-  ///
-  /// In en, this message translates to:
-  /// **'{direction}, roll {roll} ({progress}/4)'**
-  String calibrationShotDescription(
-    String direction,
-    String roll,
-    int progress,
-  );
-
-  /// Message when all positions are filled
-  ///
-  /// In en, this message translates to:
-  /// **'All 56 positions filled!'**
-  String get calibrationAllPositionsFilled;
-
   /// Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.
   ///
   /// In en, this message translates to:
@@ -1368,12 +1052,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'misaligned'**
   String get calibrationReasonMisaligned;
-
-  /// Reason for correction: both issues
-  ///
-  /// In en, this message translates to:
-  /// **'high error & misaligned'**
-  String get calibrationReasonBoth;
 }
 
 class _AppLocalizationsDelegate

@@ -453,33 +453,9 @@
   "@calibrationStart": {
     "description": "Button to start calibration mode"
   },
-  "calibrationStop": "Stop",
-  "@calibrationStop": {
-    "description": "Button to stop calibration mode"
-  },
-  "calibrationNew": "New",
-  "@calibrationNew": {
-    "description": "Button to clear and start new calibration"
-  },
-  "calibrationEvaluate": "Evaluate",
-  "@calibrationEvaluate": {
-    "description": "Button to compute calibration coefficients"
-  },
-  "calibrationUpdate": "Update",
-  "@calibrationUpdate": {
-    "description": "Button to write coefficients to device"
-  },
   "calibrationWrite": "Write",
   "@calibrationWrite": {
     "description": "Button to write coefficients to device"
-  },
-  "calibrationClear": "Clear",
-  "@calibrationClear": {
-    "description": "Button to clear measurements"
-  },
-  "calibrationClearConfirm": "Clear all measurements and start over?",
-  "@calibrationClearConfirm": {
-    "description": "Confirmation message for clearing calibration"
   },
   "calibrationCancelTitle": "Cancel Calibration?",
   "@calibrationCancelTitle": {
@@ -493,130 +469,9 @@
   "@calibrationDiscard": {
     "description": "Button to discard calibration and exit"
   },
-  "calibrationUpdateConfirm": "Write calibration coefficients to device?",
-  "@calibrationUpdateConfirm": {
-    "description": "Confirmation message for updating device"
-  },
-  "calibrationQualityGood": "Good calibration",
-  "@calibrationQualityGood": {
-    "description": "Message when calibration error is below 0.5"
-  },
-  "calibrationQualityPoor": "Poor calibration",
-  "@calibrationQualityPoor": {
-    "description": "Message when calibration error is 0.5 or above"
-  },
-  "calibrationNoMeasurements": "No calibration measurements yet",
-  "@calibrationNoMeasurements": {
-    "description": "Message when no measurements have been taken"
-  },
-  "calibrationColumnEnabled": "*",
-  "@calibrationColumnEnabled": {
-    "description": "Column header for enabled checkbox"
-  },
-  "calibrationColumnGroup": "Grp",
-  "@calibrationColumnGroup": {
-    "description": "Column header for group assignment"
-  },
-  "calibrationColumnError": "Δ",
-  "@calibrationColumnError": {
-    "description": "Column header for error value"
-  },
-  "calibrationColumnGMag": "|G|",
-  "@calibrationColumnGMag": {
-    "description": "Column header for G vector magnitude"
-  },
-  "calibrationColumnMMag": "|M|",
-  "@calibrationColumnMMag": {
-    "description": "Column header for M vector magnitude"
-  },
-  "calibrationColumnAlpha": "α",
-  "@calibrationColumnAlpha": {
-    "description": "Column header for alpha angle (dip)"
-  },
-  "calibrationMeasuring": "Measuring...",
-  "@calibrationMeasuring": {
-    "description": "Status when collecting measurements"
-  },
-  "calibrationComputing": "Computing...",
-  "@calibrationComputing": {
-    "description": "Status when computing coefficients"
-  },
-  "calibrationWriting": "Writing...",
-  "@calibrationWriting": {
-    "description": "Status when writing to device"
-  },
-  "calibrationReading": "Reading...",
-  "@calibrationReading": {
-    "description": "Status when reading from device"
-  },
-  "calibrationStatusCount": "n: {count}",
-  "@calibrationStatusCount": {
-    "description": "Status bar measurement count",
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "calibrationStatusIterations": "i: {iterations}",
-  "@calibrationStatusIterations": {
-    "description": "Status bar iteration count",
-    "placeholders": {
-      "iterations": {"type": "int"}
-    }
-  },
-  "calibrationStatusError": "Δ: {error}",
-  "@calibrationStatusError": {
-    "description": "Status bar RMS error",
-    "placeholders": {
-      "error": {"type": "String"}
-    }
-  },
   "calibrationNotConnected": "Connect to DistoX first",
   "@calibrationNotConnected": {
     "description": "Error when trying to calibrate without connection"
-  },
-  "calibrationMeasurement": "Measurement",
-  "@calibrationMeasurement": {
-    "description": "Label for a calibration measurement"
-  },
-  "calibrationHighError": "High error",
-  "@calibrationHighError": {
-    "description": "Badge shown when measurement has high error"
-  },
-  "calibrationGood": "Good",
-  "@calibrationGood": {
-    "description": "Badge shown when measurement is good"
-  },
-  "calibrationRawValues": "Raw sensor values",
-  "@calibrationRawValues": {
-    "description": "Section header for raw sensor values"
-  },
-  "calibrationComputedValues": "Computed values",
-  "@calibrationComputedValues": {
-    "description": "Section header for computed calibration values"
-  },
-  "calibrationError": "Error",
-  "@calibrationError": {
-    "description": "Label for calibration error value"
-  },
-  "calibrationAzimuth": "Azimuth",
-  "@calibrationAzimuth": {
-    "description": "Label for azimuth value"
-  },
-  "calibrationInclination": "Inclination",
-  "@calibrationInclination": {
-    "description": "Label for inclination value"
-  },
-  "calibrationRoll": "Roll",
-  "@calibrationRoll": {
-    "description": "Label for roll value"
-  },
-  "calibrationDisable": "Disable",
-  "@calibrationDisable": {
-    "description": "Button to disable a measurement"
-  },
-  "calibrationEnable": "Enable",
-  "@calibrationEnable": {
-    "description": "Button to enable a measurement"
   },
   "delete": "Delete",
   "@delete": {
@@ -650,10 +505,6 @@
   "@calibrationContinue": {
     "description": "Button to continue to phase 2"
   },
-  "calibrationEnvironmentWarning": "Magnetic Environment",
-  "@calibrationEnvironmentWarning": {
-    "description": "Warning section title about magnetic environment"
-  },
   "calibrationEnvironmentText": "You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.",
   "@calibrationEnvironmentText": {
     "description": "Warning text about magnetic environment"
@@ -669,31 +520,6 @@
   "calibrationPreciseMeasurementsDone": "16 precise measurements done",
   "@calibrationPreciseMeasurementsDone": {
     "description": "Message confirming phase 1 completion"
-  },
-  "calibrationComplete": "Calibration complete",
-  "@calibrationComplete": {
-    "description": "Message when all 56 measurements are done"
-  },
-  "calibrationRetakeNeeded": "Measurement #{index} needs a retake ({reason}):",
-  "@calibrationRetakeNeeded": {
-    "description": "Warning about the measurement the next shot replaces",
-    "placeholders": {
-      "index": {
-        "type": "int"
-      },
-      "reason": {
-        "type": "String",
-        "description": "One of calibrationReasonHighError, calibrationReasonMisaligned or calibrationReasonBoth"
-      }
-    }
-  },
-  "calibrationTakeMoreOrRetake": "Take more shots or retake bad ones",
-  "@calibrationTakeMoreOrRetake": {
-    "description": "Guidance when all shots done but some have errors"
-  },
-  "calibrationAlphaDip": "α (dip)",
-  "@calibrationAlphaDip": {
-    "description": "Label for alpha/dip angle"
   },
   "calibrationDirection0": "Forward",
   "@calibrationDirection0": { "description": "Direction 0: forward/north" },
@@ -726,31 +552,6 @@
   "calibrationDirectionN": "Direction {n}",
   "@calibrationDirectionN": {
     "description": "Fallback direction label",
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationRoll0": "0°",
-  "@calibrationRoll0": { "description": "Roll 0°: display up" },
-  "calibrationRoll90": "90°",
-  "@calibrationRoll90": { "description": "Roll 90°: display right" },
-  "calibrationRoll180": "180°",
-  "@calibrationRoll180": { "description": "Roll 180°: display down" },
-  "calibrationRoll270": "270°",
-  "@calibrationRoll270": { "description": "Roll 270°: display left" },
-  "calibrationRollDesc0": "Roll: 0° (display up)",
-  "@calibrationRollDesc0": { "description": "Roll description for 0°" },
-  "calibrationRollDesc90": "Roll: 90° (display right)",
-  "@calibrationRollDesc90": { "description": "Roll description for 90°" },
-  "calibrationRollDesc180": "Roll: 180° (display down)",
-  "@calibrationRollDesc180": { "description": "Roll description for 180°" },
-  "calibrationRollDesc270": "Roll: 270° (display left)",
-  "@calibrationRollDesc270": { "description": "Roll description for 270°" },
-  "calibrationRollN": "Roll {n}",
-  "@calibrationRollN": {
-    "description": "Fallback roll label",
     "placeholders": {
       "n": {
         "type": "int"
@@ -806,33 +607,6 @@
   "@calibrationDirectionsToRetake": { "description": "Header of the list of calibration directions whose shots should be retaken" },
   "calibrationAllDirectionsGood": "All directions look good",
   "@calibrationAllDirectionsGood": { "description": "Shown once all calibration shots are taken and no direction needs a retake" },
-  "calibrationAimPrecise": "Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot",
-  "@calibrationAimPrecise": {
-    "description": "Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups"
-  },
-  "calibrationAimRough": "Aim roughly in this direction – it doesn't need to be exact",
-  "@calibrationAimRough": {
-    "description": "Aiming guidance for the ten calibration directions whose shots are free measurements"
-  },
-  "calibrationShotDescription": "{direction}, roll {roll} ({progress}/4)",
-  "@calibrationShotDescription": {
-    "description": "Description of a calibration shot",
-    "placeholders": {
-      "direction": {
-        "type": "String"
-      },
-      "roll": {
-        "type": "String"
-      },
-      "progress": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationAllPositionsFilled": "All 56 positions filled!",
-  "@calibrationAllPositionsFilled": {
-    "description": "Message when all positions are filled"
-  },
   "calibrationReasonHighError": "error {error}",
   "@calibrationReasonHighError": {
     "description": "Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.",
@@ -845,9 +619,5 @@
   "calibrationReasonMisaligned": "misaligned",
   "@calibrationReasonMisaligned": {
     "description": "Reason for retaking a calibration direction: a shot was detected in another direction than it was taken for"
-  },
-  "calibrationReasonBoth": "high error & misaligned",
-  "@calibrationReasonBoth": {
-    "description": "Reason for correction: both issues"
   }
 }

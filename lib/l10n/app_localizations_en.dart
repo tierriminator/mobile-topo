@@ -355,26 +355,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationStart => 'Start';
 
   @override
-  String get calibrationStop => 'Stop';
-
-  @override
-  String get calibrationNew => 'New';
-
-  @override
-  String get calibrationEvaluate => 'Evaluate';
-
-  @override
-  String get calibrationUpdate => 'Update';
-
-  @override
   String get calibrationWrite => 'Write';
-
-  @override
-  String get calibrationClear => 'Clear';
-
-  @override
-  String get calibrationClearConfirm =>
-      'Clear all measurements and start over?';
 
   @override
   String get calibrationCancelTitle => 'Cancel Calibration?';
@@ -387,98 +368,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationDiscard => 'Discard';
 
   @override
-  String get calibrationUpdateConfirm =>
-      'Write calibration coefficients to device?';
-
-  @override
-  String get calibrationQualityGood => 'Good calibration';
-
-  @override
-  String get calibrationQualityPoor => 'Poor calibration';
-
-  @override
-  String get calibrationNoMeasurements => 'No calibration measurements yet';
-
-  @override
-  String get calibrationColumnEnabled => '*';
-
-  @override
-  String get calibrationColumnGroup => 'Grp';
-
-  @override
-  String get calibrationColumnError => 'Δ';
-
-  @override
-  String get calibrationColumnGMag => '|G|';
-
-  @override
-  String get calibrationColumnMMag => '|M|';
-
-  @override
-  String get calibrationColumnAlpha => 'α';
-
-  @override
-  String get calibrationMeasuring => 'Measuring...';
-
-  @override
-  String get calibrationComputing => 'Computing...';
-
-  @override
-  String get calibrationWriting => 'Writing...';
-
-  @override
-  String get calibrationReading => 'Reading...';
-
-  @override
-  String calibrationStatusCount(int count) {
-    return 'n: $count';
-  }
-
-  @override
-  String calibrationStatusIterations(int iterations) {
-    return 'i: $iterations';
-  }
-
-  @override
-  String calibrationStatusError(String error) {
-    return 'Δ: $error';
-  }
-
-  @override
   String get calibrationNotConnected => 'Connect to DistoX first';
-
-  @override
-  String get calibrationMeasurement => 'Measurement';
-
-  @override
-  String get calibrationHighError => 'High error';
-
-  @override
-  String get calibrationGood => 'Good';
-
-  @override
-  String get calibrationRawValues => 'Raw sensor values';
-
-  @override
-  String get calibrationComputedValues => 'Computed values';
-
-  @override
-  String get calibrationError => 'Error';
-
-  @override
-  String get calibrationAzimuth => 'Azimuth';
-
-  @override
-  String get calibrationInclination => 'Inclination';
-
-  @override
-  String get calibrationRoll => 'Roll';
-
-  @override
-  String get calibrationDisable => 'Disable';
-
-  @override
-  String get calibrationEnable => 'Enable';
 
   @override
   String get delete => 'Delete';
@@ -508,9 +398,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationContinue => 'Continue';
 
   @override
-  String get calibrationEnvironmentWarning => 'Magnetic Environment';
-
-  @override
   String get calibrationEnvironmentText =>
       'You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.';
 
@@ -523,21 +410,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get calibrationPreciseMeasurementsDone =>
       '16 precise measurements done';
-
-  @override
-  String get calibrationComplete => 'Calibration complete';
-
-  @override
-  String calibrationRetakeNeeded(int index, String reason) {
-    return 'Measurement #$index needs a retake ($reason):';
-  }
-
-  @override
-  String get calibrationTakeMoreOrRetake =>
-      'Take more shots or retake bad ones';
-
-  @override
-  String get calibrationAlphaDip => 'α (dip)';
 
   @override
   String get calibrationDirection0 => 'Forward';
@@ -584,35 +456,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String calibrationDirectionN(int n) {
     return 'Direction $n';
-  }
-
-  @override
-  String get calibrationRoll0 => '0°';
-
-  @override
-  String get calibrationRoll90 => '90°';
-
-  @override
-  String get calibrationRoll180 => '180°';
-
-  @override
-  String get calibrationRoll270 => '270°';
-
-  @override
-  String get calibrationRollDesc0 => 'Roll: 0° (display up)';
-
-  @override
-  String get calibrationRollDesc90 => 'Roll: 90° (display right)';
-
-  @override
-  String get calibrationRollDesc180 => 'Roll: 180° (display down)';
-
-  @override
-  String get calibrationRollDesc270 => 'Roll: 270° (display left)';
-
-  @override
-  String calibrationRollN(int n) {
-    return 'Roll $n';
   }
 
   @override
@@ -669,33 +512,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationAllDirectionsGood => 'All directions look good';
 
   @override
-  String get calibrationAimPrecise =>
-      'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot';
-
-  @override
-  String get calibrationAimRough =>
-      'Aim roughly in this direction – it doesn\'t need to be exact';
-
-  @override
-  String calibrationShotDescription(
-    String direction,
-    String roll,
-    int progress,
-  ) {
-    return '$direction, roll $roll ($progress/4)';
-  }
-
-  @override
-  String get calibrationAllPositionsFilled => 'All 56 positions filled!';
-
-  @override
   String calibrationReasonHighError(String error) {
     return 'error $error';
   }
 
   @override
   String get calibrationReasonMisaligned => 'misaligned';
-
-  @override
-  String get calibrationReasonBoth => 'high error & misaligned';
 }
