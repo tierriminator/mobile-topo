@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../models/calibration.dart';
 import '../services/calibration_service.dart';
 import '../services/distox_service.dart';
+import 'widgets/calibration_cube.dart';
 
 /// Full-screen calibration view for DistoX device calibration.
 ///
@@ -58,6 +59,8 @@ class _CalibrationViewState extends State<CalibrationView> {
     final l10n = AppLocalizations.of(context)!;
     final calibration = context.watch<CalibrationService>();
     final distoX = context.watch<DistoXService>();
+    // Null once all 56 slots are filled
+    final nextShot = calibration.suggestedNext;
 
     // Check for phase transition on each build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -117,29 +120,38 @@ class _CalibrationViewState extends State<CalibrationView> {
                 ),
               ),
 
-            // Guidance for next measurement or retake (only when measuring or have data)
-            if (calibration.state == CalibrationState.measuring ||
-                calibration.measurementCount > 0)
-              _CalibrationGuidance(calibration: calibration),
+            // While slots are open, only the next shot is shown
+            if (nextShot != null &&
+                (calibration.state == CalibrationState.measuring ||
+                    calibration.measurementCount > 0))
+              Expanded(
+                child: _NextShotPanel(calibration: calibration, next: nextShot),
+              )
+            else ...[
+              // Retake guidance or completion (only when measuring or have data)
+              if (calibration.state == CalibrationState.measuring ||
+                  calibration.measurementCount > 0)
+                _CalibrationGuidance(calibration: calibration),
 
-            // Measurement table or start page
-            Expanded(
-              child: _CalibrationTable(
-                measurements: calibration.measurements,
-                results: calibration.results,
-                calibration: calibration,
-                distoX: distoX,
-                onStartPressed: () => _showPhase1InstructionsAndStart(context, calibration),
+              // Measurement table or start page
+              Expanded(
+                child: _CalibrationTable(
+                  measurements: calibration.measurements,
+                  results: calibration.results,
+                  calibration: calibration,
+                  distoX: distoX,
+                  onStartPressed: () => _showPhase1InstructionsAndStart(context, calibration),
+                ),
               ),
-            ),
 
-            // Status bar
-            _StatusBar(
-              count: calibration.measurementCount,
-              rmsError: calibration.rmsError,
-              state: calibration.state,
-              l10n: l10n,
-            ),
+              // Status bar
+              _StatusBar(
+                count: calibration.measurementCount,
+                rmsError: calibration.rmsError,
+                state: calibration.state,
+                l10n: l10n,
+              ),
+            ],
           ],
         ),
       ),
@@ -1404,6 +1416,183 @@ class _CalibrationGuidance extends StatelessWidget {
     final dir = _DirectionGroup.getDirectionLabel(l10n, dirIndex);
     final roll = _DirectionGroup.getRollLabel(l10n, rollIndex);
     return l10n.calibrationShotDescription(dir, roll, progress);
+  }
+}
+
+/// The shot to take next while slots are still open: its direction in a cube
+/// around the person calibrating, the device orientation, and a short
+/// description.
+class _NextShotPanel extends StatelessWidget {
+  final CalibrationService calibration;
+  final CalibrationPosition next;
+
+  const _NextShotPanel({required this.calibration, required this.next});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final filled = calibration.filledSlots;
+    final completedDirections = {
+      for (final MapEntry(key: direction, value: rolls)
+          in calibration.progressByDirection.entries)
+        if (rolls >= 4) direction,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: filled.length / 56,
+              minHeight: 6,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                if (CalibrationPositions.isPrecise(next.direction)) ...[
+                  const Icon(Icons.gps_fixed, size: 16, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      l10n.calibrationPreciseMeasurement,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ] else
+                  const Spacer(),
+                if (calibration.measurementCount > 0)
+                  TextButton.icon(
+                    onPressed: () => _confirmUndo(context, l10n),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.undo, size: 18),
+                    label: Text(l10n.calibrationUndoLastShot),
+                  ),
+              ],
+            ),
+          ),
+
+          // Direction
+          Expanded(
+            child: CalibrationCube(
+              currentDirection: next.direction,
+              completedDirections: completedDirections,
+              faceLabels: [
+                for (int d = 0; d < 4; d++)
+                  _DirectionGroup.getDirectionLabel(l10n, d),
+              ],
+            ),
+          ),
+
+          // Description
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              _DirectionGroup.getDirectionLabel(l10n, next.direction),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
+          // Device orientation
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: CalibrationShotColors.current.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: CalibrationShotColors.current.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Row(
+              children: [
+                DeviceRollIndicator(rollIndex: next.rollIndex),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _displayLabel(l10n, next.rollIndex),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      // The four orientations of this direction
+                      Row(
+                        children: [
+                          for (int r = 0; r < 4; r++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(
+                                Icons.circle,
+                                size: 12,
+                                color: r == next.rollIndex
+                                    ? CalibrationShotColors.current
+                                    : filled.contains(next.direction * 4 + r)
+                                        ? CalibrationShotColors.done
+                                        : theme.colorScheme.outline
+                                            .withValues(alpha: 0.3),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmUndo(BuildContext context, AppLocalizations l10n) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.calibrationUndoLastShot),
+        content: Text(l10n.calibrationUndoConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              calibration.deleteMeasurement(calibration.measurementCount - 1);
+            },
+            child: Text(l10n.undo),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _displayLabel(AppLocalizations l10n, int rollIndex) {
+    switch (rollIndex) {
+      case 1: return l10n.calibrationDisplayRight;
+      case 2: return l10n.calibrationDisplayDown;
+      case 3: return l10n.calibrationDisplayLeft;
+      default: return l10n.calibrationDisplayUp;
+    }
   }
 }
 

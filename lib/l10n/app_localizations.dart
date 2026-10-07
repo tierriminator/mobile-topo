@@ -1233,6 +1233,48 @@ abstract class AppLocalizations {
   /// **'Roll {n}'**
   String calibrationRollN(int n);
 
+  /// Device orientation for roll 0°, shown prominently for the next calibration shot
+  ///
+  /// In en, this message translates to:
+  /// **'Display up'**
+  String get calibrationDisplayUp;
+
+  /// Device orientation for roll 90°, shown prominently for the next calibration shot
+  ///
+  /// In en, this message translates to:
+  /// **'Display right'**
+  String get calibrationDisplayRight;
+
+  /// Device orientation for roll 180°, shown prominently for the next calibration shot
+  ///
+  /// In en, this message translates to:
+  /// **'Display down'**
+  String get calibrationDisplayDown;
+
+  /// Device orientation for roll 270°, shown prominently for the next calibration shot
+  ///
+  /// In en, this message translates to:
+  /// **'Display left'**
+  String get calibrationDisplayLeft;
+
+  /// Warning for the shots of the four horizontal calibration directions, which must all hit one target point
+  ///
+  /// In en, this message translates to:
+  /// **'Precise measurement'**
+  String get calibrationPreciseMeasurement;
+
+  /// Button that discards the most recent calibration shot so it can be taken again
+  ///
+  /// In en, this message translates to:
+  /// **'Undo last shot'**
+  String get calibrationUndoLastShot;
+
+  /// Confirmation before discarding the most recent calibration shot
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the last shot and take it again?'**
+  String get calibrationUndoConfirm;
+
   /// Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups
   ///
   /// In en, this message translates to:

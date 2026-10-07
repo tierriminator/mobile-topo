@@ -616,6 +616,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get calibrationDisplayUp => 'Display up';
+
+  @override
+  String get calibrationDisplayRight => 'Display right';
+
+  @override
+  String get calibrationDisplayDown => 'Display down';
+
+  @override
+  String get calibrationDisplayLeft => 'Display left';
+
+  @override
+  String get calibrationPreciseMeasurement => 'Precise measurement';
+
+  @override
+  String get calibrationUndoLastShot => 'Undo last shot';
+
+  @override
+  String get calibrationUndoConfirm =>
+      'Discard the last shot and take it again?';
+
+  @override
   String get calibrationAimPrecise =>
       'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot';
 

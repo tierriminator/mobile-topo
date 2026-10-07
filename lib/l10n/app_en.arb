@@ -757,6 +757,20 @@
       }
     }
   },
+  "calibrationDisplayUp": "Display up",
+  "@calibrationDisplayUp": { "description": "Device orientation for roll 0°, shown prominently for the next calibration shot" },
+  "calibrationDisplayRight": "Display right",
+  "@calibrationDisplayRight": { "description": "Device orientation for roll 90°, shown prominently for the next calibration shot" },
+  "calibrationDisplayDown": "Display down",
+  "@calibrationDisplayDown": { "description": "Device orientation for roll 180°, shown prominently for the next calibration shot" },
+  "calibrationDisplayLeft": "Display left",
+  "@calibrationDisplayLeft": { "description": "Device orientation for roll 270°, shown prominently for the next calibration shot" },
+  "calibrationPreciseMeasurement": "Precise measurement",
+  "@calibrationPreciseMeasurement": { "description": "Warning for the shots of the four horizontal calibration directions, which must all hit one target point" },
+  "calibrationUndoLastShot": "Undo last shot",
+  "@calibrationUndoLastShot": { "description": "Button that discards the most recent calibration shot so it can be taken again" },
+  "calibrationUndoConfirm": "Discard the last shot and take it again?",
+  "@calibrationUndoConfirm": { "description": "Confirmation before discarding the most recent calibration shot" },
   "calibrationAimPrecise": "Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot",
   "@calibrationAimPrecise": {
     "description": "Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups"
