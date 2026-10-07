@@ -126,8 +126,8 @@ class CalibrationAlgorithm {
     // vector is the same constant (A -> 0, b -> +/-x): it reports a perfect
     // RMS error but leaves the azimuth stuck at 0/180 on the device, so it
     // must never reach the coefficient write.
-    final spreadG = _spread(result.gr);
-    final spreadM = _spread(result.mr);
+    final spreadG = _sphereRadius(covariance(result.gr));
+    final spreadM = _sphereRadius(covariance(result.mr));
     if (spreadG < _minSpread || spreadM < _minSpread) {
       throw CalibrationException(
         'Calibration collapsed to a degenerate solution '
@@ -182,10 +182,7 @@ class CalibrationAlgorithm {
   /// gain — the clamp only guards float error. Per-axis gain differences
   /// distort it by the same few percent by which they differ.
   double _coverageOf(Matrix3 covariance) {
-    final meanEigenvalue = (covariance.entry(0, 0) +
-            covariance.entry(1, 1) +
-            covariance.entry(2, 2)) /
-        3.0;
+    final meanEigenvalue = covariance.trace() / 3.0;
     if (meanEigenvalue <= 0) return 0.0;
     final isotropic = meanEigenvalue * meanEigenvalue * meanEigenvalue;
     return (covariance.determinant() / isotropic).clamp(0.0, 1.0);
@@ -225,33 +222,19 @@ class CalibrationAlgorithm {
     List<List<int>> groups,
   ) {
     final nn = gs.length;
-    final invN = 1.0 / nn;
 
-    // Sums that depend on the sensor values only, so they are computed once.
-    var sumGs = Vector3.zero();
-    var sumMs = Vector3.zero();
-    var sumGs2 = Matrix3.zero();
-    var sumMs2 = Matrix3.zero();
-    double sa = 0.0;
-    double ca = 0.0;
-
-    for (int i = 0; i < nn; i++) {
-      sumGs += gs[i];
-      sumMs += ms[i];
-      sumGs2 += _outer(gs[i], gs[i]);
-      sumMs2 += _outer(ms[i], ms[i]);
-    }
-
-    final avGs = sumGs * invN;
-    final avMs = sumMs * invN;
-    // Note: `Matrix3.operator*` is declared to return `dynamic`, and extension
-    // members do not resolve on `dynamic`. Use the explicitly typed
-    // `scaled`/`multiplied` instead.
-    // The paper's Gs and Ms: the covariance of the sensor readings. Eq. 6 is a
-    // regression, G = Cov(gt, gs) o Cov(gs)^-1, so these invert once and are
-    // reused every iteration — they depend on the sensor values only.
-    final gCovariance = sumGs2.scaled(invN) - _outer(avGs, avGs);
-    final mCovariance = sumMs2.scaled(invN) - _outer(avMs, avMs);
+    // Eq. 6 is a least squares regression of the true vectors on the sensor
+    // readings:
+    //
+    //   G  = Cov(gt, gs) o Gs^-1      gd = <gt> - G o <gs>
+    //
+    // where Gs = Cov(gs). The sensor means and the paper's Gs and Ms depend on
+    // the readings only, so they are computed and inverted once and reused
+    // every iteration.
+    final avGs = mean(gs);
+    final avMs = mean(ms);
+    final gCovariance = covariance(gs);
+    final mCovariance = covariance(ms);
     final gi = gCovariance.inverse;
     final mi = mCovariance.inverse;
 
@@ -279,6 +262,8 @@ class CalibrationAlgorithm {
     // field vector, taken from those normalized vectors rather than from the
     // raw readings so that a large magnetometer offset cannot skew it.
     // Kept as sin/cos so no arctan/sincos round trip is needed.
+    double sa = 0.0;
+    double ca = 0.0;
     for (int i = 0; i < nn; i++) {
       final g0 = g.transformVector(gs[i]) + gd;
       final m0 = m.transformVector(ms[i]) + md;
@@ -305,34 +290,21 @@ class CalibrationAlgorithm {
       // 4) + 5) true vectors per group, and a fresh estimate of alpha
       (sinA, cosA) = _fitTrueVectors(groups, gr, mr, gt, mt, sinA, cosA);
 
-      // 6) new coefficients by least squares (eq. 6)
-      var avGt = Vector3.zero();
-      var avMt = Vector3.zero();
-      var avGtGs = Matrix3.zero();
-      var avMtMs = Matrix3.zero();
-      for (int i = 0; i < nn; i++) {
-        avGt += gt[i];
-        avMt += mt[i];
-        avGtGs += _outer(gt[i], gs[i]);
-        avMtMs += _outer(mt[i], ms[i]);
-      }
-      avGt *= invN;
-      avMt *= invN;
-      avGtGs = avGtGs.scaled(invN);
-      avMtMs = avMtMs.scaled(invN);
-
+      // 6) new coefficients by least squares (eq. 6). `multiplied` rather
+      // than `*`: `Matrix3.operator*` is declared to return `dynamic`, and
+      // extension members do not resolve on `dynamic`.
       final oldG = g;
       final oldM = m;
-      g = (avGtGs - _outer(avGt, avGs)).multiplied(gi);
-      m = (avMtMs - _outer(avMt, avMs)).multiplied(mi);
+      g = crossCovariance(gt, gs).multiplied(gi);
+      m = crossCovariance(mt, ms).multiplied(mi);
 
       // 7) resolve the roll angle ambiguity by enforcing G_yz == G_zy
       final sym = 0.5 * (g.entry(1, 2) + g.entry(2, 1));
       g.setEntry(1, 2, sym);
       g.setEntry(2, 1, sym);
 
-      gd = avGt - g.transformVector(avGs);
-      md = avMt - m.transformVector(avMs);
+      gd = mean(gt) - g.transformVector(avGs);
+      md = mean(mt) - m.transformVector(avMs);
 
       change = math.max(_maxDiff(g, oldG), _maxDiff(m, oldM));
       it++;
@@ -446,13 +418,6 @@ class CalibrationAlgorithm {
   Vector3 _turnX(Vector3 v, double s, double c) =>
       Vector3(v.x, c * v.y - s * v.z, c * v.z + s * v.y);
 
-  /// Outer (Kronecker) product of two vectors.
-  Matrix3 _outer(Vector3 a, Vector3 b) => matrix3FromRowMajor([
-        a.x * b.x, a.x * b.y, a.x * b.z, //
-        a.y * b.x, a.y * b.y, a.y * b.z, //
-        a.z * b.x, a.z * b.y, a.z * b.z, //
-      ]);
-
   /// Max norm of the element-wise difference of two matrices.
   double _maxDiff(Matrix3 a, Matrix3 b) {
     double maxD = 0;
@@ -468,26 +433,8 @@ class CalibrationAlgorithm {
   /// RMS distance of a set of readings from its own centroid, given their
   /// centred [covariance]. For readings spread over the sphere of orientations
   /// this is its radius, which is the scale that takes them to unit vectors.
-  double _sphereRadius(Matrix3 covariance) {
-    final variance = covariance.entry(0, 0) +
-        covariance.entry(1, 1) +
-        covariance.entry(2, 2);
-    return math.sqrt(math.max(variance, 1e-12));
-  }
-
-  /// RMS distance of a set of vectors from its own centroid.
-  double _spread(List<Vector3> vs) {
-    var centroid = Vector3.zero();
-    for (final v in vs) {
-      centroid += v;
-    }
-    centroid *= 1.0 / vs.length;
-    double sum = 0;
-    for (final v in vs) {
-      sum += (v - centroid).length2;
-    }
-    return math.sqrt(sum / vs.length);
-  }
+  double _sphereRadius(Matrix3 covariance) =>
+      math.sqrt(math.max(covariance.trace(), 1e-12));
 
   /// Turn a (sum of sines, sum of cosines) pair into a unit sin/cos pair.
   (double, double) _normalizeSinCos(double s, double c) {
