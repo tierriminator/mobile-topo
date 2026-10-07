@@ -124,7 +124,7 @@ class CalibrationService extends ChangeNotifier {
   List<CalibrationPosition?> _detectedPositions = [];
 
   /// The suggested next position to take.
-  CalibrationPosition? _suggestedNext;
+  CalibrationPosition? _suggestedNext = CalibrationPositions.bySlot(0);
 
   /// Reference bearing that defines "Forward" (direction 0).
   /// Established from the first horizontal measurement.
@@ -315,16 +315,11 @@ class CalibrationService extends ChangeNotifier {
   void deleteMeasurement(int index) {
     if (index < 0 || index >= _measurements.length) return;
 
-    // Remove from filled slots if it was detected
-    if (index < _detectedPositions.length && _detectedPositions[index] != null) {
-      final slot = _detectedPositions[index]!.slotIndex;
-      if (_filledSlots[slot] == index) {
-        _filledSlots.remove(slot);
-      }
-    }
+    // Free the slot the measurement was taken for
+    _filledSlots.removeWhere((_, i) => i == index);
 
     _measurements.removeAt(index);
-    _detectedPositions.removeAt(index);
+    if (index < _detectedPositions.length) _detectedPositions.removeAt(index);
 
     // Update filled slots indices (shift down)
     final updatedSlots = <int, int>{};
@@ -445,6 +440,12 @@ class CalibrationService extends ChangeNotifier {
       // Insert at deleted position (manual delete case)
       final insertPos = _insertPosition!;
       _measurements.insert(insertPos, measurement);
+
+      // Measurements from insertPos on move back by one
+      _filledSlots.updateAll((_, i) => i >= insertPos ? i + 1 : i);
+      if (slotIndex != null) {
+        _filledSlots[slotIndex] = insertPos;
+      }
 
       // Insert into detected positions as well
       while (_detectedPositions.length < insertPos) {
@@ -1074,15 +1075,7 @@ class CalibrationService extends ChangeNotifier {
     if (position == null) return;
 
     // Remove measurement from its current slot if any
-    if (measurementIndex < _detectedPositions.length) {
-      final oldPos = _detectedPositions[measurementIndex];
-      if (oldPos != null) {
-        final oldSlot = oldPos.slotIndex;
-        if (_filledSlots[oldSlot] == measurementIndex) {
-          _filledSlots.remove(oldSlot);
-        }
-      }
-    }
+    _filledSlots.removeWhere((_, i) => i == measurementIndex);
 
     // Ensure detectedPositions list is long enough
     while (_detectedPositions.length <= measurementIndex) {
