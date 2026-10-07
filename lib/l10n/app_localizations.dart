@@ -1257,6 +1257,18 @@ abstract class AppLocalizations {
   /// **'Display left'**
   String get calibrationDisplayLeft;
 
+  /// Device orientation for a vertical calibration shot whose display faces forward
+  ///
+  /// In en, this message translates to:
+  /// **'Display forward'**
+  String get calibrationDisplayForward;
+
+  /// Device orientation for a vertical calibration shot whose display faces backward, towards the person
+  ///
+  /// In en, this message translates to:
+  /// **'Display backward'**
+  String get calibrationDisplayBackward;
+
   /// Warning for the shots of the four horizontal calibration directions, which must all hit one target point
   ///
   /// In en, this message translates to:

@@ -628,6 +628,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationDisplayLeft => 'Display left';
 
   @override
+  String get calibrationDisplayForward => 'Display forward';
+
+  @override
+  String get calibrationDisplayBackward => 'Display backward';
+
+  @override
   String get calibrationPreciseMeasurement => 'Precise measurement';
 
   @override

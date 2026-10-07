@@ -1527,7 +1527,7 @@ class _NextShotPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _displayLabel(l10n, next.rollIndex),
+                        _displayLabel(l10n, next.direction, next.rollIndex),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -1586,12 +1586,33 @@ class _NextShotPanel extends StatelessWidget {
     );
   }
 
-  static String _displayLabel(AppLocalizations l10n, int rollIndex) {
+  /// Which way the display faces for [rollIndex] in [direction].
+  ///
+  /// Pointing vertically, the display faces sideways in every orientation.
+  /// Tilting the device from horizontal with the display up to pointing up
+  /// turns the display towards the person, and to pointing down turns it
+  /// forward, so "up" becomes backward or forward respectively.
+  static String _displayLabel(
+    AppLocalizations l10n,
+    int direction,
+    int rollIndex,
+  ) {
+    final (_, inclination) = CalibrationPositions.relativeDirections[direction];
+    final vertical = inclination.abs() == 90;
+    final upFacesForward = inclination < 0;
     switch (rollIndex) {
       case 1: return l10n.calibrationDisplayRight;
-      case 2: return l10n.calibrationDisplayDown;
       case 3: return l10n.calibrationDisplayLeft;
-      default: return l10n.calibrationDisplayUp;
+      case 2:
+        if (!vertical) return l10n.calibrationDisplayDown;
+        return upFacesForward
+            ? l10n.calibrationDisplayBackward
+            : l10n.calibrationDisplayForward;
+      default:
+        if (!vertical) return l10n.calibrationDisplayUp;
+        return upFacesForward
+            ? l10n.calibrationDisplayForward
+            : l10n.calibrationDisplayBackward;
     }
   }
 }
