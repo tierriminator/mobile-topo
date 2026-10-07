@@ -951,13 +951,13 @@ abstract class AppLocalizations {
   /// **'Display backward'**
   String get calibrationDisplayBackward;
 
-  /// Warning for the shots of the four horizontal calibration directions, which must all hit one target point
+  /// Short warning for the shots of the four horizontal calibration directions, which must all hit one target point. Shares a row with the Undo button, so keep it short
   ///
   /// In en, this message translates to:
-  /// **'Precise measurement'**
-  String get calibrationPreciseMeasurement;
+  /// **'Aim precisely'**
+  String get calibrationAimPrecisely;
 
-  /// Button that discards the most recent calibration shot so it can be taken again
+  /// Title of the confirmation that discards the most recent calibration shot so it can be taken again
   ///
   /// In en, this message translates to:
   /// **'Undo last shot'**

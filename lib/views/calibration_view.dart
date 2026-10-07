@@ -483,7 +483,7 @@ class _NextShotPanel extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      l10n.calibrationPreciseMeasurement,
+                      l10n.calibrationAimPrecisely,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.orange,
@@ -500,7 +500,7 @@ class _NextShotPanel extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.undo, size: 18),
-                    label: Text(l10n.calibrationUndoLastShot),
+                    label: Text(l10n.undo),
                   ),
               ],
             ),

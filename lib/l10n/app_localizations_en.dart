@@ -462,7 +462,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationDisplayBackward => 'Display backward';
 
   @override
-  String get calibrationPreciseMeasurement => 'Precise measurement';
+  String get calibrationAimPrecisely => 'Aim precisely';
 
   @override
   String get calibrationUndoLastShot => 'Undo last shot';
