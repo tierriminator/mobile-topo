@@ -775,6 +775,37 @@
   "@calibrationUndoLastShot": { "description": "Button that discards the most recent calibration shot so it can be taken again" },
   "calibrationUndoConfirm": "Discard the last shot and take it again?",
   "@calibrationUndoConfirm": { "description": "Confirmation before discarding the most recent calibration shot" },
+  "calibrationRetake": "Retake",
+  "@calibrationRetake": { "description": "Button that discards the four shots of a calibration direction so they can be taken again" },
+  "calibrationRetakeConfirm": "Discard the four shots of {direction} and take them again?",
+  "@calibrationRetakeConfirm": {
+    "description": "Confirmation before discarding the four shots of a calibration direction",
+    "placeholders": {
+      "direction": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationHighErrorTitle": "High calibration error",
+  "@calibrationHighErrorTitle": { "description": "Title of the confirmation before writing a calibration whose error exceeds the limit" },
+  "calibrationHighErrorConfirm": "The calibration error is {error}, above the limit of {limit}. Retaking the flagged directions may bring it down.\n\nWrite these coefficients to the device anyway?",
+  "@calibrationHighErrorConfirm": {
+    "description": "Confirmation before writing a calibration whose error exceeds the limit. The values are Heeb's error measure E in percent.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "calibrationWriteAnyway": "Write anyway",
+  "@calibrationWriteAnyway": { "description": "Button that writes a calibration despite its high error" },
+  "calibrationDirectionsToRetake": "Directions to retake",
+  "@calibrationDirectionsToRetake": { "description": "Header of the list of calibration directions whose shots should be retaken" },
+  "calibrationAllDirectionsGood": "All directions look good",
+  "@calibrationAllDirectionsGood": { "description": "Shown once all calibration shots are taken and no direction needs a retake" },
   "calibrationAimPrecise": "Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot",
   "@calibrationAimPrecise": {
     "description": "Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups"
@@ -813,7 +844,7 @@
   },
   "calibrationReasonMisaligned": "misaligned",
   "@calibrationReasonMisaligned": {
-    "description": "Reason for correction: misaligned"
+    "description": "Reason for retaking a calibration direction: a shot was detected in another direction than it was taken for"
   },
   "calibrationReasonBoth": "high error & misaligned",
   "@calibrationReasonBoth": {

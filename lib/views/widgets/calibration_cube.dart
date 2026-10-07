@@ -16,6 +16,9 @@ abstract final class CalibrationShotColors {
 
   /// Directions or rolls already shot.
   static const Color done = Color(0xFF43A047);
+
+  /// Directions whose shots should be retaken.
+  static const Color flagged = Color(0xFFE53935);
 }
 
 /// A cube around the person calibrating, with an arrow for each calibration
@@ -34,6 +37,10 @@ class CalibrationCube extends StatefulWidget {
   /// Directions whose four shots are all taken.
   final Set<int> completedDirections;
 
+  /// Directions whose shots should be retaken, drawn in
+  /// [CalibrationShotColors.flagged].
+  final Set<int> flaggedDirections;
+
   /// Labels for the forward, right, back and left faces.
   final List<String> faceLabels;
 
@@ -41,6 +48,7 @@ class CalibrationCube extends StatefulWidget {
     super.key,
     required this.currentDirection,
     required this.completedDirections,
+    this.flaggedDirections = const {},
     required this.faceLabels,
   });
 
@@ -84,6 +92,7 @@ class _CalibrationCubeState extends State<CalibrationCube> {
           elevation: _elevation,
           currentDirection: widget.currentDirection,
           completedDirections: widget.completedDirections,
+          flaggedDirections: widget.flaggedDirections,
           faceLabels: widget.faceLabels,
           edgeColor: scheme.outline.withValues(alpha: 0.45),
           labelColor: scheme.outline,
@@ -104,6 +113,7 @@ class _CubePainter extends CustomPainter {
   final double elevation;
   final int? currentDirection;
   final Set<int> completedDirections;
+  final Set<int> flaggedDirections;
   final List<String> faceLabels;
   final Color edgeColor;
   final Color labelColor;
@@ -119,6 +129,7 @@ class _CubePainter extends CustomPainter {
     required this.elevation,
     required this.currentDirection,
     required this.completedDirections,
+    required this.flaggedDirections,
     required this.faceLabels,
     required this.edgeColor,
     required this.labelColor,
@@ -229,20 +240,28 @@ class _CubePainter extends CustomPainter {
     final center = toScreen(_project(vm.Vector3.zero()));
     final headLength = scale * 0.22;
 
-    // Completed directions, far ones first and fainter
-    final completed = completedDirections
+    // Completed and flagged directions, far ones first and fainter, flagged
+    // ones on top
+    final shot = {...completedDirections, ...flaggedDirections}
         .where((d) => d != currentDirection)
-        .map((d) => (direction: d, tip: _project(_tip(d))))
+        .map((d) => (
+              flagged: flaggedDirections.contains(d),
+              tip: _project(_tip(d)),
+            ))
         .toList()
-      ..sort((a, b) => b.tip.depth.compareTo(a.tip.depth));
-    for (final (direction: _, tip: tip) in completed) {
+      ..sort((a, b) => a.flagged == b.flagged
+          ? b.tip.depth.compareTo(a.tip.depth)
+          : a.flagged ? 1 : -1);
+    for (final (flagged: flagged, tip: tip) in shot) {
       final nearness = (1 - tip.depth / math.sqrt(3)) / 2; // 0 far .. 1 near
+      final color =
+          flagged ? CalibrationShotColors.flagged : CalibrationShotColors.done;
       _arrow(
         canvas,
         center,
         toScreen(tip),
-        CalibrationShotColors.done.withValues(alpha: 0.45 + 0.55 * nearness),
-        width: 2.5,
+        color.withValues(alpha: 0.45 + 0.55 * nearness),
+        width: flagged ? 3.5 : 2.5,
         headLength: headLength * 0.8,
       );
     }
@@ -331,6 +350,7 @@ class _CubePainter extends CustomPainter {
       old.elevation != elevation ||
       old.currentDirection != currentDirection ||
       !setEquals(old.completedDirections, completedDirections) ||
+      !setEquals(old.flaggedDirections, flaggedDirections) ||
       !listEquals(old.faceLabels, faceLabels) ||
       old.edgeColor != edgeColor ||
       old.labelColor != labelColor ||

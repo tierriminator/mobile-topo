@@ -644,6 +644,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Discard the last shot and take it again?';
 
   @override
+  String get calibrationRetake => 'Retake';
+
+  @override
+  String calibrationRetakeConfirm(String direction) {
+    return 'Discard the four shots of $direction and take them again?';
+  }
+
+  @override
+  String get calibrationHighErrorTitle => 'High calibration error';
+
+  @override
+  String calibrationHighErrorConfirm(String error, String limit) {
+    return 'The calibration error is $error, above the limit of $limit. Retaking the flagged directions may bring it down.\n\nWrite these coefficients to the device anyway?';
+  }
+
+  @override
+  String get calibrationWriteAnyway => 'Write anyway';
+
+  @override
+  String get calibrationDirectionsToRetake => 'Directions to retake';
+
+  @override
+  String get calibrationAllDirectionsGood => 'All directions look good';
+
+  @override
   String get calibrationAimPrecise =>
       'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot';
 

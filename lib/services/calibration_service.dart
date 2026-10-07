@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import '../l10n/app_localizations.dart';
 
 import '../models/calibration.dart';
 import 'calibration_algorithm.dart';
@@ -26,23 +25,16 @@ enum CalibrationState {
   reading,
 }
 
-/// Phase of the calibration workflow.
-enum CalibrationPhase {
-  /// Phase 1: Collecting initial measurements (first 16) without guidance.
-  /// User takes shots in any order until we have enough for initial calibration.
-  collectingInitial,
+/// Why the four shots of a calibration direction should be retaken.
+class DirectionIssue {
+  /// Largest error among the direction's shots, if any of them reaches
+  /// [CalibrationService.errorThreshold].
+  final double? highError;
 
-  /// Phase 2: Guided collection to fill all 56 positions.
-  /// We have coefficients, so we can detect positions and guide the user.
-  /// Don't suggest corrections yet - just fill all slots.
-  collectingGuided,
+  /// Whether a shot was detected in another direction than it was taken for.
+  final bool misaligned;
 
-  /// Phase 3: All 56 positions filled. Now identifying and correcting bad shots.
-  /// Suggests retaking measurements with high error.
-  correcting,
-
-  /// Calibration complete - all shots good, ready to write to device.
-  complete,
+  const DirectionIssue({this.highError, this.misaligned = false});
 }
 
 /// Service for managing DistoX calibration.
@@ -53,13 +45,13 @@ enum CalibrationPhase {
 /// - Computing calibration coefficients
 /// - Writing coefficients to device memory
 /// - Auto-detecting which position each shot belongs to
+/// - Flagging directions whose four shots should be retaken
 class CalibrationService extends ChangeNotifier {
   final DistoXService _distoX;
   final DistoXProtocol _protocol = DistoXProtocol();
   final CalibrationAlgorithm _algorithm = CalibrationAlgorithm();
 
   CalibrationState _state = CalibrationState.idle;
-  CalibrationPhase _phase = CalibrationPhase.collectingInitial;
   List<CalibrationMeasurement> _measurements = [];
   List<CalibrationResult?>? _results;
   CalibrationCoefficients? _coefficients;
@@ -68,13 +60,9 @@ class CalibrationService extends ChangeNotifier {
   int? _iterations;
   String? _error;
 
-  /// Index of measurement to replace (for retakes after all 56 are done).
-  /// If null, append to end (or insert at _insertPosition).
-  int? _retakeIndex;
-
-  /// Position to insert next measurement (when deleted manually).
-  /// If null, append to end.
-  int? _insertPosition;
+  /// Number of shots at the end of [_measurements] taken since the last
+  /// retake started, which [undoLastShot] may take back.
+  int _undoableShots = 0;
 
   /// Pending acceleration packet waiting for matching magnetic packet.
   CalibrationAccelPacket? _pendingAccel;
@@ -85,14 +73,8 @@ class CalibrationService extends ChangeNotifier {
   Completer<Uint8List>? _memoryReplyCompleter;
   int? _memoryReplyAddress;
 
-  /// Whether auto-detection mode is enabled.
-  bool _autoDetectEnabled = true;
-
-  /// Minimum measurements needed before auto-detection becomes reliable.
-  static const int minForAutoDetect = 16;
-
-  /// Quality limit for a calibration, and for flagging an individual
-  /// measurement as needing a retake.
+  /// Quality limit for a calibration, and for flagging a direction's shots
+  /// as needing a retake.
   ///
   /// Step 8 of `docs/distox/DistoX2_CalibrationManual.txt`: "The third value
   /// given in the lower part of the screen is a measure of quality. It should
@@ -120,21 +102,21 @@ class CalibrationService extends ChangeNotifier {
   /// Key: slot index, Value: measurement list index.
   final Map<int, int> _filledSlots = {};
 
-  /// Detected position for each measurement (null if not detected yet).
+  /// Position each measurement was detected at by the latest evaluation, or
+  /// null if it has not been evaluated or matches no position.
   List<CalibrationPosition?> _detectedPositions = [];
 
   /// The suggested next position to take.
   CalibrationPosition? _suggestedNext = CalibrationPositions.bySlot(0);
 
-  /// Reference bearing that defines "Forward" (direction 0).
-  /// Established from the first horizontal measurement.
+  /// Reference bearing that defines "Forward" (direction 0), taken from the
+  /// shots of direction 0.
   double? _referenceBearing;
 
   CalibrationService(this._distoX);
 
   // Getters
   CalibrationState get state => _state;
-  CalibrationPhase get phase => _phase;
   List<CalibrationMeasurement> get measurements =>
       List.unmodifiable(_measurements);
   List<CalibrationResult?>? get results => _results;
@@ -167,26 +149,6 @@ class CalibrationService extends ChangeNotifier {
   /// Check if connected to DistoX.
   bool get isConnected => _distoX.isConnected;
 
-  /// Whether auto-detection is enabled.
-  bool get autoDetectEnabled => _autoDetectEnabled;
-  set autoDetectEnabled(bool value) {
-    if (_autoDetectEnabled != value) {
-      _autoDetectEnabled = value;
-      if (value && _coefficients != null) {
-        _runAutoDetection();
-      }
-      notifyListeners();
-    }
-  }
-
-  /// Whether auto-detection is currently possible (enough measurements).
-  bool get canAutoDetect =>
-      _measurements.length >= minForAutoDetect && _coefficients != null;
-
-  /// Detected positions for each measurement.
-  List<CalibrationPosition?> get detectedPositions =>
-      List.unmodifiable(_detectedPositions);
-
   /// Which slots are filled (0-55).
   Set<int> get filledSlots => _filledSlots.keys.toSet();
 
@@ -198,12 +160,6 @@ class CalibrationService extends ChangeNotifier {
 
   /// Reference bearing that defines "Forward" direction.
   double? get referenceBearing => _referenceBearing;
-
-  /// Get list of missing positions (not yet filled).
-  List<CalibrationPosition> get missingPositions {
-    final all = CalibrationPositions.all;
-    return all.where((p) => !_filledSlots.containsKey(p.slotIndex)).toList();
-  }
 
   /// Get progress by direction (how many of 4 rolls are filled for each).
   Map<int, int> get progressByDirection {
@@ -218,17 +174,42 @@ class CalibrationService extends ChangeNotifier {
     return progress;
   }
 
-  /// Index of the measurement the next shot replaces, or null while shots are
-  /// being added. Set once all 56 slots are filled, to the first enabled
-  /// measurement with a high error or a detected direction other than the one
-  /// it was taken for.
-  int? get retakeIndex => _retakeIndex;
+  /// Directions whose shots should be retaken, once all slots are filled
+  /// and evaluated.
+  ///
+  /// A direction is flagged when any of its shots has a high error or was
+  /// detected in another direction than it was taken for.
+  Map<int, DirectionIssue> get flaggedDirections {
+    final results = _results;
+    if (_suggestedNext != null || results == null) return const {};
 
-  /// Why the measurement at [retakeIndex] needs a retake, or null if none does.
-  String? retakeReason(AppLocalizations l10n) {
-    final index = _retakeIndex;
-    return index == null ? null : _getBadMeasurementReason(index, l10n);
+    final flagged = <int, DirectionIssue>{};
+    for (int i = 0; i < _measurements.length && i < results.length; i++) {
+      final m = _measurements[i];
+      final direction = m.direction;
+      if (!m.enabled || direction == null) continue;
+
+      final r = results[i];
+      final highError = _isHighError(r) ? r!.error : null;
+      final misaligned = _isMisaligned(i);
+      if (highError == null && !misaligned) continue;
+
+      final previous = flagged[direction];
+      var maxError = previous?.highError;
+      if (highError != null && (maxError == null || highError > maxError)) {
+        maxError = highError;
+      }
+      flagged[direction] = DirectionIssue(
+        highError: maxError,
+        misaligned: misaligned || (previous?.misaligned ?? false),
+      );
+    }
+    return flagged;
   }
+
+  /// Whether the last shot can be taken back: one was taken since
+  /// calibration or the current retake started.
+  bool get canUndoLastShot => _undoableShots > 0;
 
   /// Whether a measurement's error is high enough to warrant a retake.
   ///
@@ -237,22 +218,6 @@ class CalibrationService extends ChangeNotifier {
   /// individual shot.
   bool _isHighError(CalibrationResult? r) =>
       r != null && hasUsefulCoverage && r.error >= errorThreshold;
-
-  /// Get a description of why a measurement needs correction.
-  String _getBadMeasurementReason(int index, AppLocalizations l10n) {
-    final r = _results != null && index < _results!.length ? _results![index] : null;
-    final hasHighError = _isHighError(r);
-    final isMisaligned = isMeasurementMisaligned(index);
-
-    if (hasHighError && isMisaligned) {
-      return l10n.calibrationReasonBoth;
-    } else if (hasHighError) {
-      return l10n.calibrationReasonHighError(r!.error.toStringAsFixed(2));
-    } else if (isMisaligned) {
-      return l10n.calibrationReasonMisaligned;
-    }
-    return 'unknown';
-  }
 
   /// Start calibration mode on the device.
   ///
@@ -300,55 +265,52 @@ class CalibrationService extends ChangeNotifier {
     _iterations = null;
     _error = null;
     _pendingAccel = null;
-    _retakeIndex = null;
-    _insertPosition = null;
+    _undoableShots = 0;
     _filledSlots.clear();
     _detectedPositions = [];
     _referenceBearing = null;
-    _suggestedNext = _getFirstNeededPosition();
-    _phase = CalibrationPhase.collectingInitial;
+    _suggestedNext = CalibrationPositions.bySlot(0);
     notifyListeners();
   }
 
-  /// Delete a specific measurement.
-  /// Sets insert position so the next measurement fills the gap.
-  void deleteMeasurement(int index) {
-    if (index < 0 || index >= _measurements.length) return;
-
-    // Free the slot the measurement was taken for
+  /// Discard the most recent shot, so that its slot is asked for again.
+  void undoLastShot() {
+    if (!canUndoLastShot) return;
+    final index = _measurements.length - 1;
     _filledSlots.removeWhere((_, i) => i == index);
-
     _measurements.removeAt(index);
-    if (index < _detectedPositions.length) _detectedPositions.removeAt(index);
-
-    // Update filled slots indices (shift down)
-    final updatedSlots = <int, int>{};
-    for (final entry in _filledSlots.entries) {
-      if (entry.value > index) {
-        updatedSlots[entry.key] = entry.value - 1;
-      } else {
-        updatedSlots[entry.key] = entry.value;
-      }
-    }
-    _filledSlots
-      ..clear()
-      ..addAll(updatedSlots);
-
-    // Set insert position so next measurement goes here
-    _insertPosition = index;
-    // Clear retake index since we manually deleted
-    _retakeIndex = null;
+    _detectedPositions.removeAt(index);
+    _results = _results?.take(index).toList();
+    _undoableShots--;
 
     _updateSuggestedNext();
     notifyListeners();
     _tryAutoEvaluate();
   }
 
-  /// Toggle whether a measurement is enabled.
-  void toggleEnabled(int index) {
-    if (index < 0 || index >= _measurements.length) return;
-    final m = _measurements[index];
-    _measurements[index] = m.copyWith(enabled: !m.enabled);
+  /// Discard the four shots of [direction], so that they are asked for again.
+  void retakeDirection(int direction) {
+    final keep = [
+      for (int i = 0; i < _measurements.length; i++)
+        if (_measurements[i].direction != direction) i,
+    ];
+    final newIndex = {for (int k = 0; k < keep.length; k++) keep[k]: k};
+    final results = _results;
+
+    final slots = Map.of(_filledSlots);
+    _filledSlots.clear();
+    for (final MapEntry(key: slot, value: i) in slots.entries) {
+      final k = newIndex[i];
+      if (k != null) _filledSlots[slot] = k;
+    }
+    _measurements = [for (final i in keep) _measurements[i]];
+    _detectedPositions = [for (final i in keep) _detectedPositions[i]];
+    _results = results == null
+        ? null
+        : [for (final i in keep) if (i < results.length) results[i]];
+    _undoableShots = 0;
+
+    _updateSuggestedNext();
     notifyListeners();
     _tryAutoEvaluate();
   }
@@ -383,103 +345,36 @@ class CalibrationService extends ChangeNotifier {
       return;
     }
 
-    // Determine what to do: replace or append
-    final bool isReplace = _retakeIndex != null;
-    final int listPosition = isReplace ? _retakeIndex! : _measurements.length;
-
-    // The direction and slot come from what the user was asked to shoot
-    // (prescriptive assignment).
-    final int? direction;
-    final int? slotIndex;
-
-    if (isReplace && _phase == CalibrationPhase.correcting) {
-      // Correction phase: keep the direction/slot of the measurement being replaced
-      final existing = _measurements[listPosition];
-      direction = existing.direction;
-      slotIndex = listPosition < _detectedPositions.length
-          ? _detectedPositions[listPosition]?.slotIndex
-          : null;
-    } else if (_suggestedNext != null) {
-      // Collection phase: assign based on suggested position
-      direction = _suggestedNext!.direction;
-      slotIndex = _suggestedNext!.slotIndex;
-    } else {
-      // Fallback (shouldn't happen in normal flow)
-      direction = CalibrationData.defaultDirection(listPosition + 1);
-      slotIndex = null;
+    // The shot fills the slot the user was asked to shoot.
+    final next = _suggestedNext;
+    if (next == null) {
+      debugPrint('CalibrationService: ignoring shot, all slots are filled');
+      _pendingAccel = null;
+      return;
     }
 
-    // Combine into full measurement; the direction decides the group.
-    final raw = CalibrationMeasurement(
+    // The direction decides the group.
+    final measurement = CalibrationMeasurement(
       gx: _pendingAccel!.gx,
       gy: _pendingAccel!.gy,
       gz: _pendingAccel!.gz,
       mx: packet.mx,
       my: packet.my,
       mz: packet.mz,
-      index: listPosition + 1,
+      index: _measurements.length + 1,
       enabled: true,
-    );
-    final measurement = direction == null ? raw : raw.forDirection(direction);
+    ).forDirection(next.direction);
 
-    if (isReplace) {
-      // Replace a bad measurement
-      _measurements[listPosition] = measurement;
+    _measurements.add(measurement);
+    _detectedPositions.add(null);
+    _filledSlots[next.slotIndex] = _measurements.length - 1;
+    _undoableShots++;
 
-      // Update detected position for the replaced measurement
-      while (_detectedPositions.length <= listPosition) {
-        _detectedPositions.add(null);
-      }
-      if (_suggestedNext != null) {
-        _detectedPositions[listPosition] = _suggestedNext;
-      }
+    debugPrint('CalibrationService: added measurement #${measurement.index} '
+        'for slot ${next.slotIndex} (direction ${next.direction}, '
+        'group ${measurement.group})');
 
-      _retakeIndex = null;
-      debugPrint('CalibrationService: replaced measurement at position $listPosition');
-    } else if (_insertPosition != null) {
-      // Insert at deleted position (manual delete case)
-      final insertPos = _insertPosition!;
-      _measurements.insert(insertPos, measurement);
-
-      // Measurements from insertPos on move back by one
-      _filledSlots.updateAll((_, i) => i >= insertPos ? i + 1 : i);
-      if (slotIndex != null) {
-        _filledSlots[slotIndex] = insertPos;
-      }
-
-      // Insert into detected positions as well
-      while (_detectedPositions.length < insertPos) {
-        _detectedPositions.add(null);
-      }
-      _detectedPositions.insert(insertPos, _suggestedNext);
-
-      debugPrint('CalibrationService: inserted measurement at position $insertPos');
-      _insertPosition = null;
-
-      // Advance to next suggested position
-      _updateSuggestedNext();
-    } else {
-      // Append new measurement
-      _measurements.add(measurement);
-
-      // Track the slot as filled (prescriptive: we assume user took the suggested position)
-      if (slotIndex != null) {
-        _filledSlots[slotIndex] = _measurements.length - 1;
-      }
-
-      // Track detected position (will be validated later)
-      while (_detectedPositions.length < _measurements.length) {
-        _detectedPositions.add(null);
-      }
-      _detectedPositions[_measurements.length - 1] = _suggestedNext;
-
-      debugPrint('CalibrationService: added measurement #${measurement.index} '
-          'for slot $slotIndex (direction $direction, group ${measurement.group})');
-
-      // Advance to next suggested position
-      _updateSuggestedNext();
-    }
-
+    _updateSuggestedNext();
     _pendingAccel = null;
     notifyListeners();
 
@@ -693,14 +588,7 @@ class CalibrationService extends ChangeNotifier {
             '${saturated.join(", ")}');
       }
 
-      // Run auto-detection if enabled
-      if (_autoDetectEnabled) {
-        _runAutoDetection();
-      }
-
-      // Update phase based on current state
-      _updatePhase();
-
+      _runAutoDetection();
       notifyListeners();
     } on CalibrationException catch (e) {
       _error = e.message;
@@ -843,148 +731,59 @@ class CalibrationService extends ChangeNotifier {
 
   // ===== Auto-Detection Methods =====
 
-  /// Run auto-detection to validate measurements.
-  ///
-  /// During collection (phases 1-2): Validates shots but keeps prescriptive slot assignments.
-  /// After 56 measurements (phase 3+): Identifies misaligned shots that need correction.
+  /// Detect the position each measurement was actually taken at, for
+  /// comparison with the slot it was taken for.
   void _runAutoDetection() {
     if (_coefficients == null || _results == null) return;
 
     // The reference bearing comes out of the current fit, so it is only as
     // good as the coverage behind that fit. Re-deriving it on every evaluation
-    // while shots are still coming in lets it track the improving fit; it
-    // settles once coverage is adequate. Only the correcting phase holds it
-    // fixed, so that retake suggestions compare against a stable "Forward".
-    if (_referenceBearing == null || _phase != CalibrationPhase.correcting) {
-      _referenceBearing = _findReferenceBearing();
-    }
+    // lets it track the improving fit.
+    _referenceBearing = _findReferenceBearing();
     debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}° '
         '(coverage ${_directionCoverage?.toStringAsFixed(2)})');
 
-    // Ensure _detectedPositions list is sized correctly
-    while (_detectedPositions.length < _measurements.length) {
-      _detectedPositions.add(null);
-    }
-
-    // Detect actual position for each measurement (validation)
     for (int i = 0; i < _measurements.length; i++) {
       final result = _results![i];
       if (result == null || !_measurements[i].enabled) continue;
 
-      final detectedPos = _detectPosition(
+      _detectedPositions[i] = _detectPosition(
         result.azimuth,
         result.inclination,
         result.roll,
       );
-
-      // Store detected position for comparison with prescriptive assignment
-      _detectedPositions[i] = detectedPos;
     }
 
     debugPrint('Auto-detection: ${_filledSlots.length}/56 slots filled');
   }
 
-  /// Check if a measurement is misaligned (detected position doesn't match assigned).
-  bool isMeasurementMisaligned(int index) {
-    if (index < 0 || index >= _measurements.length) return false;
+  /// Whether a measurement was detected in another direction than it was
+  /// taken for. A measurement matching no position is not counted.
+  bool _isMisaligned(int index) {
     if (index >= _detectedPositions.length) return false;
-
-    final assigned = _measurements[index].direction;
     final detected = _detectedPositions[index];
-
-    // No detection = can't validate = not misaligned (yet)
-    if (detected == null) return false;
-
-    // Check if detected direction matches the assigned direction
-    return detected.direction != assigned;
+    return detected != null &&
+        detected.direction != _measurements[index].direction;
   }
 
-  /// Get list of misaligned measurement indices.
-  List<int> get misalignedMeasurements {
-    final misaligned = <int>[];
-    for (int i = 0; i < _measurements.length; i++) {
-      if (_measurements[i].enabled && isMeasurementMisaligned(i)) {
-        misaligned.add(i);
-      }
-    }
-    return misaligned;
-  }
-
-  /// Update the calibration phase based on current state.
-  void _updatePhase() {
-    // Phase 1: Still collecting initial measurements
-    if (_coefficients == null) {
-      _phase = CalibrationPhase.collectingInitial;
-      _retakeIndex = null;
-      return;
-    }
-
-    // Phase 2: Have coefficients, but not all 56 slots filled yet
-    if (_filledSlots.length < 56) {
-      _phase = CalibrationPhase.collectingGuided;
-      _retakeIndex = null;
-      return;
-    }
-
-    // Phase 3: All 56 slots filled - check for bad measurements
-    _retakeIndex = _findFirstBadMeasurement();
-    if (_retakeIndex != null) {
-      _phase = CalibrationPhase.correcting;
-      debugPrint('CalibrationService: correcting phase, next will replace index $_retakeIndex');
-      return;
-    }
-
-    // Phase 4: All measurements good!
-    _phase = CalibrationPhase.complete;
-  }
-
-  /// Find the first measurement that needs correction.
-  /// A measurement needs correction if it has high error OR is misaligned.
-  /// Returns the index, or null if all are good.
-  int? _findFirstBadMeasurement() {
-    if (_results == null) return null;
-
-    for (int i = 0; i < _results!.length; i++) {
-      if (!_measurements[i].enabled) continue;
-
-      final r = _results![i];
-      final hasHighError = _isHighError(r);
-      final isMisaligned = isMeasurementMisaligned(i);
-
-      if (hasHighError || isMisaligned) {
-        return i;
-      }
-    }
-    return null;
-  }
-
-  /// Find the reference bearing from the first horizontal measurement.
-  /// Returns null if no suitable measurement found.
+  /// Bearing that defines "Forward", from the shots of the precisely aimed
+  /// horizontal directions: direction 0 itself, or while it is being
+  /// retaken, another one with its offset from Forward taken off.
   double? _findReferenceBearing() {
-    if (_results == null) return null;
+    final results = _results;
+    if (results == null) return null;
 
-    // Find the first enabled measurement that is roughly horizontal
-    // (inclination within ±30° of horizontal)
-    for (int i = 0; i < _measurements.length && i < _results!.length; i++) {
-      if (!_measurements[i].enabled) continue;
-      final result = _results![i];
-      if (result == null) continue;
-
-      // Check if roughly horizontal (Phase 1 shots are horizontal)
-      if (result.inclination.abs() <= 30.0) {
-        return result.azimuth;
+    for (int d = 0; d < CalibrationPositions.preciseDirections; d++) {
+      final (offset, _) = CalibrationPositions.relativeDirections[d];
+      for (int i = 0; i < _measurements.length && i < results.length; i++) {
+        final result = results[i];
+        if (result != null &&
+            _measurements[i].enabled &&
+            _measurements[i].direction == d) {
+          return (result.azimuth - offset) % 360;
+        }
       }
     }
-
-    // Fallback: use first measurement regardless of inclination
-    for (int i = 0; i < _measurements.length && i < _results!.length; i++) {
-      if (!_measurements[i].enabled) continue;
-      final result = _results![i];
-      if (result != null) {
-        return result.azimuth;
-      }
-    }
-
     return null;
   }
 
@@ -1011,15 +810,6 @@ class CalibrationService extends ChangeNotifier {
     }
 
     return null;
-  }
-
-  /// Set a measurement's direction, and the group that direction implies.
-  void _updateMeasurementDirection(int index, int direction) {
-    if (index < 0 || index >= _measurements.length) return;
-    final m = _measurements[index];
-    if (m.direction != direction) {
-      _measurements[index] = m.forDirection(direction);
-    }
   }
 
   /// Update the suggested next position based on what's missing.
@@ -1058,86 +848,6 @@ class CalibrationService extends ChangeNotifier {
 
     // All slots filled
     _suggestedNext = null;
-  }
-
-  /// Get the first needed position (for initial state).
-  CalibrationPosition? _getFirstNeededPosition() {
-    return CalibrationPositions.bySlot(0);
-  }
-
-  /// Manually assign a measurement to a specific position slot.
-  /// This overrides auto-detection for that measurement.
-  void assignToSlot(int measurementIndex, int slotIndex) {
-    if (measurementIndex < 0 || measurementIndex >= _measurements.length) return;
-    if (slotIndex < 0 || slotIndex >= 56) return;
-
-    final position = CalibrationPositions.bySlot(slotIndex);
-    if (position == null) return;
-
-    // Remove measurement from its current slot if any
-    _filledSlots.removeWhere((_, i) => i == measurementIndex);
-
-    // Ensure detectedPositions list is long enough
-    while (_detectedPositions.length <= measurementIndex) {
-      _detectedPositions.add(null);
-    }
-
-    // Assign to new slot
-    _detectedPositions[measurementIndex] = position;
-    _filledSlots[slotIndex] = measurementIndex;
-    _updateMeasurementDirection(measurementIndex, position.direction);
-
-    _updateSuggestedNext();
-    notifyListeners();
-  }
-
-  /// Get a description of the suggested next shot for the user.
-  String? getSuggestedNextDescription(AppLocalizations l10n) {
-    if (_suggestedNext == null) {
-      if (_filledSlots.length >= 56) {
-        return l10n.calibrationAllPositionsFilled;
-      }
-      return null;
-    }
-
-    final pos = _suggestedNext!;
-    final dirName = _getDirectionName(pos.direction, l10n);
-    final rollName = _getRollName(pos.rollIndex, l10n);
-    final progress = progressByDirection[pos.direction] ?? 0;
-
-    return l10n.calibrationShotDescription(dirName, rollName, progress + 1);
-  }
-
-  /// Get localized direction name.
-  String _getDirectionName(int direction, AppLocalizations l10n) {
-    switch (direction) {
-      case 0: return l10n.calibrationDirection0;
-      case 1: return l10n.calibrationDirection1;
-      case 2: return l10n.calibrationDirection2;
-      case 3: return l10n.calibrationDirection3;
-      case 4: return l10n.calibrationDirection4;
-      case 5: return l10n.calibrationDirection5;
-      case 6: return l10n.calibrationDirection6;
-      case 7: return l10n.calibrationDirection7;
-      case 8: return l10n.calibrationDirection8;
-      case 9: return l10n.calibrationDirection9;
-      case 10: return l10n.calibrationDirection10;
-      case 11: return l10n.calibrationDirection11;
-      case 12: return l10n.calibrationDirection12;
-      case 13: return l10n.calibrationDirection13;
-      default: return l10n.calibrationDirectionN(direction);
-    }
-  }
-
-  /// Get localized roll name.
-  String _getRollName(int rollIndex, AppLocalizations l10n) {
-    switch (rollIndex) {
-      case 0: return l10n.calibrationRoll0;
-      case 1: return l10n.calibrationRoll90;
-      case 2: return l10n.calibrationRoll180;
-      case 3: return l10n.calibrationRoll270;
-      default: return l10n.calibrationRollN(rollIndex);
-    }
   }
 
   @override

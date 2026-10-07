@@ -1287,6 +1287,48 @@ abstract class AppLocalizations {
   /// **'Discard the last shot and take it again?'**
   String get calibrationUndoConfirm;
 
+  /// Button that discards the four shots of a calibration direction so they can be taken again
+  ///
+  /// In en, this message translates to:
+  /// **'Retake'**
+  String get calibrationRetake;
+
+  /// Confirmation before discarding the four shots of a calibration direction
+  ///
+  /// In en, this message translates to:
+  /// **'Discard the four shots of {direction} and take them again?'**
+  String calibrationRetakeConfirm(String direction);
+
+  /// Title of the confirmation before writing a calibration whose error exceeds the limit
+  ///
+  /// In en, this message translates to:
+  /// **'High calibration error'**
+  String get calibrationHighErrorTitle;
+
+  /// Confirmation before writing a calibration whose error exceeds the limit. The values are Heeb's error measure E in percent.
+  ///
+  /// In en, this message translates to:
+  /// **'The calibration error is {error}, above the limit of {limit}. Retaking the flagged directions may bring it down.\n\nWrite these coefficients to the device anyway?'**
+  String calibrationHighErrorConfirm(String error, String limit);
+
+  /// Button that writes a calibration despite its high error
+  ///
+  /// In en, this message translates to:
+  /// **'Write anyway'**
+  String get calibrationWriteAnyway;
+
+  /// Header of the list of calibration directions whose shots should be retaken
+  ///
+  /// In en, this message translates to:
+  /// **'Directions to retake'**
+  String get calibrationDirectionsToRetake;
+
+  /// Shown once all calibration shots are taken and no direction needs a retake
+  ///
+  /// In en, this message translates to:
+  /// **'All directions look good'**
+  String get calibrationAllDirectionsGood;
+
   /// Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups
   ///
   /// In en, this message translates to:
@@ -1321,7 +1363,7 @@ abstract class AppLocalizations {
   /// **'error {error}'**
   String calibrationReasonHighError(String error);
 
-  /// Reason for correction: misaligned
+  /// Reason for retaking a calibration direction: a shot was detected in another direction than it was taken for
   ///
   /// In en, this message translates to:
   /// **'misaligned'**

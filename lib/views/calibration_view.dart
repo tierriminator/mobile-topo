@@ -11,9 +11,8 @@ import 'widgets/calibration_cube.dart';
 ///
 /// Displays:
 /// - Connection status and calibration mode indicator
-/// - Control buttons (Start/Stop, New, Evaluate, Update)
-/// - Table of measurements with results
-/// - Status bar with measurement count and RMS error
+/// - While slots are open, the next shot to take
+/// - Once all slots are filled, the directions to retake and the Write button
 class CalibrationView extends StatefulWidget {
   const CalibrationView({super.key});
 
@@ -61,6 +60,8 @@ class _CalibrationViewState extends State<CalibrationView> {
     final distoX = context.watch<DistoXService>();
     // Null once all 56 slots are filled
     final nextShot = calibration.suggestedNext;
+    final started = calibration.state == CalibrationState.measuring ||
+        calibration.measurementCount > 0;
 
     // Check for phase transition on each build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -104,10 +105,6 @@ class _CalibrationViewState extends State<CalibrationView> {
         ),
         body: Column(
           children: [
-            // Write button (only show after all 56 measurements are complete)
-            if (calibration.hasResults && calibration.measurementCount >= 56)
-              _ControlBar(calibration: calibration, distoX: distoX, l10n: l10n),
-
             // Error message if any
             if (calibration.error != null)
               Container(
@@ -120,37 +117,23 @@ class _CalibrationViewState extends State<CalibrationView> {
                 ),
               ),
 
+            if (!started)
+              Expanded(
+                child: _StartPage(
+                  isConnected: distoX.isConnected,
+                  onStartPressed: () =>
+                      _showPhase1InstructionsAndStart(context, calibration),
+                ),
+              )
             // While slots are open, only the next shot is shown
-            if (nextShot != null &&
-                (calibration.state == CalibrationState.measuring ||
-                    calibration.measurementCount > 0))
+            else if (nextShot != null)
               Expanded(
                 child: _NextShotPanel(calibration: calibration, next: nextShot),
               )
             else ...[
-              // Retake guidance or completion (only when measuring or have data)
-              if (calibration.state == CalibrationState.measuring ||
-                  calibration.measurementCount > 0)
-                _CalibrationGuidance(calibration: calibration),
-
-              // Measurement table or start page
-              Expanded(
-                child: _CalibrationTable(
-                  measurements: calibration.measurements,
-                  results: calibration.results,
-                  calibration: calibration,
-                  distoX: distoX,
-                  onStartPressed: () => _showPhase1InstructionsAndStart(context, calibration),
-                ),
-              ),
-
-              // Status bar
-              _StatusBar(
-                count: calibration.measurementCount,
-                rmsError: calibration.rmsError,
-                state: calibration.state,
-                l10n: l10n,
-              ),
+              Expanded(child: _Overview(calibration: calibration)),
+              if (calibration.hasResults)
+                _WriteBar(calibration: calibration, distoX: distoX),
             ],
           ],
         ),
@@ -358,6 +341,31 @@ class _CalibrationViewState extends State<CalibrationView> {
   }
 }
 
+/// Localized name of a calibration direction.
+String _directionLabel(AppLocalizations l10n, int direction) {
+  switch (direction) {
+    case 0: return l10n.calibrationDirection0;
+    case 1: return l10n.calibrationDirection1;
+    case 2: return l10n.calibrationDirection2;
+    case 3: return l10n.calibrationDirection3;
+    case 4: return l10n.calibrationDirection4;
+    case 5: return l10n.calibrationDirection5;
+    case 6: return l10n.calibrationDirection6;
+    case 7: return l10n.calibrationDirection7;
+    case 8: return l10n.calibrationDirection8;
+    case 9: return l10n.calibrationDirection9;
+    case 10: return l10n.calibrationDirection10;
+    case 11: return l10n.calibrationDirection11;
+    case 12: return l10n.calibrationDirection12;
+    case 13: return l10n.calibrationDirection13;
+    default: return l10n.calibrationDirectionN(direction);
+  }
+}
+
+/// Labels for the forward, right, back and left faces of the cube.
+List<String> _faceLabels(AppLocalizations l10n) =>
+    [for (int d = 0; d < 4; d++) _directionLabel(l10n, d)];
+
 /// Connection status indicator.
 class _ConnectionIndicator extends StatelessWidget {
   final DistoXService distoX;
@@ -389,118 +397,95 @@ class _ConnectionIndicator extends StatelessWidget {
   }
 }
 
-/// Control buttons bar.
-class _ControlBar extends StatelessWidget {
+/// Button at the bottom that writes the coefficients to the device: green
+/// with a checkmark when the calibration error is within
+/// [CalibrationService.errorThreshold], yellow with a warning and a
+/// confirmation otherwise.
+class _WriteBar extends StatelessWidget {
   final CalibrationService calibration;
   final DistoXService distoX;
-  final AppLocalizations l10n;
 
-  const _ControlBar({
-    required this.calibration,
-    required this.distoX,
-    required this.l10n,
-  });
+  const _WriteBar({required this.calibration, required this.distoX});
 
   @override
   Widget build(BuildContext context) {
-    final isWriting = calibration.state == CalibrationState.writing;
-    final isReading = calibration.state == CalibrationState.reading;
-    final isBusy = isWriting || isReading;
-    final isConnected = distoX.isConnected;
+    final l10n = AppLocalizations.of(context)!;
+    final isBusy = calibration.state != CalibrationState.idle &&
+        calibration.state != CalibrationState.measuring;
+    final rmsError = calibration.rmsError;
+    final isGood =
+        rmsError != null && rmsError < CalibrationService.errorThreshold;
+    final background =
+        isGood ? CalibrationShotColors.done : CalibrationShotColors.current;
+    final foreground = isGood ? Colors.white : Colors.black87;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+    // Continues the background of the panel above it
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: FilledButton.icon(
+            onPressed: isBusy || !distoX.isConnected
+                ? null
+                : isGood
+                    ? () => _write(context)
+                    : () => _confirmWrite(context, l10n, rmsError),
+            style: FilledButton.styleFrom(
+              backgroundColor: background,
+              foregroundColor: foreground,
+              minimumSize: const Size.fromHeight(48),
+            ),
+            icon: isBusy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(isGood ? Icons.check : Icons.warning_amber_rounded),
+            label: Text(l10n.calibrationWrite),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          // Recompute button (for debugging)
-          OutlinedButton(
-            onPressed: isBusy ? null : () => calibration.evaluate(),
-            child: const Text('Recompute'),
-          ),
-          const SizedBox(width: 12),
-          // Write button
-          Expanded(
-            child: FilledButton(
-              onPressed: (isBusy || !isConnected)
-                  ? null
-                  : () => _confirmUpdate(context, calibration, l10n),
-              child: isWriting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(l10n.calibrationWrite),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  void _confirmUpdate(
-    BuildContext context,
-    CalibrationService calibration,
-    AppLocalizations l10n,
-  ) {
-    final rmsError = calibration.rmsError ?? 0;
-    final isGood = rmsError < CalibrationService.errorThreshold;
+  Future<void> _write(BuildContext context) async {
+    final success = await calibration.writeCoefficients();
+    if (success && context.mounted) {
+      Navigator.pop(context);
+    }
+  }
 
+  void _confirmWrite(
+    BuildContext context,
+    AppLocalizations l10n,
+    double? rmsError,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.calibrationUpdate),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.calibrationUpdateConfirm),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(
-                  isGood ? Icons.check_circle : Icons.warning,
-                  color: isGood ? Colors.green : Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isGood
-                      ? l10n.calibrationQualityGood
-                      : l10n.calibrationQualityPoor,
-                  style: TextStyle(
-                    color: isGood ? Colors.green : Colors.orange,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: CalibrationShotColors.currentOutline,
         ),
+        title: Text(l10n.calibrationHighErrorTitle),
+        content: Text(l10n.calibrationHighErrorConfirm(
+          rmsError?.toStringAsFixed(2) ?? '–',
+          CalibrationService.errorThreshold.toStringAsFixed(2),
+        )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(l10n.cancel),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(ctx);
-              final success = await calibration.writeCoefficients();
-              if (success && context.mounted) {
-                Navigator.pop(context);
-              }
+              _write(context);
             },
-            child: Text(l10n.calibrationUpdate),
+            child: Text(l10n.calibrationWriteAnyway),
           ),
         ],
       ),
@@ -508,914 +493,65 @@ class _ControlBar extends StatelessWidget {
   }
 }
 
-/// Table displaying calibration measurements and results.
-class _CalibrationTable extends StatelessWidget {
-  final List<CalibrationMeasurement> measurements;
-  final List<CalibrationResult?>? results;
-  final CalibrationService calibration;
-  final DistoXService distoX;
-  final VoidCallback? onStartPressed;
+/// Introduction with the button that starts calibration.
+class _StartPage extends StatelessWidget {
+  final bool isConnected;
+  final VoidCallback onStartPressed;
 
-  const _CalibrationTable({
-    required this.measurements,
-    required this.results,
-    required this.calibration,
-    required this.distoX,
-    this.onStartPressed,
-  });
+  const _StartPage({required this.isConnected, required this.onStartPressed});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isConnected = distoX.isConnected;
-    final isMeasuring = calibration.state == CalibrationState.measuring;
-
-    if (measurements.isEmpty && !isMeasuring) {
-      // Start page (only show when not yet measuring)
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.tune,
-                size: 72,
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                l10n.calibrationTitle,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.calibrationDescription,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: isConnected ? onStartPressed : null,
-                icon: const Icon(Icons.play_arrow),
-                label: Text(l10n.calibrationStart),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                ),
-              ),
-              if (!isConnected) ...[
-                const SizedBox(height: 16),
-                Text(
-                  l10n.calibrationNotConnected,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
-
-    final detectedPositions = calibration.detectedPositions;
-
-    // Group measurements by direction
-    final groups = _buildDirectionGroups(measurements, results, detectedPositions);
-
-    return ListView.builder(
-      itemCount: groups.length,
-      itemBuilder: (context, groupIndex) {
-        final group = groups[groupIndex];
-        return _DirectionGroup(
-          group: group,
-          onMeasurementTap: (measurementIndex, m, r) =>
-              _showMeasurementDetails(context, measurementIndex, m, r),
-        );
-      },
-    );
-  }
-
-  /// Build direction groups from measurements, ordered by first appearance.
-  List<_DirectionGroupData> _buildDirectionGroups(
-    List<CalibrationMeasurement> measurements,
-    List<CalibrationResult?>? results,
-    List<CalibrationPosition?> detectedPositions,
-  ) {
-    // Track groups by direction index, preserving order of first appearance
-    final groupOrder = <int>[]; // Direction indices in order of first appearance
-    final groupMeasurements = <int, List<_GroupedMeasurement>>{}; // Direction -> measurements
-
-    for (int i = 0; i < measurements.length; i++) {
-      final m = measurements[i];
-      final r = results != null && i < results.length ? results[i] : null;
-      final detectedPos = i < detectedPositions.length ? detectedPositions[i] : null;
-
-      // Determine direction: the direction the shot was taken for, falling
-      // back to the detected position, then to the index
-      final direction = m.direction ?? detectedPos?.direction ?? (i ~/ 4);
-      // Roll comes from detected position (not stored in measurement)
-      final rollIndex = detectedPos?.rollIndex ?? (i % 4);
-
-      // Track first appearance order
-      if (!groupMeasurements.containsKey(direction)) {
-        groupOrder.add(direction);
-        groupMeasurements[direction] = [];
-      }
-
-      groupMeasurements[direction]!.add(_GroupedMeasurement(
-        measurementIndex: i,
-        measurement: m,
-        result: r,
-        detectedPosition: detectedPos,
-        rollIndex: rollIndex,
-      ));
-    }
-
-    // Build group data in order of first appearance
-    return groupOrder.map((direction) {
-      final groupMeas = groupMeasurements[direction]!;
-      // Sort by roll index within the group
-      groupMeas.sort((a, b) => a.rollIndex.compareTo(b.rollIndex));
-
-      // Count filled rolls (unique roll indices)
-      final filledRolls = groupMeas.map((m) => m.rollIndex).toSet().length;
-
-      // Check if any measurement has high error
-      final hasError = groupMeas.any((m) =>
-          m.result != null &&
-          m.result!.error >= CalibrationService.errorThreshold);
-
-      return _DirectionGroupData(
-        direction: direction,
-        measurements: groupMeas,
-        filledRolls: filledRolls,
-        hasError: hasError,
-      );
-    }).toList();
-  }
-
-  void _showMeasurementDetails(
-    BuildContext context,
-    int index,
-    CalibrationMeasurement m,
-    CalibrationResult? r,
-  ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (ctx) => _MeasurementDetailsView(
-          index: index,
-          measurement: m,
-          result: r,
-          calibration: calibration,
-        ),
-      ),
-    );
-  }
-}
-
-/// Data for a single measurement within a group.
-class _GroupedMeasurement {
-  final int measurementIndex;
-  final CalibrationMeasurement measurement;
-  final CalibrationResult? result;
-  final CalibrationPosition? detectedPosition;
-  final int rollIndex;
-
-  const _GroupedMeasurement({
-    required this.measurementIndex,
-    required this.measurement,
-    required this.result,
-    required this.detectedPosition,
-    required this.rollIndex,
-  });
-}
-
-/// Data for a direction group.
-class _DirectionGroupData {
-  final int direction;
-  final List<_GroupedMeasurement> measurements;
-  final int filledRolls;
-  final bool hasError;
-
-  const _DirectionGroupData({
-    required this.direction,
-    required this.measurements,
-    required this.filledRolls,
-    required this.hasError,
-  });
-
-  bool get isComplete => filledRolls >= 4;
-}
-
-/// Widget displaying a direction group with its measurements.
-/// Groups are collapsible and collapsed by default.
-class _DirectionGroup extends StatefulWidget {
-  final _DirectionGroupData group;
-  final void Function(int measurementIndex, CalibrationMeasurement m, CalibrationResult? r) onMeasurementTap;
-
-  const _DirectionGroup({
-    required this.group,
-    required this.onMeasurementTap,
-  });
-
-  // Direction icons
-  static const _directionIcons = [
-    Icons.arrow_upward,
-    Icons.arrow_forward,
-    Icons.arrow_downward,
-    Icons.arrow_back,
-    Icons.north_east,
-    Icons.south_east,
-    Icons.south_west,
-    Icons.north_west,
-    Icons.north_east,
-    Icons.south_east,
-    Icons.south_west,
-    Icons.north_west,
-    Icons.expand_less,
-    Icons.expand_more,
-  ];
-
-  /// Get localized direction label.
-  static String getDirectionLabel(AppLocalizations l10n, int direction) {
-    switch (direction) {
-      case 0: return l10n.calibrationDirection0;
-      case 1: return l10n.calibrationDirection1;
-      case 2: return l10n.calibrationDirection2;
-      case 3: return l10n.calibrationDirection3;
-      case 4: return l10n.calibrationDirection4;
-      case 5: return l10n.calibrationDirection5;
-      case 6: return l10n.calibrationDirection6;
-      case 7: return l10n.calibrationDirection7;
-      case 8: return l10n.calibrationDirection8;
-      case 9: return l10n.calibrationDirection9;
-      case 10: return l10n.calibrationDirection10;
-      case 11: return l10n.calibrationDirection11;
-      case 12: return l10n.calibrationDirection12;
-      case 13: return l10n.calibrationDirection13;
-      default: return l10n.calibrationDirectionN(direction);
-    }
-  }
-
-  /// Get localized roll label.
-  static String getRollLabel(AppLocalizations l10n, int rollIndex) {
-    switch (rollIndex) {
-      case 0: return l10n.calibrationRoll0;
-      case 1: return l10n.calibrationRoll90;
-      case 2: return l10n.calibrationRoll180;
-      case 3: return l10n.calibrationRoll270;
-      default: return l10n.calibrationRollN(rollIndex);
-    }
-  }
-
-  @override
-  State<_DirectionGroup> createState() => _DirectionGroupState();
-}
-
-class _DirectionGroupState extends State<_DirectionGroup> {
-  bool _isExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final dirLabel = _DirectionGroup.getDirectionLabel(l10n, widget.group.direction);
-    final dirIcon = widget.group.direction < _DirectionGroup._directionIcons.length
-        ? _DirectionGroup._directionIcons[widget.group.direction]
-        : Icons.explore;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Group header (tappable to expand/collapse)
-        InkWell(
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: widget.group.isComplete
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : widget.group.hasError
-                      ? Colors.orange.withValues(alpha: 0.1)
-                      : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-                ),
-              ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.tune,
+              size: 72,
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
             ),
-            child: Row(
-              children: [
-                // Expand/collapse chevron
-                Icon(
-                  _isExpanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  dirIcon,
-                  size: 20,
-                  color: widget.group.isComplete
-                      ? Colors.green
-                      : widget.group.hasError
-                          ? Colors.orange
-                          : null,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    dirLabel,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: widget.group.isComplete
-                          ? Colors.green.shade700
-                          : widget.group.hasError
-                              ? Colors.orange.shade700
-                              : null,
-                    ),
-                  ),
-                ),
-                // Completion indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: widget.group.isComplete
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : widget.group.hasError
-                            ? Colors.orange.withValues(alpha: 0.2)
-                            : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.group.isComplete)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 4),
-                          child: Icon(Icons.check, size: 14, color: Colors.green),
-                        )
-                      else if (widget.group.hasError)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 4),
-                          child: Icon(Icons.warning_amber, size: 14, color: Colors.orange),
-                        ),
-                      Text(
-                        '${widget.group.filledRolls}/4',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: widget.group.isComplete
-                              ? Colors.green.shade700
-                              : widget.group.hasError
-                                  ? Colors.orange.shade700
-                                  : Theme.of(context).colorScheme.outline,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Measurements in this group (only shown when expanded)
-        if (_isExpanded)
-          ...widget.group.measurements.map((gm) => _GroupedMeasurementRow(
-                groupedMeasurement: gm,
-                rollLabel: _DirectionGroup.getRollLabel(l10n, gm.rollIndex),
-                onTap: () => widget.onMeasurementTap(gm.measurementIndex, gm.measurement, gm.result),
-              )),
-      ],
-    );
-  }
-}
-
-/// Row for a single measurement within a group.
-class _GroupedMeasurementRow extends StatelessWidget {
-  final _GroupedMeasurement groupedMeasurement;
-  final String rollLabel;
-  final VoidCallback onTap;
-
-  const _GroupedMeasurementRow({
-    required this.groupedMeasurement,
-    required this.rollLabel,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final m = groupedMeasurement.measurement;
-    final r = groupedMeasurement.result;
-    final hasError =
-        r != null && r.error >= CalibrationService.errorThreshold;
-    final disabledColor = Theme.of(context).colorScheme.outline;
-
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: !m.enabled
-              ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-              : hasError
-                  ? Colors.orange.withValues(alpha: 0.05)
-                  : null,
-          border: Border(
-            bottom: BorderSide(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 44, right: 12, top: 8, bottom: 8),
-          child: Row(
-            children: [
-              // Roll indicator
-              Container(
-                width: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  rollLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: m.enabled ? null : disabledColor,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Error value if available
-              if (r != null)
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    'Δ ${r.error.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: hasError ? Colors.orange : Colors.green,
-                      fontWeight: hasError ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              // Status icon
-              if (hasError)
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: 16,
-                )
-              else if (r != null)
-                Icon(
-                  Icons.check_circle_outline,
-                  color: Colors.green.withValues(alpha: 0.7),
-                  size: 16,
-                )
-              else
-                Icon(
-                  Icons.circle_outlined,
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                  size: 16,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Full-screen view showing measurement details.
-class _MeasurementDetailsView extends StatelessWidget {
-  final int index;
-  final CalibrationMeasurement measurement;
-  final CalibrationResult? result;
-  final CalibrationService calibration;
-
-  const _MeasurementDetailsView({
-    required this.index,
-    required this.measurement,
-    required this.result,
-    required this.calibration,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final hasError =
-        result != null && result!.error >= CalibrationService.errorThreshold;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${l10n.calibrationMeasurement} #${index + 1}'),
-        actions: [
-          // Toggle enabled
-          IconButton(
-            onPressed: () {
-              calibration.toggleEnabled(index);
-              Navigator.pop(context);
-            },
-            icon: Icon(
-              measurement.enabled ? Icons.visibility_off : Icons.visibility,
-            ),
-            tooltip: measurement.enabled ? l10n.calibrationDisable : l10n.calibrationEnable,
-          ),
-          // Delete
-          IconButton(
-            onPressed: () {
-              calibration.deleteMeasurement(index);
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.delete_outline),
-            tooltip: l10n.delete,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Status badge
-          if (hasError)
-            _buildStatusBadge(context, l10n.calibrationHighError, Colors.orange)
-          else if (result != null)
-            _buildStatusBadge(context, l10n.calibrationGood, Colors.green),
-
-          const SizedBox(height: 24),
-
-          // Raw sensor values
-          Text(
-            l10n.calibrationRawValues,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-          ),
-          const SizedBox(height: 8),
-          _buildDataCard(context, [
-            _DataRow('Gx', measurement.gx.toString()),
-            _DataRow('Gy', measurement.gy.toString()),
-            _DataRow('Gz', measurement.gz.toString()),
-          ]),
-          const SizedBox(height: 8),
-          _buildDataCard(context, [
-            _DataRow('Mx', measurement.mx.toString()),
-            _DataRow('My', measurement.my.toString()),
-            _DataRow('Mz', measurement.mz.toString()),
-          ]),
-
-          // Computed results if available
-          if (result != null) ...[
             const SizedBox(height: 24),
             Text(
-              l10n.calibrationComputedValues,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              l10n.calibrationTitle,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.calibrationDescription,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),
             ),
-            const SizedBox(height: 8),
-            _buildDataCard(context, [
-              _DataRow(l10n.calibrationError, result!.error.toStringAsFixed(3),
-                  highlight: hasError),
-              _DataRow(l10n.calibrationAzimuth, '${result!.azimuth.toStringAsFixed(1)}°'),
-              _DataRow(l10n.calibrationInclination, '${result!.inclination.toStringAsFixed(1)}°'),
-              _DataRow(l10n.calibrationRoll, '${result!.roll.toStringAsFixed(1)}°'),
-            ]),
-            const SizedBox(height: 8),
-            _buildDataCard(context, [
-              _DataRow('|G|', result!.gMagnitude.toStringAsFixed(4)),
-              _DataRow('|M|', result!.mMagnitude.toStringAsFixed(4)),
-              _DataRow(l10n.calibrationAlphaDip, '${result!.alpha.toStringAsFixed(2)}°'),
-            ]),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(BuildContext context, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            color == Colors.green ? Icons.check_circle : Icons.warning_amber_rounded,
-            color: color,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataCard(BuildContext context, List<_DataRow> rows) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: rows.map((row) => _buildRow(context, row)).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRow(BuildContext context, _DataRow row) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              row.label,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.outline,
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: isConnected ? onStartPressed : null,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(l10n.calibrationStart),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              row.value,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 15,
-                fontWeight: row.highlight ? FontWeight.bold : null,
-                color: row.highlight ? Colors.orange : null,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DataRow {
-  final String label;
-  final String value;
-  final bool highlight;
-
-  const _DataRow(this.label, this.value, {this.highlight = false});
-}
-
-/// Guidance widget showing what measurement to take next.
-/// Uses auto-detection when available to show progress by filled slots.
-class _CalibrationGuidance extends StatelessWidget {
-  final CalibrationService calibration;
-
-  const _CalibrationGuidance({required this.calibration});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final measurements = calibration.measurements;
-    final count = measurements.length;
-    // The measurement the next shot replaces, as decided by the service.
-    final badIndex = calibration.retakeIndex;
-    final isRetake = badIndex != null;
-
-    // Use auto-detection progress if available
-    final useAutoDetect = calibration.canAutoDetect && calibration.autoDetectEnabled;
-    final filledSlots = useAutoDetect ? calibration.filledSlotCount : count;
-    final suggestedDescription = useAutoDetect
-        ? _getLocalizedSuggestedDescription(l10n)
-        : null;
-
-    // Direction of the next shot, which decides how precisely to aim.
-    final int? nextDirection = isRetake
-        ? measurements[badIndex].direction
-        : useAutoDetect
-            ? calibration.suggestedNext?.direction
-            : (count < 56 ? count ~/ 4 : null);
-
-    // If all 56 slots filled and no bad measurements, show completion
-    if (filledSlots >= 56 && !isRetake) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.1),
-          border: Border(
-            bottom: BorderSide(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.calibrationComplete,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Text(
-              '56 / 56',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Progress as fraction (use filled slots if auto-detect is available)
-    final progress = filledSlots / 56;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: isRetake
-            ? Colors.orange.withValues(alpha: 0.15)
-            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              color: isRetake ? Colors.orange : null,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Retake warning
-          if (isRetake) ...[
-            Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.calibrationRetakeNeeded(
-                      badIndex + 1,
-                      calibration.retakeReason(l10n) ?? '',
-                    ),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+            if (!isConnected) ...[
+              const SizedBox(height: 16),
+              Text(
+                l10n.calibrationNotConnected,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          // Suggested next shot (from auto-detection or fallback)
-          Row(
-            children: [
-              // Direction icon based on suggested position
-              Icon(
-                _getDirectionIcon(calibration.suggestedNext?.direction),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      suggestedDescription ?? _getFallbackDescription(l10n, count),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (useAutoDetect && calibration.suggestedNext != null)
-                      Text(
-                        _getRollDescription(l10n, calibration.suggestedNext!.rollIndex),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                      ),
-                    if (nextDirection != null)
-                      _AimingHint(
-                        precise: CalibrationPositions.isPrecise(nextDirection),
-                        l10n: l10n,
-                      ),
-                  ],
-                ),
-              ),
-
-              // Progress text (show both if different)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '$filledSlots / 56',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: isRetake ? Colors.orange : Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  if (useAutoDetect && count != filledSlots)
-                    Text(
-                      '($count shots)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                ],
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  /// Get direction icon for a direction index.
-  IconData _getDirectionIcon(int? direction) {
-    const icons = [
-      Icons.arrow_upward,    // 0: North
-      Icons.arrow_forward,   // 1: East
-      Icons.arrow_downward,  // 2: South
-      Icons.arrow_back,      // 3: West
-      Icons.north_east,      // 4: NE up
-      Icons.south_east,      // 5: SE up
-      Icons.south_west,      // 6: SW up
-      Icons.north_west,      // 7: NW up
-      Icons.north_east,      // 8: NE down
-      Icons.south_east,      // 9: SE down
-      Icons.south_west,      // 10: SW down
-      Icons.north_west,      // 11: NW down
-      Icons.expand_less,     // 12: Up
-      Icons.expand_more,     // 13: Down
-    ];
-    if (direction == null || direction < 0 || direction >= icons.length) {
-      return Icons.explore;
-    }
-    return icons[direction];
-  }
-
-  /// Get localized roll description.
-  String _getRollDescription(AppLocalizations l10n, int rollIndex) {
-    switch (rollIndex) {
-      case 0: return l10n.calibrationRollDesc0;
-      case 1: return l10n.calibrationRollDesc90;
-      case 2: return l10n.calibrationRollDesc180;
-      case 3: return l10n.calibrationRollDesc270;
-      default: return '';
-    }
-  }
-
-  /// Get localized suggested description from auto-detect.
-  String? _getLocalizedSuggestedDescription(AppLocalizations l10n) {
-    final suggested = calibration.suggestedNext;
-    if (suggested == null) return null;
-    return _DirectionGroup.getDirectionLabel(l10n, suggested.direction);
-  }
-
-  /// Fallback description when auto-detect not available.
-  String _getFallbackDescription(AppLocalizations l10n, int count) {
-    if (count >= 56) return l10n.calibrationTakeMoreOrRetake;
-    final dirIndex = count ~/ 4;
-    final rollIndex = count % 4;
-    final progress = (count % 4) + 1; // Which shot of 4 for this direction
-    final dir = _DirectionGroup.getDirectionLabel(l10n, dirIndex);
-    final roll = _DirectionGroup.getRollLabel(l10n, rollIndex);
-    return l10n.calibrationShotDescription(dir, roll, progress);
   }
 }
 
@@ -1471,7 +607,7 @@ class _NextShotPanel extends StatelessWidget {
                   ),
                 ] else
                   const Spacer(),
-                if (calibration.measurementCount > 0)
+                if (calibration.canUndoLastShot)
                   TextButton.icon(
                     onPressed: () => _confirmUndo(context, l10n),
                     style: TextButton.styleFrom(
@@ -1489,10 +625,7 @@ class _NextShotPanel extends StatelessWidget {
             child: CalibrationCube(
               currentDirection: next.direction,
               completedDirections: completedDirections,
-              faceLabels: [
-                for (int d = 0; d < 4; d++)
-                  _DirectionGroup.getDirectionLabel(l10n, d),
-              ],
+              faceLabels: _faceLabels(l10n),
             ),
           ),
 
@@ -1500,7 +633,7 @@ class _NextShotPanel extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              _DirectionGroup.getDirectionLabel(l10n, next.direction),
+              _directionLabel(l10n, next.direction),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -1577,7 +710,7 @@ class _NextShotPanel extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              calibration.deleteMeasurement(calibration.measurementCount - 1);
+              calibration.undoLastShot();
             },
             child: Text(l10n.undo),
           ),
@@ -1617,42 +750,83 @@ class _NextShotPanel extends StatelessWidget {
   }
 }
 
-/// How precisely the next calibration shot has to be aimed.
-///
-/// The four horizontal directions form unidirectional groups, so their shots
-/// must hit one target point; the others are free measurements, for which
-/// only the rough direction matters.
-class _AimingHint extends StatelessWidget {
-  final bool precise;
-  final AppLocalizations l10n;
+/// All directions once every slot is filled, with the flagged ones in red
+/// and listed below the cube for retaking.
+class _Overview extends StatelessWidget {
+  final CalibrationService calibration;
 
-  const _AimingHint({required this.precise, required this.l10n});
+  const _Overview({required this.calibration});
 
   @override
   Widget build(BuildContext context) {
-    final color = precise
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.outline;
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            precise ? Icons.gps_fixed : Icons.explore_outlined,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              precise ? l10n.calibrationAimPrecise : l10n.calibrationAimRough,
-              style: TextStyle(
-                fontSize: 12,
-                color: color,
-                fontWeight: precise ? FontWeight.w600 : FontWeight.normal,
+    final l10n = AppLocalizations.of(context)!;
+    final flagged = calibration.flaggedDirections;
+    final flaggedDirections = flagged.keys.toList()..sort();
+
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The cube takes whatever the panel leaves
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: CalibrationCube(
+                  currentDirection: null,
+                  completedDirections: {
+                    for (int d = 0;
+                        d < CalibrationPositions.relativeDirections.length;
+                        d++)
+                      if (!flagged.containsKey(d)) d,
+                  },
+                  flaggedDirections: flagged.keys.toSet(),
+                  faceLabels: _faceLabels(l10n),
+                ),
               ),
             ),
+            if (calibration.hasResults)
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * 0.45,
+                ),
+                child: _FlaggedDirectionsPanel(
+                  children: [
+                    for (final direction in flaggedDirections)
+                      _FlaggedDirectionTile(
+                        direction: direction,
+                        issue: flagged[direction]!,
+                        onRetake: () =>
+                            _confirmRetake(context, l10n, direction),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmRetake(BuildContext context, AppLocalizations l10n, int direction) {
+    final label = _directionLabel(l10n, direction);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(label),
+        content: Text(l10n.calibrationRetakeConfirm(label)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              calibration.retakeDirection(direction);
+            },
+            child: Text(l10n.calibrationRetake),
           ),
         ],
       ),
@@ -1660,79 +834,187 @@ class _AimingHint extends StatelessWidget {
   }
 }
 
-/// Status bar showing calibration state and statistics.
-class _StatusBar extends StatelessWidget {
-  final int count;
-  final double? rmsError;
-  final CalibrationState state;
-  final AppLocalizations l10n;
+/// Panel below the cube listing the directions to retake, or saying that
+/// none need it.
+///
+/// The scrollbar stays visible and the bottom edge fades out while rows are
+/// hidden below, so that the list reads as scrollable on touch screens too.
+class _FlaggedDirectionsPanel extends StatefulWidget {
+  final List<Widget> children;
 
-  const _StatusBar({
-    required this.count,
-    required this.rmsError,
-    required this.state,
-    required this.l10n,
+  const _FlaggedDirectionsPanel({required this.children});
+
+  @override
+  State<_FlaggedDirectionsPanel> createState() =>
+      _FlaggedDirectionsPanelState();
+}
+
+class _FlaggedDirectionsPanelState extends State<_FlaggedDirectionsPanel> {
+  final _scrollController = ScrollController();
+
+  /// Whether rows are hidden below the visible part of the list.
+  bool _moreBelow = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  bool _onMetrics(ScrollMetrics metrics) {
+    final moreBelow = metrics.extentAfter > 0;
+    if (moreBelow != _moreBelow) setState(() => _moreBelow = moreBelow);
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final count = widget.children.length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: count == 0
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: CalibrationShotColors.done,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      l10n.calibrationAllDirectionsGood,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.calibrationDirectionsToRetake,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CalibrationShotColors.flagged,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: NotificationListener<ScrollMetricsNotification>(
+                    onNotification: (n) => _onMetrics(n.metrics),
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (n) => _onMetrics(n.metrics),
+                      child: ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (rect) => LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black,
+                            _moreBelow ? Colors.transparent : Colors.black,
+                          ],
+                          stops: const [0.75, 1],
+                        ).createShader(rect),
+                        child: Scrollbar(
+                          controller: _scrollController,
+                          thumbVisibility: true,
+                          child: ListView(
+                            controller: _scrollController,
+                            shrinkWrap: true,
+                            // Inside the list, so its scrollbar stays clear
+                            // of the retake buttons
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            children: widget.children,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+/// A direction whose shots should be retaken, with why and a retake button.
+class _FlaggedDirectionTile extends StatelessWidget {
+  final int direction;
+  final DirectionIssue issue;
+  final VoidCallback onRetake;
+
+  const _FlaggedDirectionTile({
+    required this.direction,
+    required this.issue,
+    required this.onRetake,
   });
 
   @override
   Widget build(BuildContext context) {
-    String stateText;
-    switch (state) {
-      case CalibrationState.idle:
-        stateText = '';
-      case CalibrationState.measuring:
-        stateText = l10n.calibrationMeasuring;
-      case CalibrationState.computing:
-        stateText = l10n.calibrationComputing;
-      case CalibrationState.writing:
-        stateText = l10n.calibrationWriting;
-      case CalibrationState.reading:
-        stateText = l10n.calibrationReading;
-    }
+    final l10n = AppLocalizations.of(context)!;
+    final highError = issue.highError;
+    final reasons = [
+      if (highError != null)
+        l10n.calibrationReasonHighError(highError.toStringAsFixed(2)),
+      if (issue.misaligned) l10n.calibrationReasonMisaligned,
+    ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: const Icon(
+        Icons.warning_amber_rounded,
+        color: CalibrationShotColors.flagged,
       ),
-      child: Row(
-        children: [
-          // Measurement count
-          Text(
-            l10n.calibrationStatusCount(count),
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(width: 24),
-
-          // RMS error
-          if (rmsError != null) ...[
-            Text(
-              l10n.calibrationStatusError(rmsError!.toStringAsFixed(2)),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: rmsError! < CalibrationService.errorThreshold
-                        ? Colors.green
-                        : Colors.orange,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ],
-
-          const Spacer(),
-
-          // State indicator
-          if (stateText.isNotEmpty)
-            Text(
-              stateText,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            ),
-        ],
+      title: Text(
+        _directionLabel(l10n, direction),
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(reasons.join(', ')),
+      trailing: OutlinedButton(
+        onPressed: onRetake,
+        child: Text(l10n.calibrationRetake),
       ),
     );
   }
