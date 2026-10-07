@@ -60,9 +60,13 @@ void main() {
     );
   }
 
-  Future<void> startHereOn(WidgetTester tester, String cellText) async {
+  Future<void> openMenuOn(WidgetTester tester, String cellText) async {
     await tester.longPress(find.text(cellText).first);
     await tester.pumpAndSettle();
+  }
+
+  Future<void> startHereOn(WidgetTester tester, String cellText) async {
+    await openMenuOn(tester, cellText);
     await tester.tap(find.text('Start here'));
     await tester.pumpAndSettle();
   }
@@ -150,6 +154,69 @@ void main() {
       expect(stretches.single.from, const Point(1, 0));
       expect(stretches.single.to, const Point(3, 0));
       expect(measurementService.currentStation, const Point(3, 0));
+    });
+  });
+
+  group('Continue Here', () {
+    // Series 1 runs 1.0 -> 1.1 -> 1.2, then branch 2 starts at 1.1
+    final current = section(
+      'current',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), Point(1, 2), 6, 90, 0),
+          MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0),
+          MeasuredDistance(Point(2, 0), Point(2, 1), 7, 0, 0),
+        ],
+        referencePoints: [],
+      ),
+    );
+
+    testWidgets('at the last station of a series continues from it',
+        (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      final measurementService = MeasurementService(SettingsController());
+      await pumpDataView(tester, selectionState, measurementService);
+
+      await openMenuOn(tester, '6.00');
+      await tester.tap(find.text('Continue here'));
+      await tester.pumpAndSettle();
+
+      expect(measurementService.currentStation, const Point(1, 2));
+      expect(measurementService.nextStation, const Point(1, 3));
+      expect(selectionState.selectedSection!.survey.stretches, hasLength(4));
+    });
+
+    testWidgets('is not offered in the middle of a series', (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '5.00');
+
+      expect(find.text('Start here'), findsOneWidget);
+      expect(find.text('Continue here'), findsNothing);
+    });
+
+    testWidgets('is not offered where another section continues the series',
+        (tester) async {
+      final later = section(
+        'later',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 2), Point(1, 3), 8, 90, 0)],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([current, later]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '6.00');
+
+      expect(find.text('Continue here'), findsNothing);
     });
   });
 }

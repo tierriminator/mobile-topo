@@ -205,6 +205,18 @@ class Survey {
         ],
       };
 
+  /// The last station (highest point number) of each series
+  Set<Point> get seriesEnds {
+    final last = <num, Point>{};
+    for (final station in stations) {
+      final current = last[station.corridorId];
+      if (current == null || station.pointId > current.pointId) {
+        last[station.corridorId] = station;
+      }
+    }
+    return last.values.toSet();
+  }
+
   /// First station of a new series: the series after the highest one in use
   Point get nextSeriesStart {
     var maxSeries = 0;

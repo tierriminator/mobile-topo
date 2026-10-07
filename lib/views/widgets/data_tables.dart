@@ -241,7 +241,10 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
 class StretchesTable extends EditableDataTable<MeasuredDistance> {
   final void Function(int index, MeasuredDistance stretch)? onUpdate;
   final void Function(Point station)? onStartHere;
-  final void Function(num corridorId)? onContinueHere;
+  final void Function(Point station)? onContinueHere;
+
+  /// Stations where "Continue Here" is offered: the last station of a series
+  final Set<Point> seriesEnds;
 
   const StretchesTable({
     super.key,
@@ -254,6 +257,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
+    this.seriesEnds = const {},
   });
 
   @override
@@ -262,6 +266,10 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
 
 class StretchesTableState
     extends EditableDataTableState<MeasuredDistance, StretchesTable> {
+  /// The station a row stands for: a survey shot defines its To station,
+  /// a cross section its From station
+  Point _station(MeasuredDistance stretch) => stretch.to ?? stretch.from;
+
   void _updateStretch(
     int index,
     MeasuredDistance current, {
@@ -337,7 +345,8 @@ class StretchesTableState
       AppLocalizations l10n, int index, MeasuredDistance item) {
     return [
       PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
-      PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
+      if (widget.seriesEnds.contains(_station(item)))
+        PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
       PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
       PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
       PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
@@ -349,10 +358,9 @@ class StretchesTableState
       String? value, int index, MeasuredDistance item) {
     switch (value) {
       case 'startHere':
-        // A survey shot defines its To station, a cross section its From
-        widget.onStartHere?.call(item.to ?? item.from);
+        widget.onStartHere?.call(_station(item));
       case 'continueHere':
-        widget.onContinueHere?.call(item.from.corridorId);
+        widget.onContinueHere?.call(_station(item));
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

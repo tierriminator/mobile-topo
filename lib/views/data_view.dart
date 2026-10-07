@@ -305,10 +305,7 @@ class _DataViewState extends State<DataView> {
 
     // Station IDs must be unique in the whole cave, so the new series number
     // is taken from all sections, not just this one
-    final cave = context.read<SelectionState>().selectedCave;
-    final newStation =
-        (cave?.replaceSection(section).combinedSurvey ?? section.survey)
-            .nextSeriesStart;
+    final newStation = _caveSurvey(section).nextSeriesStart;
 
     final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0);
     await _applySurveyChange(section, section.survey.addStretch(emptyStretch));
@@ -317,32 +314,16 @@ class _DataViewState extends State<DataView> {
     measurementService.continueFrom(newStation);
   }
 
-  void _continueHere(Section section, num corridorId) {
-    final measurementService = context.read<MeasurementService>();
+  /// PocketTopo's "Continue Here", offered only at the last station of a
+  /// series: continues measuring from that station.
+  void _continueHere(Point station) {
+    context.read<MeasurementService>().continueFrom(station);
+  }
 
-    // Find the last station (highest pointId) in the given corridor
-    Point? lastStation;
-    int maxPointId = -1;
-
-    for (final stretch in section.survey.stretches) {
-      // Check "from" station
-      if (stretch.from.corridorId == corridorId &&
-          stretch.from.pointId.toInt() > maxPointId) {
-        maxPointId = stretch.from.pointId.toInt();
-        lastStation = stretch.from;
-      }
-      // Check "to" station (if not a splay)
-      if (stretch.to != null &&
-          stretch.to!.corridorId == corridorId &&
-          stretch.to!.pointId.toInt() > maxPointId) {
-        maxPointId = stretch.to!.pointId.toInt();
-        lastStation = stretch.to;
-      }
-    }
-
-    if (lastStation != null) {
-      measurementService.continueFrom(lastStation);
-    }
+  /// The survey of the whole cave, including this section's latest changes
+  Survey _caveSurvey(Section section) {
+    final cave = context.read<SelectionState>().selectedCave;
+    return cave?.replaceSection(section).combinedSurvey ?? section.survey;
   }
 
   @override
@@ -512,8 +493,10 @@ class _DataViewState extends State<DataView> {
                     _updateStretch(section, index, stretch),
                 onDelete: (index) => _deleteStretch(section, index),
                 onStartHere: (station) => _startNewSeries(section, station),
-                onContinueHere: (corridorId) =>
-                    _continueHere(section, corridorId),
+                onContinueHere: _continueHere,
+                // Series can span sections, so their ends are taken from the
+                // whole cave
+                seriesEnds: _caveSurvey(section).seriesEnds,
                 onAdd: () => _addStretch(section),
               ),
         // Reference points view
