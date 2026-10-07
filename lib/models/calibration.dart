@@ -507,7 +507,7 @@ class CalibrationPosition {
 /// - 4 horizontal (forward, right, back, left relative to first shot)
 /// - 4 to the upper cube vertices
 /// - 4 to the lower cube vertices
-/// - 2 near-vertical (up and down)
+/// - 2 vertical (up and down)
 class CalibrationPositions {
   CalibrationPositions._();
 
@@ -537,9 +537,9 @@ class CalibrationPositions {
     (135.0, -vertexInclination), // 9: Right-Back, lower corner
     (225.0, -vertexInclination), // 10: Back-Left, lower corner
     (315.0, -vertexInclination), // 11: Left-Forward, lower corner
-    // Last 2: near-vertical (bearing doesn't matter)
-    (0.0, 80.0),   // 12: Up (any bearing)
-    (0.0, -80.0),  // 13: Down (any bearing)
+    // Last 2: vertical, where the bearing has no meaning
+    (0.0, 90.0),   // 12: Up
+    (0.0, -90.0),  // 13: Down
   ];
 
   /// Number of leading directions in [relativeDirections] whose four shots
