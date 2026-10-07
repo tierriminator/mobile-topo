@@ -796,38 +796,13 @@ class _Overview extends StatelessWidget {
                       _FlaggedDirectionTile(
                         direction: direction,
                         issues: flagged[direction]!,
-                        onRetake: () =>
-                            _confirmRetake(context, l10n, direction),
+                        onRetake: () => calibration.retakeDirection(direction),
                       ),
                   ],
                 ),
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _confirmRetake(BuildContext context, AppLocalizations l10n, int direction) {
-    final label = _directionLabel(l10n, direction);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(label),
-        content: Text(l10n.calibrationRetakeConfirm(label)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              calibration.retakeDirection(direction);
-            },
-            child: Text(l10n.calibrationRetake),
-          ),
-        ],
       ),
     );
   }

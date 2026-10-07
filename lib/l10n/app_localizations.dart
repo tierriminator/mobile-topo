@@ -1005,12 +1005,6 @@ abstract class AppLocalizations {
   /// **'Retake'**
   String get calibrationRetake;
 
-  /// Confirmation before discarding the four shots of a calibration direction
-  ///
-  /// In en, this message translates to:
-  /// **'Discard the four shots of {direction} and take them again?'**
-  String calibrationRetakeConfirm(String direction);
-
   /// Title of the confirmation before writing a calibration whose error exceeds the limit
   ///
   /// In en, this message translates to:

@@ -578,15 +578,6 @@
   "@calibrationUndoConfirm": { "description": "Confirmation before discarding the most recent calibration shot" },
   "calibrationRetake": "Retake",
   "@calibrationRetake": { "description": "Button that discards the four shots of a calibration direction so they can be taken again" },
-  "calibrationRetakeConfirm": "Discard the four shots of {direction} and take them again?",
-  "@calibrationRetakeConfirm": {
-    "description": "Confirmation before discarding the four shots of a calibration direction",
-    "placeholders": {
-      "direction": {
-        "type": "String"
-      }
-    }
-  },
   "calibrationHighErrorTitle": "High calibration error",
   "@calibrationHighErrorTitle": { "description": "Title of the confirmation before writing a calibration whose error exceeds the limit" },
   "calibrationHighErrorConfirm": "The calibration error is {error}, above the limit of {limit}. Retaking the flagged directions may bring it down.\n\nWrite these coefficients to the device anyway?",

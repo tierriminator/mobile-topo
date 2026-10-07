@@ -490,11 +490,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationRetake => 'Retake';
 
   @override
-  String calibrationRetakeConfirm(String direction) {
-    return 'Discard the four shots of $direction and take them again?';
-  }
-
-  @override
   String get calibrationHighErrorTitle => 'High calibration error';
 
   @override
