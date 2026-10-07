@@ -1177,32 +1177,13 @@ class _CalibrationGuidance extends StatelessWidget {
 
   const _CalibrationGuidance({required this.calibration});
 
-  /// Find first measurement with high error for retake.
-  int? _findFirstBadMeasurement() {
-    final measurements = calibration.measurements;
-    final results = calibration.results;
-
-    // Don't suggest corrections until all 56 measurements are done
-    if (measurements.length < 56) return null;
-    if (results == null) return null;
-
-    for (int i = 0; i < results.length && i < measurements.length; i++) {
-      final r = results[i];
-      if (r != null &&
-          measurements[i].enabled &&
-          r.error >= CalibrationService.errorThreshold) {
-        return i;
-      }
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final measurements = calibration.measurements;
     final count = measurements.length;
-    final badIndex = _findFirstBadMeasurement();
+    // The measurement the next shot replaces, as decided by the service.
+    final badIndex = calibration.retakeIndex;
     final isRetake = badIndex != null;
 
     // Use auto-detection progress if available
@@ -1291,7 +1272,10 @@ class _CalibrationGuidance extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    l10n.calibrationRetakeNeeded(badIndex + 1),
+                    l10n.calibrationRetakeNeeded(
+                      badIndex + 1,
+                      calibration.retakeReason(l10n) ?? '',
+                    ),
                     style: const TextStyle(
                       fontSize: 12,
                       color: Colors.orange,

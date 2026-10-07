@@ -1071,11 +1071,11 @@ abstract class AppLocalizations {
   /// **'Calibration complete'**
   String get calibrationComplete;
 
-  /// Warning about measurement needing retake
+  /// Warning about the measurement the next shot replaces
   ///
   /// In en, this message translates to:
-  /// **'Measurement #{index} has high error. Retake:'**
-  String calibrationRetakeNeeded(int index);
+  /// **'Measurement #{index} needs a retake ({reason}):'**
+  String calibrationRetakeNeeded(int index, String reason);
 
   /// Guidance when all shots done but some have errors
   ///
@@ -1254,42 +1254,6 @@ abstract class AppLocalizations {
     String roll,
     int progress,
   );
-
-  /// Status during initial phase with remaining count
-  ///
-  /// In en, this message translates to:
-  /// **'Take {remaining} more shots to enable guidance'**
-  String calibrationPhaseInitialRemaining(int remaining);
-
-  /// Status during initial phase
-  ///
-  /// In en, this message translates to:
-  /// **'Take shots in any direction'**
-  String get calibrationPhaseInitial;
-
-  /// Status during guided phase
-  ///
-  /// In en, this message translates to:
-  /// **'Fill remaining {remaining} positions ({filled}/56)'**
-  String calibrationPhaseGuided(int remaining, int filled);
-
-  /// Status during correcting phase
-  ///
-  /// In en, this message translates to:
-  /// **'Retake shot #{index} ({reason}) - {remaining} remaining'**
-  String calibrationPhaseCorrecting(int index, String reason, int remaining);
-
-  /// Generic status during correcting phase
-  ///
-  /// In en, this message translates to:
-  /// **'Correct {count} shots with errors'**
-  String calibrationPhaseCorrectingGeneric(int count);
-
-  /// Status when calibration is complete
-  ///
-  /// In en, this message translates to:
-  /// **'Calibration complete! Ready to write to device.'**
-  String get calibrationPhaseComplete;
 
   /// Message when all positions are filled
   ///

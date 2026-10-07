@@ -674,12 +674,16 @@
   "@calibrationComplete": {
     "description": "Message when all 56 measurements are done"
   },
-  "calibrationRetakeNeeded": "Measurement #{index} has high error. Retake:",
+  "calibrationRetakeNeeded": "Measurement #{index} needs a retake ({reason}):",
   "@calibrationRetakeNeeded": {
-    "description": "Warning about measurement needing retake",
+    "description": "Warning about the measurement the next shot replaces",
     "placeholders": {
       "index": {
         "type": "int"
+      },
+      "reason": {
+        "type": "String",
+        "description": "One of calibrationReasonHighError, calibrationReasonMisaligned or calibrationReasonBoth"
       }
     }
   },
@@ -775,59 +779,6 @@
         "type": "int"
       }
     }
-  },
-  "calibrationPhaseInitialRemaining": "Take {remaining} more shots to enable guidance",
-  "@calibrationPhaseInitialRemaining": {
-    "description": "Status during initial phase with remaining count",
-    "placeholders": {
-      "remaining": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationPhaseInitial": "Take shots in any direction",
-  "@calibrationPhaseInitial": {
-    "description": "Status during initial phase"
-  },
-  "calibrationPhaseGuided": "Fill remaining {remaining} positions ({filled}/56)",
-  "@calibrationPhaseGuided": {
-    "description": "Status during guided phase",
-    "placeholders": {
-      "remaining": {
-        "type": "int"
-      },
-      "filled": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationPhaseCorrecting": "Retake shot #{index} ({reason}) - {remaining} remaining",
-  "@calibrationPhaseCorrecting": {
-    "description": "Status during correcting phase",
-    "placeholders": {
-      "index": {
-        "type": "int"
-      },
-      "reason": {
-        "type": "String"
-      },
-      "remaining": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationPhaseCorrectingGeneric": "Correct {count} shots with errors",
-  "@calibrationPhaseCorrectingGeneric": {
-    "description": "Generic status during correcting phase",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "calibrationPhaseComplete": "Calibration complete! Ready to write to device.",
-  "@calibrationPhaseComplete": {
-    "description": "Status when calibration is complete"
   },
   "calibrationAllPositionsFilled": "All 56 positions filled!",
   "@calibrationAllPositionsFilled": {

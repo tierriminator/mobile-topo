@@ -528,8 +528,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationComplete => 'Calibration complete';
 
   @override
-  String calibrationRetakeNeeded(int index) {
-    return 'Measurement #$index has high error. Retake:';
+  String calibrationRetakeNeeded(int index, String reason) {
+    return 'Measurement #$index needs a retake ($reason):';
   }
 
   @override
@@ -631,33 +631,6 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return '$direction, roll $roll ($progress/4)';
   }
-
-  @override
-  String calibrationPhaseInitialRemaining(int remaining) {
-    return 'Take $remaining more shots to enable guidance';
-  }
-
-  @override
-  String get calibrationPhaseInitial => 'Take shots in any direction';
-
-  @override
-  String calibrationPhaseGuided(int remaining, int filled) {
-    return 'Fill remaining $remaining positions ($filled/56)';
-  }
-
-  @override
-  String calibrationPhaseCorrecting(int index, String reason, int remaining) {
-    return 'Retake shot #$index ($reason) - $remaining remaining';
-  }
-
-  @override
-  String calibrationPhaseCorrectingGeneric(int count) {
-    return 'Correct $count shots with errors';
-  }
-
-  @override
-  String get calibrationPhaseComplete =>
-      'Calibration complete! Ready to write to device.';
 
   @override
   String get calibrationAllPositionsFilled => 'All 56 positions filled!';

@@ -218,31 +218,16 @@ class CalibrationService extends ChangeNotifier {
     return progress;
   }
 
-  /// Get a user-friendly status message for the current phase.
-  String getPhaseStatusMessage(AppLocalizations l10n) {
-    switch (_phase) {
-      case CalibrationPhase.collectingInitial:
-        final remaining = minForAutoDetect - _measurements.length;
-        if (remaining > 0) {
-          return l10n.calibrationPhaseInitialRemaining(remaining);
-        }
-        return l10n.calibrationPhaseInitial;
+  /// Index of the measurement the next shot replaces, or null while shots are
+  /// being added. Set once all 56 slots are filled, to the first enabled
+  /// measurement with a high error or a detected direction other than the one
+  /// it was taken for.
+  int? get retakeIndex => _retakeIndex;
 
-      case CalibrationPhase.collectingGuided:
-        final remaining = 56 - _filledSlots.length;
-        return l10n.calibrationPhaseGuided(remaining, _filledSlots.length);
-
-      case CalibrationPhase.correcting:
-        final badCount = _countBadMeasurements();
-        if (_retakeIndex != null) {
-          final reason = _getBadMeasurementReason(_retakeIndex!, l10n);
-          return l10n.calibrationPhaseCorrecting(_retakeIndex! + 1, reason, badCount);
-        }
-        return l10n.calibrationPhaseCorrectingGeneric(badCount);
-
-      case CalibrationPhase.complete:
-        return l10n.calibrationPhaseComplete;
-    }
+  /// Why the measurement at [retakeIndex] needs a retake, or null if none does.
+  String? retakeReason(AppLocalizations l10n) {
+    final index = _retakeIndex;
+    return index == null ? null : _getBadMeasurementReason(index, l10n);
   }
 
   /// Whether a measurement's error is high enough to warrant a retake.
@@ -252,23 +237,6 @@ class CalibrationService extends ChangeNotifier {
   /// individual shot.
   bool _isHighError(CalibrationResult? r) =>
       r != null && hasUsefulCoverage && r.error >= errorThreshold;
-
-  /// Count how many measurements need correction (high error or misaligned).
-  int _countBadMeasurements() {
-    int count = 0;
-    for (int i = 0; i < _measurements.length; i++) {
-      if (!_measurements[i].enabled) continue;
-
-      final r = _results != null && i < _results!.length ? _results![i] : null;
-      final hasHighError = _isHighError(r);
-      final isMisaligned = isMeasurementMisaligned(i);
-
-      if (hasHighError || isMisaligned) {
-        count++;
-      }
-    }
-    return count;
-  }
 
   /// Get a description of why a measurement needs correction.
   String _getBadMeasurementReason(int index, AppLocalizations l10n) {
