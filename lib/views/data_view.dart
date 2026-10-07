@@ -75,22 +75,27 @@ class _DataViewState extends State<DataView> {
     return null;
   }
 
-  void _bindMeasurementService(Section section) {
+  /// Routes measurements to whichever section is selected when they arrive.
+  void _bindMeasurementService() {
     if (_measurementServiceBound) return;
 
     final measurementService = context.read<MeasurementService>();
-    final sectionId = section.id;
 
     measurementService.onStretchReady = (stretch) {
-      _addMeasuredStretch(sectionId, stretch);
+      final sectionId = _currentSectionId;
+      if (sectionId != null) _addMeasuredStretch(sectionId, stretch);
     };
 
     measurementService.onCrossSectionReady = (crossSection) {
-      _addMeasuredStretch(sectionId, crossSection);
+      final sectionId = _currentSectionId;
+      if (sectionId != null) _addMeasuredStretch(sectionId, crossSection);
     };
 
     measurementService.onTripleReplace = (removeCount, stretch) {
-      _replaceWithSurveyShot(sectionId, removeCount, stretch);
+      final sectionId = _currentSectionId;
+      if (sectionId != null) {
+        _replaceWithSurveyShot(sectionId, removeCount, stretch);
+      }
     };
 
     _measurementServiceBound = true;
@@ -384,7 +389,7 @@ class _DataViewState extends State<DataView> {
         : selectionSection;
 
     // Bind measurement service callbacks
-    _bindMeasurementService(selectionSection);
+    _bindMeasurementService();
 
     return Column(
       children: [
