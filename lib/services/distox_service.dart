@@ -186,6 +186,11 @@ class DistoXService extends ChangeNotifier {
   }
 
   void _setupDataSubscription() {
+    // Drop subscriptions from an earlier connection; the data stream is a
+    // broadcast stream, so they would otherwise receive every packet too
+    _dataSubscription?.cancel();
+    _stateSubscription?.cancel();
+
     // Listen for incoming data
     _dataSubscription = _adapter.dataStream.listen(
       _onDataReceived,
