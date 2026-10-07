@@ -196,6 +196,15 @@ class Survey {
     );
   }
 
+  /// Stations measured from, measured to, or referenced in this survey
+  Set<Point> get stations => {
+        for (final ref in referencePoints) ref.id,
+        for (final stretch in stretches) ...[
+          stretch.from,
+          if (stretch.to != null) stretch.to!,
+        ],
+      };
+
   /// Calculates total surveyed length (sum of all stretch distances)
   double get totalLength {
     double total = 0;

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
 import '../l10n/app_localizations.dart';
-import '../models/cave.dart';
 import '../models/survey.dart';
 
 class MapView extends StatefulWidget {
@@ -33,27 +32,6 @@ class _MapViewState extends State<MapView> {
 
   // Track current section to detect changes
   String? _currentSectionId;
-
-  /// Merges the surveys of all sections of the cave into one, so stations
-  /// shared between sections connect them into a single network.
-  static Survey _caveSurvey(Cave cave) {
-    final sections = cave.allSections;
-    return Survey(
-      stretches: [for (final s in sections) ...s.survey.stretches],
-      referencePoints: [for (final s in sections) ...s.survey.referencePoints],
-    );
-  }
-
-  /// Stations measured or referenced in the given section
-  static Set<Point> _sectionStations(Survey survey) {
-    return {
-      for (final ref in survey.referencePoints) ref.id,
-      for (final stretch in survey.stretches) ...[
-        stretch.from,
-        if (stretch.to != null) stretch.to!,
-      ],
-    };
-  }
 
   void _updateFromSection(String? sectionId, Survey? caveSurvey,
       Set<Point> sectionStations) {
@@ -171,10 +149,8 @@ class _MapViewState extends State<MapView> {
     final selectionState = context.watch<SelectionState>();
     final section = selectionState.selectedSection;
     final cave = selectionState.selectedCave;
-    final caveSurvey = cave == null ? null : _caveSurvey(cave);
-    final sectionStations = section == null
-        ? const <Point>{}
-        : _sectionStations(section.survey);
+    final caveSurvey = cave?.combinedSurvey;
+    final sectionStations = section?.survey.stations ?? const <Point>{};
 
     // Update positions when section changes
     _updateFromSection(section?.id, caveSurvey, sectionStations);

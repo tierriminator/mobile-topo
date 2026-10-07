@@ -188,6 +188,16 @@ class Cave {
         for (final area in areas) ...area.allSections,
       ];
 
+  /// The surveys of all sections merged into one, so stations shared between
+  /// sections connect them into a single network.
+  Survey get combinedSurvey {
+    final all = allSections;
+    return Survey(
+      stretches: [for (final s in all) ...s.survey.stretches],
+      referencePoints: [for (final s in all) ...s.survey.referencePoints],
+    );
+  }
+
   /// Check if this cave is empty
   bool get isEmpty => areas.isEmpty && sections.isEmpty;
 

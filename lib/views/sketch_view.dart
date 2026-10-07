@@ -76,7 +76,7 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  void _updateFromSection(Section? section) {
+  void _updateFromSection(Section? section, Cave? cave) {
     if (section == null) {
       if (_currentSectionId != null) {
         _positions = {};
@@ -88,9 +88,19 @@ class _SketchViewState extends State<SketchView> {
       return;
     }
 
-    // Always recompute positions (survey data may have changed)
-    _positions = section.survey.computeStationPositions();
-    _sideViewPositions = _computeSideViewPositions(section.survey);
+    // Always recompute positions (survey data may have changed). They are
+    // computed over the whole cave, so a section without its own reference
+    // point is placed relative to the sections it continues from; only the
+    // section's own stations are kept.
+    final survey = cave?.combinedSurvey ?? section.survey;
+    final stations = section.survey.stations;
+    _positions = Map.fromEntries(survey
+        .computeStationPositions()
+        .entries
+        .where((e) => stations.contains(e.key)));
+    _sideViewPositions = Map.fromEntries(_computeSideViewPositions(survey)
+        .entries
+        .where((e) => stations.contains(e.key)));
 
     // Only reset sketches and recenter when switching to a different section
     if (section.id != _currentSectionId) {
@@ -336,10 +346,11 @@ class _SketchViewState extends State<SketchView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = context.watch<SelectionState>().selectedSection;
+    final selectionState = context.watch<SelectionState>();
+    final section = selectionState.selectedSection;
 
     // Update positions when section changes
-    _updateFromSection(section);
+    _updateFromSection(section, selectionState.selectedCave);
 
     if (section == null) {
       return Center(
@@ -674,6 +685,8 @@ class _SketchPainter extends CustomPainter {
         oldDelegate.offset != offset ||
         oldDelegate.sketch != sketch ||
         oldDelegate.currentStroke != currentStroke ||
-        oldDelegate.isOutlineView != isOutlineView;
+        oldDelegate.isOutlineView != isOutlineView ||
+        oldDelegate.survey != survey ||
+        oldDelegate.stationPositions != stationPositions;
   }
 }
