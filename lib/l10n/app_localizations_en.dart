@@ -348,8 +348,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationTitle => 'Device Calibration';
 
   @override
-  String get calibrationDescription =>
-      'Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.';
+  String get calibrationIntroShots =>
+      'Take 4 shots in each of 14 directions, turning the display up, right, down and left. The app shows where to aim next.';
+
+  @override
+  String get calibrationIntroPrecise =>
+      'The first 4 directions are horizontal: forward, right, back and left. For each, pick a fixed point as far away as possible and hit it precisely with all 4 shots.';
+
+  @override
+  String get calibrationIntroRough =>
+      'For the other 10 directions, aiming roughly is enough.';
+
+  @override
+  String get calibrationIntroSteady =>
+      'Hold the device still until each reading has settled.';
+
+  @override
+  String get calibrationIntroRetake =>
+      'Afterwards, retake the directions the app marks, then write the calibration to the device.';
 
   @override
   String get calibrationStart => 'Start';
@@ -374,13 +390,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delete => 'Delete';
 
   @override
-  String get calibrationPhase1Title => 'Phase 1: Precise Measurements';
-
-  @override
-  String get calibrationPhase1Instructions =>
-      'The first 16 measurements (4 directions × 4 orientations) must be PRECISE.\n\n• Use two fixed points (marks on trees or cave walls)\n• For each direction, take 4 shots with different device orientations (display up, right, down, left)\n• All 4 shots in each direction must hit the SAME target point\n\nIMPORTANT: Calibrate in an undisturbed magnetic environment - a cave or forest. NOT inside buildings or near metal objects.';
-
-  @override
   String get calibrationPhase2Title => 'Phase 2: Coverage Measurements';
 
   @override
@@ -390,9 +399,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get calibrationPhase2Tip =>
       'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.';
-
-  @override
-  String get calibrationBegin => 'Begin';
 
   @override
   String get calibrationContinue => 'Continue';

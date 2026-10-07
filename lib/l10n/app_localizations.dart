@@ -741,11 +741,35 @@ abstract class AppLocalizations {
   /// **'Device Calibration'**
   String get calibrationTitle;
 
-  /// Description text shown on calibration start page
+  /// Calibration start page: overview of the shots
   ///
   /// In en, this message translates to:
-  /// **'Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.'**
-  String get calibrationDescription;
+  /// **'Take 4 shots in each of 14 directions, turning the display up, right, down and left. The app shows where to aim next.'**
+  String get calibrationIntroShots;
+
+  /// Calibration start page: the precisely aimed horizontal directions
+  ///
+  /// In en, this message translates to:
+  /// **'The first 4 directions are horizontal: forward, right, back and left. For each, pick a fixed point as far away as possible and hit it precisely with all 4 shots.'**
+  String get calibrationIntroPrecise;
+
+  /// Calibration start page: the roughly aimed directions
+  ///
+  /// In en, this message translates to:
+  /// **'For the other 10 directions, aiming roughly is enough.'**
+  String get calibrationIntroRough;
+
+  /// Calibration start page: holding the device still
+  ///
+  /// In en, this message translates to:
+  /// **'Hold the device still until each reading has settled.'**
+  String get calibrationIntroSteady;
+
+  /// Calibration start page: what happens after all shots
+  ///
+  /// In en, this message translates to:
+  /// **'Afterwards, retake the directions the app marks, then write the calibration to the device.'**
+  String get calibrationIntroRetake;
 
   /// Button to start calibration mode
   ///
@@ -789,18 +813,6 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get delete;
 
-  /// Title for phase 1 instructions dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Phase 1: Precise Measurements'**
-  String get calibrationPhase1Title;
-
-  /// Instructions for phase 1 of calibration
-  ///
-  /// In en, this message translates to:
-  /// **'The first 16 measurements (4 directions × 4 orientations) must be PRECISE.\n\n• Use two fixed points (marks on trees or cave walls)\n• For each direction, take 4 shots with different device orientations (display up, right, down, left)\n• All 4 shots in each direction must hit the SAME target point\n\nIMPORTANT: Calibrate in an undisturbed magnetic environment - a cave or forest. NOT inside buildings or near metal objects.'**
-  String get calibrationPhase1Instructions;
-
   /// Title for phase 2 instructions dialog
   ///
   /// In en, this message translates to:
@@ -818,12 +830,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.'**
   String get calibrationPhase2Tip;
-
-  /// Button to begin calibration after reading instructions
-  ///
-  /// In en, this message translates to:
-  /// **'Begin'**
-  String get calibrationBegin;
 
   /// Button to continue to phase 2
   ///

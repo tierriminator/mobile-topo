@@ -122,8 +122,7 @@ class _CalibrationViewState extends State<CalibrationView> {
               Expanded(
                 child: _StartPage(
                   isConnected: distoX.isConnected,
-                  onStartPressed: () =>
-                      _showPhase1InstructionsAndStart(context, calibration),
+                  onStartPressed: () => _start(calibration),
                 ),
               )
             // While slots are open, only the next shot is shown
@@ -188,72 +187,11 @@ class _CalibrationViewState extends State<CalibrationView> {
     Navigator.pop(context);
   }
 
-  /// Show phase 1 instructions and then start calibration.
-  void _showPhase1InstructionsAndStart(
-    BuildContext context,
-    CalibrationService calibration,
-  ) {
-    final l10n = AppLocalizations.of(context)!;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          l10n.calibrationPhase1Title,
-          style: const TextStyle(fontSize: 16),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.calibrationPhase1Instructions,
-                style: const TextStyle(height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.calibrationEnvironmentText,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              calibration.startCalibration();
-              // Reset phase 2 flag when starting fresh
-              _phase2DialogShown = false;
-              _previousCount = 0;
-            },
-            child: Text(l10n.calibrationBegin),
-          ),
-        ],
-      ),
-    );
+  void _start(CalibrationService calibration) {
+    calibration.startCalibration();
+    // Reset phase 2 flag when starting fresh
+    _phase2DialogShown = false;
+    _previousCount = 0;
   }
 
   /// Show phase 2 instructions when transitioning to coverage measurements.
@@ -520,7 +458,8 @@ class _WriteBar extends StatelessWidget {
   }
 }
 
-/// Introduction with the button that starts calibration.
+/// Concise instructions for the whole calibration, with the button that
+/// starts it.
 class _StartPage extends StatelessWidget {
   final bool isConnected;
   final VoidCallback onStartPressed;
@@ -530,54 +469,102 @@ class _StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.tune,
-              size: 72,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              l10n.calibrationTitle,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+    final theme = Theme.of(context);
+    final steps = [
+      (Icons.view_in_ar, l10n.calibrationIntroShots),
+      (Icons.gps_fixed, l10n.calibrationIntroPrecise),
+      (Icons.explore_outlined, l10n.calibrationIntroRough),
+      (Icons.pan_tool_outlined, l10n.calibrationIntroSteady),
+      (Icons.replay, l10n.calibrationIntroRetake),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (icon, text) in steps)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(icon, size: 22, color: theme.colorScheme.primary),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(text, style: theme.textTheme.bodyMedium),
+                        ),
+                      ],
+                    ),
                   ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.calibrationDescription,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                    ),
                   ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: isConnected ? onStartPressed : null,
-              icon: const Icon(Icons.play_arrow),
-              label: Text(l10n.calibrationStart),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              ),
-            ),
-            if (!isConnected) ...[
-              const SizedBox(height: 16),
-              Text(
-                l10n.calibrationNotConnected,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          l10n.calibrationEnvironmentText,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ],
+              ],
+            ),
+          ),
         ),
-      ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!isConnected)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      l10n.calibrationNotConnected,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                FilledButton.icon(
+                  onPressed: isConnected ? onStartPressed : null,
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(l10n.calibrationStart),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

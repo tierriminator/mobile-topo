@@ -445,10 +445,16 @@
   "@calibrationTitle": {
     "description": "Title for calibration screen"
   },
-  "calibrationDescription": "Take 56 measurements in 14 directions with 4 device orientations each to calibrate the DistoX sensors.",
-  "@calibrationDescription": {
-    "description": "Description text shown on calibration start page"
-  },
+  "calibrationIntroShots": "Take 4 shots in each of 14 directions, turning the display up, right, down and left. The app shows where to aim next.",
+  "@calibrationIntroShots": { "description": "Calibration start page: overview of the shots" },
+  "calibrationIntroPrecise": "The first 4 directions are horizontal: forward, right, back and left. For each, pick a fixed point as far away as possible and hit it precisely with all 4 shots.",
+  "@calibrationIntroPrecise": { "description": "Calibration start page: the precisely aimed horizontal directions" },
+  "calibrationIntroRough": "For the other 10 directions, aiming roughly is enough.",
+  "@calibrationIntroRough": { "description": "Calibration start page: the roughly aimed directions" },
+  "calibrationIntroSteady": "Hold the device still until each reading has settled.",
+  "@calibrationIntroSteady": { "description": "Calibration start page: holding the device still" },
+  "calibrationIntroRetake": "Afterwards, retake the directions the app marks, then write the calibration to the device.",
+  "@calibrationIntroRetake": { "description": "Calibration start page: what happens after all shots" },
   "calibrationStart": "Start",
   "@calibrationStart": {
     "description": "Button to start calibration mode"
@@ -477,14 +483,6 @@
   "@delete": {
     "description": "Delete button text"
   },
-  "calibrationPhase1Title": "Phase 1: Precise Measurements",
-  "@calibrationPhase1Title": {
-    "description": "Title for phase 1 instructions dialog"
-  },
-  "calibrationPhase1Instructions": "The first 16 measurements (4 directions × 4 orientations) must be PRECISE.\n\n• Use two fixed points (marks on trees or cave walls)\n• For each direction, take 4 shots with different device orientations (display up, right, down, left)\n• All 4 shots in each direction must hit the SAME target point\n\nIMPORTANT: Calibrate in an undisturbed magnetic environment - a cave or forest. NOT inside buildings or near metal objects.",
-  "@calibrationPhase1Instructions": {
-    "description": "Instructions for phase 1 of calibration"
-  },
   "calibrationPhase2Title": "Phase 2: Coverage Measurements",
   "@calibrationPhase2Title": {
     "description": "Title for phase 2 instructions dialog"
@@ -496,10 +494,6 @@
   "calibrationPhase2Tip": "Unlike Phase 1, you don't need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.",
   "@calibrationPhase2Tip": {
     "description": "Tip for phase 2 explaining the difference from phase 1"
-  },
-  "calibrationBegin": "Begin",
-  "@calibrationBegin": {
-    "description": "Button to begin calibration after reading instructions"
   },
   "calibrationContinue": "Continue",
   "@calibrationContinue": {
