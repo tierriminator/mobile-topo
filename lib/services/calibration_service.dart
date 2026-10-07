@@ -64,6 +64,7 @@ class CalibrationService extends ChangeNotifier {
   List<CalibrationResult?>? _results;
   CalibrationCoefficients? _coefficients;
   double? _rmsError;
+  double? _directionCoverage;
   int? _iterations;
   String? _error;
 
@@ -90,7 +91,17 @@ class CalibrationService extends ChangeNotifier {
   /// Minimum measurements needed before auto-detection becomes reliable.
   static const int minForAutoDetect = 16;
 
-  /// Error threshold (degrees) for considering a measurement "bad" and needing correction.
+  /// Quality limit for a calibration, and for flagging an individual
+  /// measurement as needing a retake.
+  ///
+  /// Step 8 of `docs/distox/DistoX2_CalibrationManual.txt`: "The third value
+  /// given in the lower part of the screen is a measure of quality. It should
+  /// be smaller than 0.5." That value is the error measure E of Heeb's paper
+  /// as a percentage, which the paper shows is within 1% of the angular error
+  /// in degrees — matching step 10's expectation that a calibrated device
+  /// reads consistently "to a few tenth of a degree".
+  ///
+  /// See [CalibrationResult.errorScale] for the scaling this implies.
   static const double errorThreshold = 0.5;
 
   /// First address of the calibration coefficients in the device's
@@ -128,8 +139,27 @@ class CalibrationService extends ChangeNotifier {
       List.unmodifiable(_measurements);
   List<CalibrationResult?>? get results => _results;
   CalibrationCoefficients? get coefficients => _coefficients;
-  double? get rmsError => _rmsError;
   int? get iterations => _iterations;
+
+  /// How evenly the collected orientations cover the rotation group, 0 to 1.
+  double? get directionCoverage => _directionCoverage;
+
+  /// Whether enough of the rotation group is covered for the reported errors
+  /// to carry information.
+  ///
+  /// Below the threshold, part of the G and M matrices is unconstrained by any
+  /// measurement, and the residuals of those free parameters dominate the
+  /// reported errors.
+  bool get hasUsefulCoverage =>
+      (_directionCoverage ?? 0) >= CalibrationAlgorithm.minUsefulCoverage;
+
+  /// Overall calibration quality, available once [hasUsefulCoverage] holds.
+  ///
+  /// This is the error measure E of Heeb's paper scaled by
+  /// [CalibrationResult.errorScale], i.e. roughly the angular error in
+  /// degrees. The DistoX2 calibration manual asks for less than
+  /// [errorThreshold].
+  double? get rmsError => hasUsefulCoverage ? _rmsError : null;
   String? get error => _error;
   bool get hasResults => _results != null && _results!.isNotEmpty;
   int get measurementCount => _measurements.length;
@@ -215,6 +245,14 @@ class CalibrationService extends ChangeNotifier {
     }
   }
 
+  /// Whether a measurement's error is high enough to warrant a retake.
+  ///
+  /// Requires [hasUsefulCoverage]: below that, the per-measurement errors are
+  /// residuals of a partly unconstrained fit and carry nothing about the
+  /// individual shot.
+  bool _isHighError(CalibrationResult? r) =>
+      r != null && hasUsefulCoverage && r.error >= errorThreshold;
+
   /// Count how many measurements need correction (high error or misaligned).
   int _countBadMeasurements() {
     int count = 0;
@@ -222,7 +260,7 @@ class CalibrationService extends ChangeNotifier {
       if (!_measurements[i].enabled) continue;
 
       final r = _results != null && i < _results!.length ? _results![i] : null;
-      final hasHighError = r != null && r.error >= errorThreshold;
+      final hasHighError = _isHighError(r);
       final isMisaligned = isMeasurementMisaligned(i);
 
       if (hasHighError || isMisaligned) {
@@ -235,13 +273,13 @@ class CalibrationService extends ChangeNotifier {
   /// Get a description of why a measurement needs correction.
   String _getBadMeasurementReason(int index, AppLocalizations l10n) {
     final r = _results != null && index < _results!.length ? _results![index] : null;
-    final hasHighError = r != null && r.error >= errorThreshold;
+    final hasHighError = _isHighError(r);
     final isMisaligned = isMeasurementMisaligned(index);
 
     if (hasHighError && isMisaligned) {
       return l10n.calibrationReasonBoth;
     } else if (hasHighError) {
-      return l10n.calibrationReasonHighError(r.error.toStringAsFixed(2));
+      return l10n.calibrationReasonHighError(r!.error.toStringAsFixed(2));
     } else if (isMisaligned) {
       return l10n.calibrationReasonMisaligned;
     }
@@ -290,6 +328,7 @@ class CalibrationService extends ChangeNotifier {
     _results = null;
     _coefficients = null;
     _rmsError = null;
+    _directionCoverage = null;
     _iterations = null;
     _error = null;
     _pendingAccel = null;
@@ -616,6 +655,7 @@ class CalibrationService extends ChangeNotifier {
 
       _coefficients = result.coefficients;
       _rmsError = result.rmsError;
+      _directionCoverage = result.directionCoverage;
       _iterations = result.iterations;
       _state = CalibrationState.idle;
 
@@ -635,7 +675,9 @@ class CalibrationService extends ChangeNotifier {
       }
       _results = expandedResults;
 
-      debugPrint('Calibration computed: RMS error = ${_rmsError?.toStringAsFixed(3)}°, '
+      debugPrint('Calibration computed: quality = '
+          '${_rmsError?.toStringAsFixed(3)} (limit $errorThreshold), '
+          'coverage = ${_directionCoverage?.toStringAsFixed(2)}, '
           'iterations = $_iterations');
 
       // Debug: print measurement statistics
@@ -847,9 +889,16 @@ class CalibrationService extends ChangeNotifier {
   void _runAutoDetection() {
     if (_coefficients == null || _results == null) return;
 
-    // Establish reference bearing from first horizontal measurement
-    _referenceBearing ??= _findReferenceBearing();
-    debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}°');
+    // The reference bearing comes out of the current fit, so it is only as
+    // good as the coverage behind that fit. Re-deriving it on every evaluation
+    // while shots are still coming in lets it track the improving fit; it
+    // settles once coverage is adequate. Only the correcting phase holds it
+    // fixed, so that retake suggestions compare against a stable "Forward".
+    if (_referenceBearing == null || _phase != CalibrationPhase.correcting) {
+      _referenceBearing = _findReferenceBearing();
+    }
+    debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}° '
+        '(coverage ${_directionCoverage?.toStringAsFixed(2)})');
 
     // Ensure _detectedPositions list is sized correctly
     while (_detectedPositions.length < _measurements.length) {
@@ -938,7 +987,7 @@ class CalibrationService extends ChangeNotifier {
       if (!_measurements[i].enabled) continue;
 
       final r = _results![i];
-      final hasHighError = r != null && r.error >= errorThreshold;
+      final hasHighError = _isHighError(r);
       final isMisaligned = isMeasurementMisaligned(i);
 
       if (hasHighError || isMisaligned) {
