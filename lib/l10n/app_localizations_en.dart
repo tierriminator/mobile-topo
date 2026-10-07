@@ -390,32 +390,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delete => 'Delete';
 
   @override
-  String get calibrationPhase2Title => 'Phase 2: Coverage Measurements';
-
-  @override
-  String get calibrationPhase2Instructions =>
-      'The remaining 40 measurements (10 directions × 4 orientations) cover additional angles.\n\n• Imagine standing in the center of a large cube\n• Point toward the 8 corners (diagonals) plus up and down\n• For each direction, take 4 shots with different device orientations\n• The exact directions are NOT critical - just get good spread\n• Still use a target point and let readings stabilize';
-
-  @override
-  String get calibrationPhase2Tip =>
-      'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.';
-
-  @override
-  String get calibrationContinue => 'Continue';
-
-  @override
   String get calibrationEnvironmentText =>
       'You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.';
 
   @override
   String get calibrationModeIndicator => 'CAL';
-
-  @override
-  String get calibrationPhase1Complete => 'Phase 1 Complete!';
-
-  @override
-  String get calibrationPreciseMeasurementsDone =>
-      '16 precise measurements done';
 
   @override
   String get calibrationDirection0 => 'Forward';

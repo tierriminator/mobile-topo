@@ -813,30 +813,6 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get delete;
 
-  /// Title for phase 2 instructions dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Phase 2: Coverage Measurements'**
-  String get calibrationPhase2Title;
-
-  /// Instructions for phase 2 of calibration
-  ///
-  /// In en, this message translates to:
-  /// **'The remaining 40 measurements (10 directions × 4 orientations) cover additional angles.\n\n• Imagine standing in the center of a large cube\n• Point toward the 8 corners (diagonals) plus up and down\n• For each direction, take 4 shots with different device orientations\n• The exact directions are NOT critical - just get good spread\n• Still use a target point and let readings stabilize'**
-  String get calibrationPhase2Instructions;
-
-  /// Tip for phase 2 explaining the difference from phase 1
-  ///
-  /// In en, this message translates to:
-  /// **'Unlike Phase 1, you don\'t need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.'**
-  String get calibrationPhase2Tip;
-
-  /// Button to continue to phase 2
-  ///
-  /// In en, this message translates to:
-  /// **'Continue'**
-  String get calibrationContinue;
-
   /// Warning text about magnetic environment
   ///
   /// In en, this message translates to:
@@ -848,18 +824,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CAL'**
   String get calibrationModeIndicator;
-
-  /// Title shown when phase 1 is done
-  ///
-  /// In en, this message translates to:
-  /// **'Phase 1 Complete!'**
-  String get calibrationPhase1Complete;
-
-  /// Message confirming phase 1 completion
-  ///
-  /// In en, this message translates to:
-  /// **'16 precise measurements done'**
-  String get calibrationPreciseMeasurementsDone;
 
   /// Direction 0: forward/north
   ///

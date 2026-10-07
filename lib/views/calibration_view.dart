@@ -22,38 +22,6 @@ class CalibrationView extends StatefulWidget {
 }
 
 class _CalibrationViewState extends State<CalibrationView> {
-  /// Track if phase 2 dialog has been shown this session.
-  bool _phase2DialogShown = false;
-
-  /// Previous measurement count to detect when we cross 16.
-  int _previousCount = 0;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _checkPhase2Transition();
-  }
-
-  void _checkPhase2Transition() {
-    final calibration = context.read<CalibrationService>();
-    final currentCount = calibration.measurementCount;
-
-    // Show phase 2 dialog when crossing from <16 to >=16
-    if (!_phase2DialogShown &&
-        _previousCount < 16 &&
-        currentCount >= 16 &&
-        calibration.state == CalibrationState.measuring) {
-      _phase2DialogShown = true;
-      // Schedule dialog for after build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showPhase2Instructions(context);
-        }
-      });
-    }
-    _previousCount = currentCount;
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -63,11 +31,6 @@ class _CalibrationViewState extends State<CalibrationView> {
     final nextShot = calibration.suggestedNext;
     final started = calibration.state == CalibrationState.measuring ||
         calibration.measurementCount > 0;
-
-    // Check for phase transition on each build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _checkPhase2Transition();
-    });
 
     return PopScope(
       canPop: calibration.measurementCount == 0,
@@ -122,7 +85,7 @@ class _CalibrationViewState extends State<CalibrationView> {
               Expanded(
                 child: _StartPage(
                   isConnected: distoX.isConnected,
-                  onStartPressed: () => _start(calibration),
+                  onStartPressed: calibration.startCalibration,
                 ),
               )
             // While slots are open, only the next shot is shown
@@ -187,97 +150,6 @@ class _CalibrationViewState extends State<CalibrationView> {
     Navigator.pop(context);
   }
 
-  void _start(CalibrationService calibration) {
-    calibration.startCalibration();
-    // Reset phase 2 flag when starting fresh
-    _phase2DialogShown = false;
-    _previousCount = 0;
-  }
-
-  /// Show phase 2 instructions when transitioning to coverage measurements.
-  void _showPhase2Instructions(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          l10n.calibrationPhase1Complete,
-          style: const TextStyle(fontSize: 16),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        l10n.calibrationPreciseMeasurementsDone,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.calibrationPhase2Title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.calibrationPhase2Instructions,
-                style: const TextStyle(height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.lightbulb_outline, color: Colors.blue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.calibrationPhase2Tip,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.calibrationContinue),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Localized name of a calibration direction.

@@ -483,22 +483,6 @@
   "@delete": {
     "description": "Delete button text"
   },
-  "calibrationPhase2Title": "Phase 2: Coverage Measurements",
-  "@calibrationPhase2Title": {
-    "description": "Title for phase 2 instructions dialog"
-  },
-  "calibrationPhase2Instructions": "The remaining 40 measurements (10 directions × 4 orientations) cover additional angles.\n\n• Imagine standing in the center of a large cube\n• Point toward the 8 corners (diagonals) plus up and down\n• For each direction, take 4 shots with different device orientations\n• The exact directions are NOT critical - just get good spread\n• Still use a target point and let readings stabilize",
-  "@calibrationPhase2Instructions": {
-    "description": "Instructions for phase 2 of calibration"
-  },
-  "calibrationPhase2Tip": "Unlike Phase 1, you don't need to hit the exact same point for all 4 shots in a direction. Just aim roughly the same way.",
-  "@calibrationPhase2Tip": {
-    "description": "Tip for phase 2 explaining the difference from phase 1"
-  },
-  "calibrationContinue": "Continue",
-  "@calibrationContinue": {
-    "description": "Button to continue to phase 2"
-  },
   "calibrationEnvironmentText": "You must be in a magnetically clean environment (cave or forest). Buildings and metal objects will ruin the calibration.",
   "@calibrationEnvironmentText": {
     "description": "Warning text about magnetic environment"
@@ -506,14 +490,6 @@
   "calibrationModeIndicator": "CAL",
   "@calibrationModeIndicator": {
     "description": "Short indicator shown when device is in calibration mode"
-  },
-  "calibrationPhase1Complete": "Phase 1 Complete!",
-  "@calibrationPhase1Complete": {
-    "description": "Title shown when phase 1 is done"
-  },
-  "calibrationPreciseMeasurementsDone": "16 precise measurements done",
-  "@calibrationPreciseMeasurementsDone": {
-    "description": "Message confirming phase 1 completion"
   },
   "calibrationDirection0": "Forward",
   "@calibrationDirection0": { "description": "Direction 0: forward/north" },
