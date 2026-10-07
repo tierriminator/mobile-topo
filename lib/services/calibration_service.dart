@@ -390,26 +390,6 @@ class CalibrationService extends ChangeNotifier {
     _tryAutoEvaluate();
   }
 
-  /// Toggle group assignment between default and null.
-  /// For calibration, groups are numeric ("0"-"13") based on position.
-  /// Cycling removes the group (null) or restores the default.
-  void cycleGroup(int index) {
-    if (index < 0 || index >= _measurements.length) return;
-    final m = _measurements[index];
-    int? newGroup;
-    if (m.group != null) {
-      // Has a group → remove it
-      newGroup = null;
-    } else {
-      // No group → restore default based on position
-      newGroup = CalibrationData.defaultGroup(index + 1);
-    }
-    _measurements[index] =
-        newGroup == null ? m.copyWith(clearGroup: true) : m.copyWith(group: newGroup);
-    notifyListeners();
-    _tryAutoEvaluate();
-  }
-
   /// Auto-evaluate if we have enough enabled measurements.
   void _tryAutoEvaluate() {
     final enabledCount = _measurements.where((m) => m.enabled).length;
@@ -444,30 +424,30 @@ class CalibrationService extends ChangeNotifier {
     final bool isReplace = _retakeIndex != null;
     final int listPosition = isReplace ? _retakeIndex! : _measurements.length;
 
-    // Get the group and slot from the suggested position (prescriptive assignment)
-    // During collection, we assign based on what we told the user to take
-    final int? group;
+    // The direction and slot come from what the user was asked to shoot
+    // (prescriptive assignment).
+    final int? direction;
     final int? slotIndex;
 
     if (isReplace && _phase == CalibrationPhase.correcting) {
-      // Correction phase: keep the same group/slot as the measurement being replaced
+      // Correction phase: keep the direction/slot of the measurement being replaced
       final existing = _measurements[listPosition];
-      group = existing.group;
+      direction = existing.direction;
       slotIndex = listPosition < _detectedPositions.length
           ? _detectedPositions[listPosition]?.slotIndex
           : null;
     } else if (_suggestedNext != null) {
       // Collection phase: assign based on suggested position
-      group = _suggestedNext!.direction;
+      direction = _suggestedNext!.direction;
       slotIndex = _suggestedNext!.slotIndex;
     } else {
       // Fallback (shouldn't happen in normal flow)
-      group = CalibrationData.defaultGroup(listPosition + 1);
+      direction = CalibrationData.defaultDirection(listPosition + 1);
       slotIndex = null;
     }
 
-    // Combine into full measurement
-    final measurement = CalibrationMeasurement(
+    // Combine into full measurement; the direction decides the group.
+    final raw = CalibrationMeasurement(
       gx: _pendingAccel!.gx,
       gy: _pendingAccel!.gy,
       gz: _pendingAccel!.gz,
@@ -476,8 +456,8 @@ class CalibrationService extends ChangeNotifier {
       mz: packet.mz,
       index: listPosition + 1,
       enabled: true,
-      group: group,
     );
+    final measurement = direction == null ? raw : raw.forDirection(direction);
 
     if (isReplace) {
       // Replace a bad measurement
@@ -525,7 +505,7 @@ class CalibrationService extends ChangeNotifier {
       _detectedPositions[_measurements.length - 1] = _suggestedNext;
 
       debugPrint('CalibrationService: added measurement #${measurement.index} '
-          'for slot $slotIndex (group $group)');
+          'for slot $slotIndex (direction $direction, group ${measurement.group})');
 
       // Advance to next suggested position
       _updateSuggestedNext();
@@ -681,7 +661,7 @@ class CalibrationService extends ChangeNotifier {
           'iterations = $_iterations');
 
       // Debug: print measurement statistics
-      final enabledMeasurements = _measurements.where((m) => m.enabled && m.group != null).toList();
+      final enabledMeasurements = _measurements.where((m) => m.enabled).toList();
       if (enabledMeasurements.isNotEmpty) {
         final gxRange = enabledMeasurements.map((m) => m.gx).toList()..sort();
         final gyRange = enabledMeasurements.map((m) => m.gy).toList()..sort();
@@ -693,12 +673,24 @@ class CalibrationService extends ChangeNotifier {
         debugPrint('  G ranges: X=[${gxRange.first}, ${gxRange.last}], Y=[${gyRange.first}, ${gyRange.last}], Z=[${gzRange.first}, ${gzRange.last}]');
         debugPrint('  M ranges: X=[${mxRange.first}, ${mxRange.last}], Y=[${myRange.first}, ${myRange.last}], Z=[${mzRange.first}, ${mzRange.last}]');
 
-        // Print group distribution
+        // Print group and direction distribution
         final groupCounts = <int, int>{};
+        final directionCounts = <int, int>{};
+        var freeCount = 0;
         for (final m in enabledMeasurements) {
-          groupCounts[m.group!] = (groupCounts[m.group!] ?? 0) + 1;
+          final group = m.group;
+          if (group == null) {
+            freeCount++;
+          } else {
+            groupCounts[group] = (groupCounts[group] ?? 0) + 1;
+          }
+          final direction = m.direction;
+          if (direction != null) {
+            directionCounts[direction] = (directionCounts[direction] ?? 0) + 1;
+          }
         }
-        debugPrint('  Groups: $groupCounts');
+        debugPrint('  Groups: $groupCounts, free: $freeCount');
+        debugPrint('  Directions: $directionCounts');
       }
 
       // Debug: print coefficient values
@@ -928,13 +920,13 @@ class CalibrationService extends ChangeNotifier {
     if (index < 0 || index >= _measurements.length) return false;
     if (index >= _detectedPositions.length) return false;
 
-    final assigned = _measurements[index].group;
+    final assigned = _measurements[index].direction;
     final detected = _detectedPositions[index];
 
     // No detection = can't validate = not misaligned (yet)
     if (detected == null) return false;
 
-    // Check if detected direction matches assigned group
+    // Check if detected direction matches the assigned direction
     return detected.direction != assigned;
   }
 
@@ -1052,12 +1044,12 @@ class CalibrationService extends ChangeNotifier {
     return null;
   }
 
-  /// Update a measurement's group based on detected direction.
-  void _updateMeasurementGroup(int index, int direction) {
+  /// Set a measurement's direction, and the group that direction implies.
+  void _updateMeasurementDirection(int index, int direction) {
     if (index < 0 || index >= _measurements.length) return;
     final m = _measurements[index];
-    if (m.group != direction) {
-      _measurements[index] = m.copyWith(group: direction);
+    if (m.direction != direction) {
+      _measurements[index] = m.forDirection(direction);
     }
   }
 
@@ -1132,7 +1124,7 @@ class CalibrationService extends ChangeNotifier {
     // Assign to new slot
     _detectedPositions[measurementIndex] = position;
     _filledSlots[slotIndex] = measurementIndex;
-    _updateMeasurementGroup(measurementIndex, position.direction);
+    _updateMeasurementDirection(measurementIndex, position.direction);
 
     _updateSuggestedNext();
     notifyListeners();

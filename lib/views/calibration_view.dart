@@ -604,9 +604,9 @@ class _CalibrationTable extends StatelessWidget {
       final r = results != null && i < results.length ? results[i] : null;
       final detectedPos = i < detectedPositions.length ? detectedPositions[i] : null;
 
-      // Determine direction: use measurement's group field (primary source),
-      // fall back to detected position, then index-based as last resort
-      final direction = m.group ?? detectedPos?.direction ?? (i ~/ 4);
+      // Determine direction: the direction the shot was taken for, falling
+      // back to the detected position, then to the index
+      final direction = m.direction ?? detectedPos?.direction ?? (i ~/ 4);
       // Roll comes from detected position (not stored in measurement)
       final rollIndex = detectedPos?.rollIndex ?? (i % 4);
 

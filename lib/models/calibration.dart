@@ -31,10 +31,20 @@ class CalibrationMeasurement {
   /// Whether to include in calibration calculation.
   final bool enabled;
 
-  /// Group identifier (0-13 or null for ungrouped).
-  /// Measurements in the same group should point in the same direction.
-  /// Groups are assigned by position: 1-4 → 0, 5-8 → 1, ..., 53-56 → 13.
+  /// Unidirectional group, or null for a free measurement.
+  ///
+  /// Measurements sharing a group were shot at one target point, so the
+  /// calibration constrains them to a common laser direction. Free
+  /// measurements only contribute their orientation. See
+  /// [CalibrationPositions.groupFor].
   final int? group;
+
+  /// The direction (0-13) of [CalibrationPositions.relativeDirections] this
+  /// shot was taken for, or null if unknown.
+  ///
+  /// Independent of [group]: every shot has a direction slot in the 14×4
+  /// pattern, but only some directions form unidirectional groups.
+  final int? direction;
 
   const CalibrationMeasurement({
     required this.gx,
@@ -46,6 +56,7 @@ class CalibrationMeasurement {
     required this.index,
     this.enabled = true,
     this.group,
+    this.direction,
   });
 
   /// Create a copy with modified fields.
@@ -60,6 +71,7 @@ class CalibrationMeasurement {
     bool? enabled,
     int? group,
     bool clearGroup = false,
+    int? direction,
   }) {
     return CalibrationMeasurement(
       gx: gx ?? this.gx,
@@ -71,7 +83,17 @@ class CalibrationMeasurement {
       index: index ?? this.index,
       enabled: enabled ?? this.enabled,
       group: clearGroup ? null : (group ?? this.group),
+      direction: direction ?? this.direction,
     );
+  }
+
+  /// Copy taken for [direction], with the unidirectional group the
+  /// calibration procedure assigns to it.
+  CalibrationMeasurement forDirection(int direction) {
+    final group = CalibrationPositions.groupFor(direction);
+    return group == null
+        ? copyWith(direction: direction, clearGroup: true)
+        : copyWith(direction: direction, group: group);
   }
 
   /// Raw accelerometer reading as Vector3.
@@ -91,6 +113,7 @@ class CalibrationMeasurement {
         'index': index,
         'enabled': enabled,
         if (group != null) 'group': group,
+        if (direction != null) 'direction': direction,
       };
 
   /// Create from JSON.
@@ -105,13 +128,14 @@ class CalibrationMeasurement {
       index: json['index'] as int,
       enabled: json['enabled'] as bool? ?? true,
       group: json['group'] as int?,
+      direction: json['direction'] as int?,
     );
   }
 
   @override
   String toString() =>
       'CalibrationMeasurement(#$index, G=($gx,$gy,$gz), M=($mx,$my,$mz), '
-      'enabled=$enabled, group=$group)';
+      'enabled=$enabled, group=$group, direction=$direction)';
 }
 
 /// Computed results for one measurement after applying calibration.
@@ -429,15 +453,10 @@ class CalibrationData {
   /// Create empty calibration data.
   static const empty = CalibrationData(measurements: []);
 
-  /// Get default group assignment for measurement index.
-  ///
-  /// All 56 measurements are grouped by direction (14 groups of 4).
-  /// Measurements 1-4 share direction 0, 5-8 share direction 1, etc.
-  /// This ensures measurements in the same direction are constrained
-  /// to have the same calibrated vector direction.
-  static int? defaultGroup(int index) {
+  /// Direction slot of the [index]th measurement (1-56) in the standard
+  /// sequence: 1-4 → 0, 5-8 → 1, ..., 53-56 → 13. Null outside that range.
+  static int? defaultDirection(int index) {
     if (index < 1 || index > 56) return null;
-    // Group by direction: 1-4 → 0, 5-8 → 1, ..., 53-56 → 13
     return (index - 1) ~/ 4;
   }
 }
@@ -515,6 +534,29 @@ class CalibrationPositions {
     (0.0, 80.0),   // 12: Up (any bearing)
     (0.0, -80.0),  // 13: Down (any bearing)
   ];
+
+  /// Number of leading directions in [relativeDirections] whose four shots
+  /// are aimed precisely at one target point.
+  static const int preciseDirections = 4;
+
+  /// Whether the four shots of [direction] must hit one target point.
+  static bool isPrecise(int direction) =>
+      direction >= 0 && direction < preciseDirections;
+
+  /// Unidirectional group the calibration uses for a shot taken for
+  /// [direction], or null to treat the shot as a free measurement.
+  ///
+  /// This is the procedure of `docs/distox/DistoX2_CalibrationManual.txt`:
+  /// the four horizontal directions are each shot four times at one target,
+  /// and the remaining 40 shots only need to be "reasonably spread". It
+  /// matches row Ug4 of the error table in Heeb's paper. The groups tie the
+  /// sensors to the laser axis, which free measurements cannot do; grouping
+  /// the other ten directions as well (row Uga) lowers the calibration's share
+  /// of the error only slightly, and feeds every aiming error of those
+  /// harder-to-aim shots into the fit, while free measurements are immune to
+  /// aiming error.
+  static int? groupFor(int direction) =>
+      isPrecise(direction) ? direction : null;
 
   /// Generate all 56 expected positions with relative bearing offsets.
   static List<CalibrationPosition> get all {

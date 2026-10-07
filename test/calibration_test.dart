@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/models/calibration.dart';
 import 'package:mobile_topo/services/calibration_algorithm.dart';
+import 'package:mobile_topo/services/calibration_service.dart';
 import 'package:mobile_topo/utils/matrix_helpers.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -362,64 +363,30 @@ void main() {
   });
 
   group('CalibrationData', () {
-    test('defaultGroup returns correct groups for all 56 measurements', () {
-      // Groups are 0 through 13, with 4 measurements per group
-      // Group 0: measurements 1-4
-      expect(CalibrationData.defaultGroup(1), 0);
-      expect(CalibrationData.defaultGroup(2), 0);
-      expect(CalibrationData.defaultGroup(3), 0);
-      expect(CalibrationData.defaultGroup(4), 0);
+    test('defaultDirection assigns 4 consecutive shots to each direction', () {
+      expect(CalibrationData.defaultDirection(1), 0);
+      expect(CalibrationData.defaultDirection(4), 0);
+      expect(CalibrationData.defaultDirection(5), 1);
+      expect(CalibrationData.defaultDirection(16), 3);
+      expect(CalibrationData.defaultDirection(17), 4);
+      expect(CalibrationData.defaultDirection(53), 13);
+      expect(CalibrationData.defaultDirection(56), 13);
 
-      // Group 1: measurements 5-8
-      expect(CalibrationData.defaultGroup(5), 1);
-      expect(CalibrationData.defaultGroup(8), 1);
-
-      // Group 2: measurements 9-12
-      expect(CalibrationData.defaultGroup(9), 2);
-      expect(CalibrationData.defaultGroup(12), 2);
-
-      // Group 3: measurements 13-16
-      expect(CalibrationData.defaultGroup(13), 3);
-      expect(CalibrationData.defaultGroup(16), 3);
-
-      // Group 4: measurements 17-20
-      expect(CalibrationData.defaultGroup(17), 4);
-      expect(CalibrationData.defaultGroup(20), 4);
-
-      // Group 13: measurements 53-56 (last group)
-      expect(CalibrationData.defaultGroup(53), 13);
-      expect(CalibrationData.defaultGroup(54), 13);
-      expect(CalibrationData.defaultGroup(55), 13);
-      expect(CalibrationData.defaultGroup(56), 13);
-
-      // Out of range: null
-      expect(CalibrationData.defaultGroup(0), isNull);
-      expect(CalibrationData.defaultGroup(57), isNull);
-      expect(CalibrationData.defaultGroup(-1), isNull);
+      expect(CalibrationData.defaultDirection(0), isNull);
+      expect(CalibrationData.defaultDirection(57), isNull);
+      expect(CalibrationData.defaultDirection(-1), isNull);
     });
 
-    test('all 56 measurements have groups assigned', () {
-      // Every measurement from 1-56 should have a group
+    test('14 directions with 4 measurements each', () {
+      final counts = <int, int>{};
       for (int i = 1; i <= 56; i++) {
-        expect(CalibrationData.defaultGroup(i), isNotNull,
-            reason: 'Measurement $i should have a group');
-      }
-    });
-
-    test('14 unique groups with 4 measurements each', () {
-      // Count measurements per group
-      final groupCounts = <int, int>{};
-      for (int i = 1; i <= 56; i++) {
-        final group = CalibrationData.defaultGroup(i)!;
-        groupCounts[group] = (groupCounts[group] ?? 0) + 1;
+        final direction = CalibrationData.defaultDirection(i)!;
+        counts[direction] = (counts[direction] ?? 0) + 1;
       }
 
-      // Should have exactly 14 groups
-      expect(groupCounts.length, 14);
-
-      // Each group should have exactly 4 measurements
-      for (final entry in groupCounts.entries) {
-        expect(entry.value, 4, reason: 'Group ${entry.key} should have 4 measurements');
+      expect(counts.length, 14);
+      for (final entry in counts.entries) {
+        expect(entry.value, 4, reason: 'direction ${entry.key}');
       }
     });
 
@@ -427,6 +394,45 @@ void main() {
       expect(CalibrationData.empty.measurements, isEmpty);
       expect(CalibrationData.empty.results, isNull);
       expect(CalibrationData.empty.coefficients, isNull);
+    });
+  });
+
+  group('CalibrationPositions grouping', () {
+    test('only the four horizontal directions form unidirectional groups', () {
+      for (int d = 0; d < 4; d++) {
+        expect(CalibrationPositions.relativeDirections[d].$2, 0.0,
+            reason: 'direction $d is horizontal');
+        expect(CalibrationPositions.isPrecise(d), isTrue);
+        expect(CalibrationPositions.groupFor(d), d);
+      }
+      for (int d = 4; d < 14; d++) {
+        expect(CalibrationPositions.isPrecise(d), isFalse);
+        expect(CalibrationPositions.groupFor(d), isNull,
+            reason: 'direction $d is a free measurement');
+      }
+    });
+
+    test('forDirection sets the direction and the group it implies', () {
+      const raw = CalibrationMeasurement(
+          gx: 1, gy: 2, gz: 3, mx: 4, my: 5, mz: 6, index: 1);
+
+      final precise = raw.forDirection(2);
+      expect(precise.direction, 2);
+      expect(precise.group, 2);
+
+      final free = precise.forDirection(9);
+      expect(free.direction, 9);
+      expect(free.group, isNull);
+    });
+
+    test('direction survives a JSON round trip', () {
+      const original = CalibrationMeasurement(
+          gx: 1, gy: 2, gz: 3, mx: 4, my: 5, mz: 6, index: 30, direction: 7);
+
+      final restored = CalibrationMeasurement.fromJson(original.toJson());
+
+      expect(restored.direction, 7);
+      expect(restored.group, isNull);
     });
   });
 
@@ -681,6 +687,39 @@ void main() {
       expect(sixFaces.directionCoverage, closeTo(1.0, 0.01));
     });
 
+    test('the procedure grouping is immune to aiming error on free shots',
+        () async {
+      // Only the four horizontal directions are grouped (row Ug4 of Heeb's
+      // table); the other ten are aimed only to within ±3°. Free shots never
+      // use the laser direction, so that scatter does not reach the fit.
+      Future<(double, double)> run({required bool procedure}) async {
+        final data = _syntheticCalibration(
+          procedureGroups: procedure,
+          aimingErrorDeg: 3,
+          noiseCounts: 20,
+        );
+        final r = await algorithm.compute(data.measurements);
+        var sumSq = 0.0;
+        for (int i = 0; i < data.measurements.length; i++) {
+          final e = _directionErrorDeg(r.results[i], data.orientations[i]);
+          sumSq += e * e;
+        }
+        return (r.rmsError, math.sqrt(sumSq / data.measurements.length));
+      }
+
+      final (procedureQuality, procedureDirection) = await run(procedure: true);
+      expect(procedureQuality, lessThan(CalibrationService.errorThreshold));
+      expect(procedureDirection, lessThan(0.2));
+
+      // Grouping the roughly aimed directions as well constrains each of
+      // them to one laser direction it was never shot in, and the aiming
+      // scatter goes straight into the result.
+      final (allGroupedQuality, allGroupedDirection) =
+          await run(procedure: false);
+      expect(allGroupedQuality, greaterThan(CalibrationService.errorThreshold));
+      expect(allGroupedDirection, greaterThan(2 * procedureDirection));
+    });
+
     test('rejects a degenerate fit instead of returning it', () async {
       // Randomly assigned groups give the unidirectional constraint nothing
       // consistent to fit, and the iteration heads for the A -> 0 fixed point.
@@ -788,6 +827,22 @@ Matrix3 _rotZ(double w) => matrix3FromRowMajor([
   return (body.transformVector(down), field.transformVector(down));
 }
 
+/// Angle in degrees between the laser direction a calibration reports for a
+/// shot and the direction it was actually taken in.
+double _directionErrorDeg(CalibrationResult r, _Orientation o) {
+  Vector3 unit(double azimuth, double inclination) {
+    final a = _rad(azimuth);
+    final i = _rad(inclination);
+    return Vector3(math.cos(i) * math.cos(a), math.cos(i) * math.sin(a),
+        math.sin(i));
+  }
+
+  final cos = unit(r.azimuth, r.inclination)
+      .dot(unit(o.yaw, o.pitch))
+      .clamp(-1.0, 1.0);
+  return math.acos(cos) * 180 / math.pi;
+}
+
 /// Difference between two angles in degrees, normalized to [-180, 180].
 double _angleDiff(double a, double b) {
   var d = (a - b) % 360;
@@ -827,11 +882,20 @@ const List<(double yaw, double pitch)> _standardDirections = [
 /// (the battery), which together decide how far the raw magnetometer sphere
 /// sits from the accelerometer's. [scrambleGroups] assigns groups at random,
 /// simulating a user who did not shoot the suggested directions.
+///
+/// [procedureGroups] groups only the four horizontal directions, as the
+/// calibration procedure does; otherwise all 14 directions are grouped.
+/// [aimingErrorDeg] perturbs the azimuth and inclination of every shot of
+/// the ten non-horizontal directions by up to that many degrees, simulating
+/// shots that are only roughly aimed; the four horizontal directions stay
+/// exact, as if aimed at a target point.
 _SyntheticCalibration _syntheticCalibration({
   int noiseCounts = 0,
   double magGain = 15000,
   Vector3? magOffset,
   bool scrambleGroups = false,
+  bool procedureGroups = false,
+  double aimingErrorDeg = 0,
 }) {
   // Sensor model: counts = P o trueVector + q, with gain/skew errors, a
   // slight misalignment between sensors and laser, and a magnetic offset.
@@ -853,14 +917,20 @@ _SyntheticCalibration _syntheticCalibration({
   int noise() => noiseCounts == 0
       ? 0
       : (rng.nextDouble() * 2 * noiseCounts - noiseCounts).round();
+  final aimRng = math.Random(7);
+  double aim() => (aimRng.nextDouble() * 2 - 1) * aimingErrorDeg;
 
   final measurements = <CalibrationMeasurement>[];
   final orientations = <_Orientation>[];
 
   int index = 1;
   for (int d = 0; d < _standardDirections.length; d++) {
-    final (yaw, pitch) = _standardDirections[d];
+    final (targetYaw, targetPitch) = _standardDirections[d];
+    final precise = d < 4;
     for (int r = 0; r < 4; r++) {
+      final yaw = precise || aimingErrorDeg == 0 ? targetYaw : targetYaw + aim();
+      final pitch =
+          precise || aimingErrorDeg == 0 ? targetPitch : targetPitch + aim();
       final roll = r * 90.0;
       final (gt, mt) = _trueVectors(yaw, pitch, roll, _alphaDeg);
       final gs = pG.transformVector(gt) + qG;
@@ -875,7 +945,11 @@ _SyntheticCalibration _syntheticCalibration({
         mz: ms.z.round() + noise(),
         index: index,
         enabled: true,
-        group: scrambleGroups ? rng.nextInt(14) : d,
+        group: scrambleGroups
+            ? rng.nextInt(14)
+            : procedureGroups
+                ? (precise ? d : null)
+                : d,
       ));
       orientations.add(_Orientation(yaw, pitch, roll));
       index++;
