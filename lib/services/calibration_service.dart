@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/calibration.dart';
 import 'calibration_algorithm.dart';
+import 'calibration_diagnosis.dart';
 import 'distox_protocol.dart';
 import 'distox_service.dart';
 
@@ -25,18 +26,6 @@ enum CalibrationState {
   reading,
 }
 
-/// Why the four shots of a calibration direction should be retaken.
-class DirectionIssue {
-  /// Largest error among the direction's shots, if any of them reaches
-  /// [CalibrationService.errorThreshold].
-  final double? highError;
-
-  /// Whether a shot was detected in another direction than it was taken for.
-  final bool misaligned;
-
-  const DirectionIssue({this.highError, this.misaligned = false});
-}
-
 /// Service for managing DistoX calibration.
 ///
 /// Handles:
@@ -44,8 +33,7 @@ class DirectionIssue {
 /// - Collecting calibration measurements
 /// - Computing calibration coefficients
 /// - Writing coefficients to device memory
-/// - Auto-detecting which position each shot belongs to
-/// - Flagging directions whose four shots should be retaken
+/// - Diagnosing a calibration error above the limit
 class CalibrationService extends ChangeNotifier {
   final DistoXService _distoX;
   final DistoXProtocol _protocol = DistoXProtocol();
@@ -73,8 +61,8 @@ class CalibrationService extends ChangeNotifier {
   Completer<Uint8List>? _memoryReplyCompleter;
   int? _memoryReplyAddress;
 
-  /// Quality limit for a calibration, and for flagging a direction's shots
-  /// as needing a retake.
+  /// Quality limit for a calibration, from which [CalibrationDiagnoser]
+  /// derives its limits for single shots.
   ///
   /// Step 8 of `docs/distox/DistoX2_CalibrationManual.txt`: "The third value
   /// given in the lower part of the screen is a measure of quality. It should
@@ -102,9 +90,9 @@ class CalibrationService extends ChangeNotifier {
   /// Key: slot index, Value: measurement list index.
   final Map<int, int> _filledSlots = {};
 
-  /// Position each measurement was detected at by the latest evaluation, or
-  /// null if it has not been evaluated or matches no position.
-  List<CalibrationPosition?> _detectedPositions = [];
+  /// [diagnosis], and the results it was worked out for.
+  CalibrationDiagnosis? _diagnosis;
+  List<CalibrationResult?>? _diagnosedResults;
 
   /// The suggested next position to take.
   CalibrationPosition? _suggestedNext = CalibrationPositions.bySlot(0);
@@ -174,50 +162,65 @@ class CalibrationService extends ChangeNotifier {
     return progress;
   }
 
-  /// Directions whose shots should be retaken, once all slots are filled
-  /// and evaluated.
+  /// What to tell the user about the shots, once all slots are filled and
+  /// evaluated: nothing while [rmsError] is within [errorThreshold], and
+  /// otherwise the likely cause and the suspect shots.
   ///
-  /// A direction is flagged when any of its shots has a high error or was
-  /// detected in another direction than it was taken for.
-  Map<int, DirectionIssue> get flaggedDirections {
+  /// Derived from the current results, so it always agrees with [rmsError];
+  /// it is worked out once per set of results.
+  CalibrationDiagnosis get diagnosis {
     final results = _results;
-    if (_suggestedNext != null || results == null) return const {};
-
-    final flagged = <int, DirectionIssue>{};
-    for (int i = 0; i < _measurements.length && i < results.length; i++) {
-      final m = _measurements[i];
-      final direction = m.direction;
-      if (!m.enabled || direction == null) continue;
-
-      final r = results[i];
-      final highError = _isHighError(r) ? r!.error : null;
-      final misaligned = _isMisaligned(i);
-      if (highError == null && !misaligned) continue;
-
-      final previous = flagged[direction];
-      var maxError = previous?.highError;
-      if (highError != null && (maxError == null || highError > maxError)) {
-        maxError = highError;
-      }
-      flagged[direction] = DirectionIssue(
-        highError: maxError,
-        misaligned: misaligned || (previous?.misaligned ?? false),
-      );
+    if (_suggestedNext != null || results == null) {
+      return CalibrationDiagnosis.ok;
     }
-    return flagged;
+    if (!identical(results, _diagnosedResults)) {
+      _diagnosedResults = results;
+      _diagnosis = _diagnose(results);
+    }
+    return _diagnosis ?? CalibrationDiagnosis.ok;
+  }
+
+  /// Diagnose the evaluated shots of all slots.
+  CalibrationDiagnosis _diagnose(List<CalibrationResult?> results) {
+    final CalibrationOutput output;
+    try {
+      output = _algorithm.computeNow(_measurements);
+    } on CalibrationException {
+      return CalibrationDiagnosis.ok;
+    }
+
+    final positions = List<CalibrationPosition?>.filled(
+      _measurements.length,
+      null,
+    );
+    for (final MapEntry(key: slot, value: i) in _filledSlots.entries) {
+      if (i < positions.length) positions[i] = CalibrationPositions.bySlot(slot);
+    }
+
+    final measurements = List.of(_measurements);
+    return const CalibrationDiagnoser(errorLimit: errorThreshold).diagnose(
+      measurements: measurements,
+      positions: positions,
+      results: results,
+      output: output,
+      rmsError: rmsError,
+      referenceBearing: _referenceBearing,
+      refit: (excluded) {
+        try {
+          return _algorithm.computeNow([
+            for (int i = 0; i < measurements.length; i++)
+              if (!excluded.contains(i)) measurements[i],
+          ]).coefficients;
+        } on CalibrationException {
+          return null;
+        }
+      },
+    );
   }
 
   /// Whether the last shot can be taken back: one was taken since
   /// calibration or the current retake started.
   bool get canUndoLastShot => _undoableShots > 0;
-
-  /// Whether a measurement's error is high enough to warrant a retake.
-  ///
-  /// Requires [hasUsefulCoverage]: below that, the per-measurement errors are
-  /// residuals of a partly unconstrained fit and carry nothing about the
-  /// individual shot.
-  bool _isHighError(CalibrationResult? r) =>
-      r != null && hasUsefulCoverage && r.error >= errorThreshold;
 
   /// Start calibration mode on the device.
   ///
@@ -267,7 +270,6 @@ class CalibrationService extends ChangeNotifier {
     _pendingAccel = null;
     _undoableShots = 0;
     _filledSlots.clear();
-    _detectedPositions = [];
     _referenceBearing = null;
     _suggestedNext = CalibrationPositions.bySlot(0);
     notifyListeners();
@@ -279,7 +281,6 @@ class CalibrationService extends ChangeNotifier {
     final index = _measurements.length - 1;
     _filledSlots.removeWhere((_, i) => i == index);
     _measurements.removeAt(index);
-    _detectedPositions.removeAt(index);
     _results = _results?.take(index).toList();
     _undoableShots--;
 
@@ -304,7 +305,6 @@ class CalibrationService extends ChangeNotifier {
       if (k != null) _filledSlots[slot] = k;
     }
     _measurements = [for (final i in keep) _measurements[i]];
-    _detectedPositions = [for (final i in keep) _detectedPositions[i]];
     _results = results == null
         ? null
         : [for (final i in keep) if (i < results.length) results[i]];
@@ -366,7 +366,6 @@ class CalibrationService extends ChangeNotifier {
     ).forDirection(next.direction);
 
     _measurements.add(measurement);
-    _detectedPositions.add(null);
     _filledSlots[next.slotIndex] = _measurements.length - 1;
     _undoableShots++;
 
@@ -523,6 +522,8 @@ class CalibrationService extends ChangeNotifier {
           '${_rmsError?.toStringAsFixed(3)} (limit $errorThreshold), '
           'coverage = ${_directionCoverage?.toStringAsFixed(2)}, '
           'iterations = $_iterations');
+      debugPrint('Error by cause: ${result.errorBreakdown}, '
+          'alpha = ${result.alpha.toStringAsFixed(2)}°');
 
       // Debug: print measurement statistics
       final enabledMeasurements = _measurements.where((m) => m.enabled).toList();
@@ -588,7 +589,10 @@ class CalibrationService extends ChangeNotifier {
             '${saturated.join(", ")}');
       }
 
-      _runAutoDetection();
+      _referenceBearing = _findReferenceBearing();
+      debugPrint('Reference bearing: '
+          '${_referenceBearing?.toStringAsFixed(1)}°');
+      if (_suggestedNext == null) debugPrint('Diagnosis: $diagnosis');
       notifyListeners();
     } on CalibrationException catch (e) {
       _error = e.message;
@@ -729,46 +733,12 @@ class CalibrationService extends ChangeNotifier {
     }
   }
 
-  // ===== Auto-Detection Methods =====
-
-  /// Detect the position each measurement was actually taken at, for
-  /// comparison with the slot it was taken for.
-  void _runAutoDetection() {
-    if (_coefficients == null || _results == null) return;
-
-    // The reference bearing comes out of the current fit, so it is only as
-    // good as the coverage behind that fit. Re-deriving it on every evaluation
-    // lets it track the improving fit.
-    _referenceBearing = _findReferenceBearing();
-    debugPrint('Reference bearing: ${_referenceBearing?.toStringAsFixed(1)}° '
-        '(coverage ${_directionCoverage?.toStringAsFixed(2)})');
-
-    for (int i = 0; i < _measurements.length; i++) {
-      final result = _results![i];
-      if (result == null || !_measurements[i].enabled) continue;
-
-      _detectedPositions[i] = _detectPosition(
-        result.azimuth,
-        result.inclination,
-        result.roll,
-      );
-    }
-
-    debugPrint('Auto-detection: ${_filledSlots.length}/56 slots filled');
-  }
-
-  /// Whether a measurement was detected in another direction than it was
-  /// taken for. A measurement matching no position is not counted.
-  bool _isMisaligned(int index) {
-    if (index >= _detectedPositions.length) return false;
-    final detected = _detectedPositions[index];
-    return detected != null &&
-        detected.direction != _measurements[index].direction;
-  }
-
   /// Bearing that defines "Forward", from the shots of the precisely aimed
   /// horizontal directions: direction 0 itself, or while it is being
   /// retaken, another one with its offset from Forward taken off.
+  ///
+  /// It comes out of the current fit, so it is re-derived on every evaluation
+  /// to track the improving fit.
   double? _findReferenceBearing() {
     final results = _results;
     if (results == null) return null;
@@ -784,31 +754,6 @@ class CalibrationService extends ChangeNotifier {
         }
       }
     }
-    return null;
-  }
-
-  /// Detect which position a measurement belongs to based on its angles.
-  CalibrationPosition? _detectPosition(
-    double bearing,
-    double inclination,
-    double roll,
-  ) {
-    final match = CalibrationPositions.findClosest(
-      bearing,
-      inclination,
-      roll,
-      referenceBearing: _referenceBearing,
-    );
-    if (match == null) return null;
-
-    final (position, dirError, rollError) = match;
-
-    // Check if within tolerance
-    if (dirError <= CalibrationPositions.directionTolerance &&
-        rollError <= CalibrationPositions.rollTolerance) {
-      return position;
-    }
-
     return null;
   }
 

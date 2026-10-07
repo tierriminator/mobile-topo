@@ -607,17 +607,30 @@
   "@calibrationDirectionsToRetake": { "description": "Header of the list of calibration directions whose shots should be retaken" },
   "calibrationAllDirectionsGood": "All directions look good",
   "@calibrationAllDirectionsGood": { "description": "Shown once all calibration shots are taken and no direction needs a retake" },
-  "calibrationReasonHighError": "error {error}",
-  "@calibrationReasonHighError": {
-    "description": "Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.",
+  "calibrationProblemCoverage": "The shots do not cover enough directions to judge the calibration. Follow the shown directions.",
+  "@calibrationProblemCoverage": { "description": "Likely cause of a calibration error: the shots are not spread over enough directions" },
+  "calibrationProblemUnsteady": "The device moved during shots. Hold it still until each reading has settled.",
+  "@calibrationProblemUnsteady": { "description": "Likely cause of a calibration error: the gravity readings differ between shots" },
+  "calibrationProblemMagnetic": "The magnetic field differed between shots. Move away from metal, vehicles and power lines.",
+  "@calibrationProblemMagnetic": { "description": "Likely cause of a calibration error: the magnetic readings differ between shots" },
+  "calibrationProblemAiming": "The shots of the horizontal directions do not hit one point. Aim all four shots of each precisely at the same fixed target.",
+  "@calibrationProblemAiming": { "description": "Likely cause of a calibration error: the four shots of a precisely aimed direction point in different directions" },
+  "calibrationFixDirection": "aim in the shown direction",
+  "@calibrationFixDirection": { "description": "Instruction for retaking a calibration direction whose shots pointed elsewhere. Lower case; joined with other instructions and capitalized" },
+  "calibrationFixTarget": "aim at the same point",
+  "@calibrationFixTarget": { "description": "Instruction for retaking a precisely aimed calibration direction whose shots missed each other's point. Lower case; joined with other instructions and capitalized" },
+  "calibrationFixOrientation": "turn the display as shown",
+  "@calibrationFixOrientation": { "description": "Instruction for retaking a calibration direction whose shots were held in the wrong orientation. Lower case; joined with other instructions and capitalized" },
+  "calibrationFixSteady": "hold the device still",
+  "@calibrationFixSteady": { "description": "Instruction for retaking a calibration direction whose gravity readings were unsteady. Lower case; joined with other instructions and capitalized" },
+  "calibrationFixMagnetic": "keep away from metal",
+  "@calibrationFixMagnetic": { "description": "Instruction for retaking a calibration direction whose magnetic readings were disturbed. Lower case; joined with other instructions and capitalized" },
+  "calibrationFixesJoined": "{first} and {last}",
+  "@calibrationFixesJoined": {
+    "description": "Joins retake instructions; first holds all but the last, separated by commas",
     "placeholders": {
-      "error": {
-        "type": "String"
-      }
+      "first": { "type": "String" },
+      "last": { "type": "String" }
     }
-  },
-  "calibrationReasonMisaligned": "misaligned",
-  "@calibrationReasonMisaligned": {
-    "description": "Reason for retaking a calibration direction: a shot was detected in another direction than it was taken for"
   }
 }

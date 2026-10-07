@@ -1041,17 +1041,65 @@ abstract class AppLocalizations {
   /// **'All directions look good'**
   String get calibrationAllDirectionsGood;
 
-  /// Reason for correction: high error. The value is the calibration quality figure, Heeb's error measure E in percent.
+  /// Likely cause of a calibration error: the shots are not spread over enough directions
   ///
   /// In en, this message translates to:
-  /// **'error {error}'**
-  String calibrationReasonHighError(String error);
+  /// **'The shots do not cover enough directions to judge the calibration. Follow the shown directions.'**
+  String get calibrationProblemCoverage;
 
-  /// Reason for retaking a calibration direction: a shot was detected in another direction than it was taken for
+  /// Likely cause of a calibration error: the gravity readings differ between shots
   ///
   /// In en, this message translates to:
-  /// **'misaligned'**
-  String get calibrationReasonMisaligned;
+  /// **'The device moved during shots. Hold it still until each reading has settled.'**
+  String get calibrationProblemUnsteady;
+
+  /// Likely cause of a calibration error: the magnetic readings differ between shots
+  ///
+  /// In en, this message translates to:
+  /// **'The magnetic field differed between shots. Move away from metal, vehicles and power lines.'**
+  String get calibrationProblemMagnetic;
+
+  /// Likely cause of a calibration error: the four shots of a precisely aimed direction point in different directions
+  ///
+  /// In en, this message translates to:
+  /// **'The shots of the horizontal directions do not hit one point. Aim all four shots of each precisely at the same fixed target.'**
+  String get calibrationProblemAiming;
+
+  /// Instruction for retaking a calibration direction whose shots pointed elsewhere. Lower case; joined with other instructions and capitalized
+  ///
+  /// In en, this message translates to:
+  /// **'aim in the shown direction'**
+  String get calibrationFixDirection;
+
+  /// Instruction for retaking a precisely aimed calibration direction whose shots missed each other's point. Lower case; joined with other instructions and capitalized
+  ///
+  /// In en, this message translates to:
+  /// **'aim at the same point'**
+  String get calibrationFixTarget;
+
+  /// Instruction for retaking a calibration direction whose shots were held in the wrong orientation. Lower case; joined with other instructions and capitalized
+  ///
+  /// In en, this message translates to:
+  /// **'turn the display as shown'**
+  String get calibrationFixOrientation;
+
+  /// Instruction for retaking a calibration direction whose gravity readings were unsteady. Lower case; joined with other instructions and capitalized
+  ///
+  /// In en, this message translates to:
+  /// **'hold the device still'**
+  String get calibrationFixSteady;
+
+  /// Instruction for retaking a calibration direction whose magnetic readings were disturbed. Lower case; joined with other instructions and capitalized
+  ///
+  /// In en, this message translates to:
+  /// **'keep away from metal'**
+  String get calibrationFixMagnetic;
+
+  /// Joins retake instructions; first holds all but the last, separated by commas
+  ///
+  /// In en, this message translates to:
+  /// **'{first} and {last}'**
+  String calibrationFixesJoined(String first, String last);
 }
 
 class _AppLocalizationsDelegate

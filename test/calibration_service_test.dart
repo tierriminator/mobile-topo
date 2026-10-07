@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/models/calibration.dart';
 import 'package:mobile_topo/services/bluetooth_adapter.dart';
+import 'package:mobile_topo/services/calibration_diagnosis.dart';
 import 'package:mobile_topo/services/calibration_service.dart';
 import 'package:mobile_topo/services/distox_protocol.dart';
 import 'package:mobile_topo/services/distox_service.dart';
@@ -42,6 +43,39 @@ class _OfflineAdapter implements BluetoothAdapter {
 CalibrationService _service() =>
     CalibrationService(DistoXService(SettingsController(), _OfflineAdapter()));
 
+/// How a calibration shot is actually taken: bearing offset from Forward,
+/// inclination and roll in degrees, and the disturbances of [_shootAt].
+class _Shot {
+  final double bearing;
+  final double inclination;
+  final double roll;
+  final double gravityScale;
+  final double dipOffset;
+
+  const _Shot(
+    this.bearing,
+    this.inclination,
+    this.roll, {
+    this.gravityScale = 1,
+    this.dipOffset = 0,
+  });
+
+  _Shot copyWith({
+    double? bearing,
+    double? inclination,
+    double? roll,
+    double? gravityScale,
+    double? dipOffset,
+  }) =>
+      _Shot(
+        bearing ?? this.bearing,
+        inclination ?? this.inclination,
+        roll ?? this.roll,
+        gravityScale: gravityScale ?? this.gravityScale,
+        dipOffset: dipOffset ?? this.dipOffset,
+      );
+}
+
 double _rad(double deg) => deg * math.pi / 180;
 
 Matrix3 _rotX(double w) => matrix3FromRowMajor([
@@ -64,14 +98,20 @@ Matrix3 _rotZ(double w) => matrix3FromRowMajor([
 
 /// Deliver a shot taken at [yaw] (bearing), [pitch] and [roll] in degrees,
 /// as raw counts of a slightly distorted sensor pair.
+///
+/// [gravityScale] scales the gravity reading, as the accelerometer measuring
+/// the device's movement on top of gravity would. [dipOffset] tilts the
+/// magnetic field by that many degrees, as a local disturbance would.
 void _shootAt(
   CalibrationService service,
   int number,
   double yaw,
   double pitch,
-  double roll,
-) {
-  const alpha = 27.0; // angle between gravity and magnetic field
+  double roll, {
+  double gravityScale = 1,
+  double dipOffset = 0,
+}) {
+  final alpha = 27.0 + dipOffset; // angle between gravity and magnetic field
   final down = Vector3(0, 0, 1);
   final body = _rotX(-_rad(roll)).multiplied(_rotY(-_rad(pitch)));
   final field =
@@ -86,7 +126,7 @@ void _shootAt(
     310, 15450, -120, //
     -85, 195, 14550, //
   ]);
-  final g = pG.transformVector(body.transformVector(down)) +
+  final g = pG.transformVector(body.transformVector(down) * gravityScale) +
       Vector3(180, -240, 95);
   final m = pM.transformVector(field.transformVector(down)) +
       Vector3(-620, 410, 730);
@@ -182,79 +222,201 @@ void main() {
     });
   });
 
-  group('flagged directions', () {
-    /// Shoot all 56 slots as asked, facing [forward], with [aim] giving the
-    /// actual (bearing offset, inclination) of a shot that is off target.
-    Future<CalibrationService> calibrate({
-      (double, double)? Function(int direction, int roll)? aim,
+  group('diagnosis', () {
+    const limit = CalibrationService.errorThreshold;
+
+    /// Shoot the slots that are open as asked, facing [forward]. [shot]
+    /// changes how a slot is actually shot; it gets the asked bearing offset,
+    /// inclination and roll and returns null to shoot as asked.
+    Future<void> shootOpenSlots(
+      CalibrationService service, {
+      _Shot? Function(int direction, int roll, _Shot asked)? shot,
     }) async {
       const forward = 30.0;
-      final service = _service();
-      for (int n = 1; service.suggestedNext != null; n++) {
+      for (int n = service.measurementCount + 1;
+          service.suggestedNext != null;
+          n++) {
         final next = service.suggestedNext!;
         final (bearing, inclination) =
-            aim?.call(next.direction, next.rollIndex) ??
-                CalibrationPositions.relativeDirections[next.direction];
-        _shootAt(service, n, forward + bearing, inclination,
-            next.rollIndex * 90.0);
+            CalibrationPositions.relativeDirections[next.direction];
+        final asked = _Shot(bearing, inclination, next.rollIndex * 90.0);
+        final actual = shot?.call(next.direction, next.rollIndex, asked) ?? asked;
+        _shootAt(
+          service,
+          n,
+          forward + actual.bearing,
+          actual.inclination,
+          actual.roll,
+          gravityScale: actual.gravityScale,
+          dipOffset: actual.dipOffset,
+        );
       }
       await pumpEventQueue();
       await service.evaluate();
+    }
+
+    Future<CalibrationService> calibrate({
+      _Shot? Function(int direction, int roll, _Shot asked)? shot,
+    }) async {
+      final service = _service();
+      await shootOpenSlots(service, shot: shot);
       return service;
     }
 
-    test('none when every shot is on target', () async {
+    /// Which shot of each horizontal direction misses, and how: a different
+    /// orientation and side for each, as real misses are. The same miss in
+    /// every group would look like a misalignment between laser and sensors,
+    /// which is what the groups calibrate away.
+    const misses = {
+      0: (roll: 2, side: MissSide.above),
+      1: (roll: 0, side: MissSide.below),
+      2: (roll: 3, side: MissSide.right),
+      3: (roll: 1, side: MissSide.left),
+    };
+
+    /// One shot of each horizontal direction aims [degrees] off the point
+    /// the other three hit, as [misses] says, which drives the error over the
+    /// limit.
+    _Shot? missTargets(int d, int r, _Shot asked, {double degrees = 5}) {
+      final miss = misses[d];
+      if (miss == null || miss.roll != r) return null;
+      return switch (miss.side) {
+        MissSide.above =>
+          asked.copyWith(inclination: asked.inclination + degrees),
+        MissSide.below =>
+          asked.copyWith(inclination: asked.inclination - degrees),
+        MissSide.right => asked.copyWith(bearing: asked.bearing + degrees),
+        MissSide.left => asked.copyWith(bearing: asked.bearing - degrees),
+      };
+    }
+
+    test('reports nothing when every shot is on target', () async {
       final service = await calibrate();
 
-      expect(service.rmsError, lessThan(CalibrationService.errorThreshold));
-      expect(service.flaggedDirections, isEmpty);
+      expect(service.rmsError, lessThan(limit));
+      expect(service.diagnosis.isOk, isTrue);
     });
 
-    test('a group shot off its target point has a high error', () async {
-      // One shot of Right misses the target point by 3°.
-      final service = await calibrate(
-        aim: (d, r) => d == 1 && r == 2 ? (93.0, 0.0) : null,
-      );
-
-      final flagged = service.flaggedDirections;
-      expect(flagged.keys, [1]);
-      expect(flagged[1]!.highError,
-          greaterThanOrEqualTo(CalibrationService.errorThreshold));
-    });
-
-    test('a direction shot the wrong way is misaligned', () async {
-      // Right-Back, upper corner is shot towards Back-Left instead.
+    test('reports nothing while the error is within the limit', () async {
+      // A free direction shot the wrong way does not affect the calibration.
       final (backLeft, upper) = CalibrationPositions.relativeDirections[6];
       final service = await calibrate(
-        aim: (d, r) => d == 5 ? (backLeft, upper) : null,
+        shot: (d, r, asked) =>
+            d == 5 ? asked.copyWith(bearing: backLeft, inclination: upper) : null,
       );
 
-      final flagged = service.flaggedDirections;
-      expect(flagged.keys, [5]);
-      expect(flagged[5]!.misaligned, isTrue);
+      expect(service.rmsError, lessThan(limit));
+      expect(service.diagnosis.isOk, isTrue);
     });
 
-    test('retaking a flagged direction on target clears it', () async {
-      final (backLeft, upper) = CalibrationPositions.relativeDirections[6];
-      final service = await calibrate(
-        aim: (d, r) => d == 5 ? (backLeft, upper) : null,
-      );
+    test('names the shots that miss their target, and aiming as the cause',
+        () async {
+      final service = await calibrate(shot: missTargets);
 
-      service.retakeDirection(5);
-      expect(service.flaggedDirections, isEmpty,
-          reason: 'nothing is flagged while slots are open');
-      for (int n = 100; service.suggestedNext != null; n++) {
-        final next = service.suggestedNext!;
-        expect(next.direction, 5);
-        final (bearing, inclination) =
-            CalibrationPositions.relativeDirections[5];
-        _shootAt(service, n, 30 + bearing, inclination, next.rollIndex * 90.0);
+      expect(service.rmsError, greaterThanOrEqualTo(limit));
+      final diagnosis = service.diagnosis;
+      expect(diagnosis.problem, CalibrationProblem.aiming);
+      expect(diagnosis.directions.keys, unorderedEquals([0, 1, 2, 3]));
+      for (final MapEntry(key: d, value: issues) in diagnosis.directions.entries) {
+        expect(issues, hasLength(1), reason: 'direction $d: $issues');
+        final issue = issues.single;
+        expect(issue.problem, ShotProblem.offTarget);
+        expect(issue.rollIndex, misses[d]!.roll, reason: 'direction $d');
+        expect(issue.side, misses[d]!.side, reason: 'direction $d');
+        expect(issue.degrees, closeTo(5, 1), reason: 'direction $d');
       }
-      await pumpEventQueue();
-      await service.evaluate();
+    });
+
+    test('names a direction shot the wrong way once the error is high',
+        () async {
+      final (backLeft, upper) = CalibrationPositions.relativeDirections[6];
+      final service = await calibrate(
+        shot: (d, r, asked) => d == 5
+            ? asked.copyWith(bearing: backLeft, inclination: upper)
+            : missTargets(d, r, asked),
+      );
+
+      final issues = service.diagnosis.directions[5]!;
+      expect(issues, hasLength(4));
+      expect(issues.every((i) => i.problem == ShotProblem.wrongDirection),
+          isTrue);
+      // The two upper corners are acos(1/3) = 70.5° apart.
+      expect(issues.first.degrees, closeTo(70.5, 3));
+    });
+
+    test('names a shot held in the wrong orientation', () async {
+      // The second shot of Forward-Right, lower corner is held display left
+      // instead of display right.
+      final service = await calibrate(
+        shot: (d, r, asked) => d == 8 && r == 1
+            ? asked.copyWith(roll: 270)
+            : missTargets(d, r, asked),
+      );
+
+      final issue = service.diagnosis.directions[8]!.single;
+      expect(issue.problem, ShotProblem.wrongOrientation);
+      expect(issue.rollIndex, 1);
+      expect(issue.actualRollIndex, 3);
+    });
+
+    test('blames movement when gravity readings differ', () async {
+      // The accelerometer adds up to 2% of movement to the corner shots.
+      final service = await calibrate(
+        shot: (d, r, asked) => d >= 4 && d < 12
+            ? asked.copyWith(gravityScale: r.isEven ? 1.02 : 0.98)
+            : null,
+      );
+
+      expect(service.rmsError, greaterThanOrEqualTo(limit));
+      final diagnosis = service.diagnosis;
+      expect(diagnosis.problem, CalibrationProblem.unsteady);
+      expect(
+        diagnosis.directions.values
+            .expand((issues) => issues)
+            .every((i) => i.problem == ShotProblem.unsteady),
+        isTrue,
+      );
+    });
+
+    test('blames the magnetic field when the dip differs', () async {
+      // The field tilts by up to 1.5° between the corner shots.
+      final service = await calibrate(
+        shot: (d, r, asked) => d >= 4 && d < 12
+            ? asked.copyWith(dipOffset: r.isEven ? 1.5 : -1.5)
+            : null,
+      );
+
+      expect(service.rmsError, greaterThanOrEqualTo(limit));
+      expect(service.diagnosis.problem, CalibrationProblem.magnetic);
+    });
+
+    test('always reports a cause once the error is over the limit', () async {
+      for (final degrees in [2.0, 3.0, 4.0, 6.0, 10.0]) {
+        final service = await calibrate(
+          shot: (d, r, asked) => missTargets(d, r, asked, degrees: degrees),
+        );
+        final rmsError = service.rmsError!;
+        expect(service.diagnosis.problem == null, rmsError < limit,
+            reason: 'miss $degrees°, error $rmsError');
+        expect(service.diagnosis.isOk, rmsError < limit,
+            reason: 'miss $degrees°, error $rmsError');
+      }
+    });
+
+    test('retaking the named directions on target clears the report',
+        () async {
+      final service = await calibrate(shot: missTargets);
+      expect(service.diagnosis.isOk, isFalse);
+
+      for (final direction in [0, 1, 2, 3]) {
+        service.retakeDirection(direction);
+        expect(service.diagnosis.isOk, isTrue,
+            reason: 'nothing is reported while slots are open');
+        await shootOpenSlots(service);
+      }
 
       expect(service.measurementCount, 56);
-      expect(service.flaggedDirections, isEmpty);
+      expect(service.diagnosis.isOk, isTrue);
     });
   });
 

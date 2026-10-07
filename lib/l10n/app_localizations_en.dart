@@ -512,10 +512,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationAllDirectionsGood => 'All directions look good';
 
   @override
-  String calibrationReasonHighError(String error) {
-    return 'error $error';
-  }
+  String get calibrationProblemCoverage =>
+      'The shots do not cover enough directions to judge the calibration. Follow the shown directions.';
 
   @override
-  String get calibrationReasonMisaligned => 'misaligned';
+  String get calibrationProblemUnsteady =>
+      'The device moved during shots. Hold it still until each reading has settled.';
+
+  @override
+  String get calibrationProblemMagnetic =>
+      'The magnetic field differed between shots. Move away from metal, vehicles and power lines.';
+
+  @override
+  String get calibrationProblemAiming =>
+      'The shots of the horizontal directions do not hit one point. Aim all four shots of each precisely at the same fixed target.';
+
+  @override
+  String get calibrationFixDirection => 'aim in the shown direction';
+
+  @override
+  String get calibrationFixTarget => 'aim at the same point';
+
+  @override
+  String get calibrationFixOrientation => 'turn the display as shown';
+
+  @override
+  String get calibrationFixSteady => 'hold the device still';
+
+  @override
+  String get calibrationFixMagnetic => 'keep away from metal';
+
+  @override
+  String calibrationFixesJoined(String first, String last) {
+    return '$first and $last';
+  }
 }

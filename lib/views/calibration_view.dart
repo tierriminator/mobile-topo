@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/calibration.dart';
+import '../services/calibration_diagnosis.dart';
 import '../services/calibration_service.dart';
 import '../services/distox_service.dart';
 import 'widgets/calibration_cube.dart';
@@ -362,6 +363,32 @@ String _directionLabel(AppLocalizations l10n, int direction) {
   }
 }
 
+/// Which way the display faces for [rollIndex] in [direction].
+///
+/// Pointing vertically, the display faces sideways in every orientation.
+/// Tilting the device from horizontal with the display up to pointing up
+/// turns the display towards the person, and to pointing down turns it
+/// forward, so "up" becomes backward or forward respectively.
+String _displayLabel(AppLocalizations l10n, int direction, int rollIndex) {
+  final (_, inclination) = CalibrationPositions.relativeDirections[direction];
+  final vertical = inclination.abs() == 90;
+  final upFacesForward = inclination < 0;
+  switch (rollIndex) {
+    case 1: return l10n.calibrationDisplayRight;
+    case 3: return l10n.calibrationDisplayLeft;
+    case 2:
+      if (!vertical) return l10n.calibrationDisplayDown;
+      return upFacesForward
+          ? l10n.calibrationDisplayBackward
+          : l10n.calibrationDisplayForward;
+    default:
+      if (!vertical) return l10n.calibrationDisplayUp;
+      return upFacesForward
+          ? l10n.calibrationDisplayForward
+          : l10n.calibrationDisplayBackward;
+  }
+}
+
 /// Labels for the forward, right, back and left faces of the cube.
 List<String> _faceLabels(AppLocalizations l10n) =>
     [for (int d = 0; d < 4; d++) _directionLabel(l10n, d)];
@@ -718,36 +745,6 @@ class _NextShotPanel extends StatelessWidget {
       ),
     );
   }
-
-  /// Which way the display faces for [rollIndex] in [direction].
-  ///
-  /// Pointing vertically, the display faces sideways in every orientation.
-  /// Tilting the device from horizontal with the display up to pointing up
-  /// turns the display towards the person, and to pointing down turns it
-  /// forward, so "up" becomes backward or forward respectively.
-  static String _displayLabel(
-    AppLocalizations l10n,
-    int direction,
-    int rollIndex,
-  ) {
-    final (_, inclination) = CalibrationPositions.relativeDirections[direction];
-    final vertical = inclination.abs() == 90;
-    final upFacesForward = inclination < 0;
-    switch (rollIndex) {
-      case 1: return l10n.calibrationDisplayRight;
-      case 3: return l10n.calibrationDisplayLeft;
-      case 2:
-        if (!vertical) return l10n.calibrationDisplayDown;
-        return upFacesForward
-            ? l10n.calibrationDisplayBackward
-            : l10n.calibrationDisplayForward;
-      default:
-        if (!vertical) return l10n.calibrationDisplayUp;
-        return upFacesForward
-            ? l10n.calibrationDisplayForward
-            : l10n.calibrationDisplayBackward;
-    }
-  }
 }
 
 /// All directions once every slot is filled, with the flagged ones in red
@@ -760,7 +757,8 @@ class _Overview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final flagged = calibration.flaggedDirections;
+    final diagnosis = calibration.diagnosis;
+    final flagged = diagnosis.directions;
     final flaggedDirections = flagged.keys.toList()..sort();
 
     return LayoutBuilder(
@@ -792,11 +790,12 @@ class _Overview extends StatelessWidget {
                   maxHeight: constraints.maxHeight * 0.45,
                 ),
                 child: _FlaggedDirectionsPanel(
+                  problem: diagnosis.problem,
                   children: [
                     for (final direction in flaggedDirections)
                       _FlaggedDirectionTile(
                         direction: direction,
-                        issue: flagged[direction]!,
+                        issues: flagged[direction]!,
                         onRetake: () =>
                             _confirmRetake(context, l10n, direction),
                       ),
@@ -834,15 +833,19 @@ class _Overview extends StatelessWidget {
   }
 }
 
-/// Panel below the cube listing the directions to retake, or saying that
-/// none need it.
+/// Panel below the cube with the likely cause of a high calibration error
+/// and the directions to retake, or saying that all is well.
 ///
 /// The scrollbar stays visible and the bottom edge fades out while rows are
 /// hidden below, so that the list reads as scrollable on touch screens too.
 class _FlaggedDirectionsPanel extends StatefulWidget {
+  final CalibrationProblem? problem;
   final List<Widget> children;
 
-  const _FlaggedDirectionsPanel({required this.children});
+  const _FlaggedDirectionsPanel({
+    required this.problem,
+    required this.children,
+  });
 
   @override
   State<_FlaggedDirectionsPanel> createState() =>
@@ -872,6 +875,7 @@ class _FlaggedDirectionsPanelState extends State<_FlaggedDirectionsPanel> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final count = widget.children.length;
+    final problem = widget.problem;
 
     return Container(
       decoration: BoxDecoration(
@@ -883,7 +887,7 @@ class _FlaggedDirectionsPanelState extends State<_FlaggedDirectionsPanel> {
           ),
         ),
       ),
-      child: count == 0
+      child: count == 0 && problem == null
           ? Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -903,102 +907,98 @@ class _FlaggedDirectionsPanelState extends State<_FlaggedDirectionsPanel> {
                 ],
               ),
             )
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l10n.calibrationDirectionsToRetake,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CalibrationShotColors.flagged,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
+          : NotificationListener<ScrollMetricsNotification>(
+              onNotification: (n) => _onMetrics(n.metrics),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) => _onMetrics(n.metrics),
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (rect) => LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black,
+                      _moreBelow ? Colors.transparent : Colors.black,
                     ],
-                  ),
-                ),
-                Flexible(
-                  child: NotificationListener<ScrollMetricsNotification>(
-                    onNotification: (n) => _onMetrics(n.metrics),
-                    child: NotificationListener<ScrollNotification>(
-                      onNotification: (n) => _onMetrics(n.metrics),
-                      child: ShaderMask(
-                        blendMode: BlendMode.dstIn,
-                        shaderCallback: (rect) => LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black,
-                            _moreBelow ? Colors.transparent : Colors.black,
-                          ],
-                          stops: const [0.75, 1],
-                        ).createShader(rect),
-                        child: Scrollbar(
-                          controller: _scrollController,
-                          thumbVisibility: true,
-                          child: ListView(
-                            controller: _scrollController,
-                            shrinkWrap: true,
-                            // Inside the list, so its scrollbar stays clear
-                            // of the retake buttons
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                            children: widget.children,
+                    stops: const [0.75, 1],
+                  ).createShader(rect),
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: true,
+                    // The cause scrolls with the list, so that a long one
+                    // leaves room for the directions
+                    child: ListView(
+                      controller: _scrollController,
+                      shrinkWrap: true,
+                      // Inside the list, so its scrollbar stays clear of the
+                      // retake buttons
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      children: [
+                        if (problem != null) _ProblemMessage(problem: problem),
+                        if (count > 0) ...[
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: problem != null ? 12 : 0,
+                              bottom: 4,
+                            ),
+                            child: _header(l10n, theme, count),
                           ),
-                        ),
-                      ),
+                          ...widget.children,
+                        ],
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
     );
   }
+
+  Widget _header(AppLocalizations l10n, ThemeData theme, int count) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.calibrationDirectionsToRetake,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: CalibrationShotColors.flagged,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
-/// A direction whose shots should be retaken, with why and a retake button.
+/// A direction whose shots should be retaken, with a hint per suspect shot
+/// and a retake button.
 class _FlaggedDirectionTile extends StatelessWidget {
   final int direction;
-  final DirectionIssue issue;
+  final List<ShotIssue> issues;
   final VoidCallback onRetake;
 
   const _FlaggedDirectionTile({
     required this.direction,
-    required this.issue,
+    required this.issues,
     required this.onRetake,
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final highError = issue.highError;
-    final reasons = [
-      if (highError != null)
-        l10n.calibrationReasonHighError(highError.toStringAsFixed(2)),
-      if (issue.misaligned) l10n.calibrationReasonMisaligned,
-    ];
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -1011,10 +1011,75 @@ class _FlaggedDirectionTile extends StatelessWidget {
         _directionLabel(l10n, direction),
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(reasons.join(', ')),
+      subtitle: Text(_instruction(l10n)),
       trailing: OutlinedButton(
         onPressed: onRetake,
         child: Text(l10n.calibrationRetake),
+      ),
+    );
+  }
+
+  /// What to do differently on the retake: one fix per kind of problem among
+  /// the shots, joined with "and".
+  String _instruction(AppLocalizations l10n) {
+    final problems = issues.map((i) => i.problem).toSet().toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final fixes = [
+      for (final problem in problems)
+        switch (problem) {
+          ShotProblem.wrongDirection => l10n.calibrationFixDirection,
+          ShotProblem.offTarget => l10n.calibrationFixTarget,
+          ShotProblem.wrongOrientation => l10n.calibrationFixOrientation,
+          ShotProblem.unsteady => l10n.calibrationFixSteady,
+          ShotProblem.disturbed => l10n.calibrationFixMagnetic,
+        },
+    ];
+    final joined = fixes.length == 1
+        ? fixes.single
+        : l10n.calibrationFixesJoined(
+            fixes.take(fixes.length - 1).join(', '),
+            fixes.last,
+          );
+    return joined.isEmpty
+        ? joined
+        : joined[0].toUpperCase() + joined.substring(1);
+  }
+}
+
+/// What most likely causes the high calibration error, with what to do.
+class _ProblemMessage extends StatelessWidget {
+  final CalibrationProblem problem;
+
+  const _ProblemMessage({required this.problem});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final text = switch (problem) {
+      CalibrationProblem.coverage => l10n.calibrationProblemCoverage,
+      CalibrationProblem.unsteady => l10n.calibrationProblemUnsteady,
+      CalibrationProblem.magnetic => l10n.calibrationProblemMagnetic,
+      CalibrationProblem.aiming => l10n.calibrationProblemAiming,
+    };
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CalibrationShotColors.current.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: CalibrationShotColors.current.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: CalibrationShotColors.currentOutline,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
       ),
     );
   }
