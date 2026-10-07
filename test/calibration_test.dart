@@ -622,10 +622,8 @@ void main() {
 
     test('recovers alpha despite a large magnetometer offset and gain', () async {
       // The magnetometer sphere sits far from the accelerometer's: a quarter
-      // of the gain and a hard-iron offset bigger than the field itself.
-      // Starting the iteration from G = M = I collapses on this input, with
-      // every calibrated M vector becoming the same constant along the laser
-      // axis and the device reporting azimuth 0/180 only.
+      // of the gain and a hard-iron offset bigger than the field itself. The
+      // paper's starting point of G = M = I still converges here.
       final data = _syntheticCalibration(
         magGain: 4000,
         magOffset: Vector3(-3000, 2200, 4100),

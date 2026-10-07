@@ -238,39 +238,23 @@ class CalibrationAlgorithm {
     final gi = gCovariance.inverse;
     final mi = mCovariance.inverse;
 
-    // Step 2 of the paper's main iteration starts from G = M = I and
-    // gd = md = 0. That assumes the raw readings are already close to unit
-    // vectors: `_trueVectors` adds gr and mr together, so if the two sensors
-    // differ a lot in offset or gain the very first pass produces nonsense and
-    // the iteration converges to the degenerate fixed point A -> 0,
-    // b -> +/-x, where every calibrated vector is the same constant and the
-    // azimuth is stuck at 0/180.
-    //
-    // Starting from the data instead costs nothing and removes that
-    // sensitivity: the centroid of a well spread set of readings is the sensor
-    // offset, and the RMS distance from the centroid is the sphere radius. The
-    // fixed point of the iteration is unchanged, only the starting guess is.
-    final rG = _sphereRadius(gCovariance);
-    final rM = _sphereRadius(mCovariance);
-
-    var g = Matrix3.identity().scaled(1.0 / rG);
-    var m = Matrix3.identity().scaled(1.0 / rM);
-    var gd = avGs * (-1.0 / rG);
-    var md = avMs * (-1.0 / rM);
-
-    // First estimate of alpha, the angle between the gravity and the magnetic
-    // field vector, taken from those normalized vectors rather than from the
-    // raw readings so that a large magnetometer offset cannot skew it.
-    // Kept as sin/cos so no arctan/sincos round trip is needed.
+    // Steps 1 and 2 of the paper's main iteration: a first estimate of alpha,
+    // the angle between the gravity and the magnetic field vector, from the
+    // readings themselves, and G = M = I, gd = md = 0 — the sensors taken at
+    // face value. Alpha is kept as sin/cos so no arctan/sincos round trip is
+    // needed.
     double sa = 0.0;
     double ca = 0.0;
     for (int i = 0; i < nn; i++) {
-      final g0 = g.transformVector(gs[i]) + gd;
-      final m0 = m.transformVector(ms[i]) + md;
-      sa += g0.cross(m0).length; // sum up sine of angle
-      ca += g0.dot(m0); // sum up cosine of angle
+      sa += gs[i].cross(ms[i]).length; // sum up sine of angle
+      ca += gs[i].dot(ms[i]); // sum up cosine of angle
     }
     var (sinA, cosA) = _normalizeSinCos(sa, ca);
+
+    var g = Matrix3.identity();
+    var m = Matrix3.identity();
+    var gd = Vector3.zero();
+    var md = Vector3.zero();
 
     final gr = List<Vector3>.generate(nn, (_) => Vector3.zero());
     final mr = List<Vector3>.generate(nn, (_) => Vector3.zero());
