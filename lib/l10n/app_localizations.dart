@@ -1113,52 +1113,52 @@ abstract class AppLocalizations {
   /// **'Left'**
   String get calibrationDirection3;
 
-  /// Direction 4: NE corner, up 45°
+  /// Direction 4: upper cube vertex between forward and right, about 35° up
   ///
   /// In en, this message translates to:
-  /// **'Forward-Right, up 45°'**
+  /// **'Forward-Right, upper corner'**
   String get calibrationDirection4;
 
-  /// Direction 5: SE corner, up 45°
+  /// Direction 5: upper cube vertex between right and back, about 35° up
   ///
   /// In en, this message translates to:
-  /// **'Right-Back, up 45°'**
+  /// **'Right-Back, upper corner'**
   String get calibrationDirection5;
 
-  /// Direction 6: SW corner, up 45°
+  /// Direction 6: upper cube vertex between back and left, about 35° up
   ///
   /// In en, this message translates to:
-  /// **'Back-Left, up 45°'**
+  /// **'Back-Left, upper corner'**
   String get calibrationDirection6;
 
-  /// Direction 7: NW corner, up 45°
+  /// Direction 7: upper cube vertex between left and forward, about 35° up
   ///
   /// In en, this message translates to:
-  /// **'Left-Forward, up 45°'**
+  /// **'Left-Forward, upper corner'**
   String get calibrationDirection7;
 
-  /// Direction 8: NE corner, down 45°
+  /// Direction 8: lower cube vertex between forward and right, about 35° down
   ///
   /// In en, this message translates to:
-  /// **'Forward-Right, down 45°'**
+  /// **'Forward-Right, lower corner'**
   String get calibrationDirection8;
 
-  /// Direction 9: SE corner, down 45°
+  /// Direction 9: lower cube vertex between right and back, about 35° down
   ///
   /// In en, this message translates to:
-  /// **'Right-Back, down 45°'**
+  /// **'Right-Back, lower corner'**
   String get calibrationDirection9;
 
-  /// Direction 10: SW corner, down 45°
+  /// Direction 10: lower cube vertex between back and left, about 35° down
   ///
   /// In en, this message translates to:
-  /// **'Back-Left, down 45°'**
+  /// **'Back-Left, lower corner'**
   String get calibrationDirection10;
 
-  /// Direction 11: NW corner, down 45°
+  /// Direction 11: lower cube vertex between left and forward, about 35° down
   ///
   /// In en, this message translates to:
-  /// **'Left-Forward, down 45°'**
+  /// **'Left-Forward, lower corner'**
   String get calibrationDirection11;
 
   /// Direction 12: straight up

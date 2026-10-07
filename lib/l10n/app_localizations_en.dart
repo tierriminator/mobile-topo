@@ -552,28 +552,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calibrationDirection3 => 'Left';
 
   @override
-  String get calibrationDirection4 => 'Forward-Right, up 45°';
+  String get calibrationDirection4 => 'Forward-Right, upper corner';
 
   @override
-  String get calibrationDirection5 => 'Right-Back, up 45°';
+  String get calibrationDirection5 => 'Right-Back, upper corner';
 
   @override
-  String get calibrationDirection6 => 'Back-Left, up 45°';
+  String get calibrationDirection6 => 'Back-Left, upper corner';
 
   @override
-  String get calibrationDirection7 => 'Left-Forward, up 45°';
+  String get calibrationDirection7 => 'Left-Forward, upper corner';
 
   @override
-  String get calibrationDirection8 => 'Forward-Right, down 45°';
+  String get calibrationDirection8 => 'Forward-Right, lower corner';
 
   @override
-  String get calibrationDirection9 => 'Right-Back, down 45°';
+  String get calibrationDirection9 => 'Right-Back, lower corner';
 
   @override
-  String get calibrationDirection10 => 'Back-Left, down 45°';
+  String get calibrationDirection10 => 'Back-Left, lower corner';
 
   @override
-  String get calibrationDirection11 => 'Left-Forward, down 45°';
+  String get calibrationDirection11 => 'Left-Forward, lower corner';
 
   @override
   String get calibrationDirection12 => 'Up';

@@ -505,11 +505,18 @@ class CalibrationPosition {
 /// 14 directions × 4 roll orientations = 56 positions total.
 /// Directions are distributed for good angular coverage:
 /// - 4 horizontal (forward, right, back, left relative to first shot)
-/// - 4 upward at ~45°
-/// - 4 downward at ~45°
+/// - 4 to the upper cube vertices
+/// - 4 to the lower cube vertices
 /// - 2 near-vertical (up and down)
 class CalibrationPositions {
   CalibrationPositions._();
+
+  /// Inclination in degrees from the center of a cube to its vertices,
+  /// atan(1/√2).
+  ///
+  /// `docs/distox/DistoX2_CalibrationManual.txt` takes eight of the 14
+  /// directions "to the 8 vertices of the cube".
+  static const double vertexInclination = 35.264389682754654;
 
   /// The 14 standard directions with (relative bearing offset, inclination).
   /// Bearings are relative to the first measurement's bearing (reference = 0°).
@@ -520,16 +527,16 @@ class CalibrationPositions {
     (90.0, 0.0),   // 1: Right, horizontal
     (180.0, 0.0),  // 2: Back, horizontal
     (270.0, 0.0),  // 3: Left, horizontal
-    // Next 4: upward at ~45° (diagonal between adjacent horizontal directions)
-    (45.0, 45.0),  // 4: Forward-Right, up 45°
-    (135.0, 45.0), // 5: Right-Back, up 45°
-    (225.0, 45.0), // 6: Back-Left, up 45°
-    (315.0, 45.0), // 7: Left-Forward, up 45°
-    // Next 4: downward at ~45°
-    (45.0, -45.0),  // 8: Forward-Right, down 45°
-    (135.0, -45.0), // 9: Right-Back, down 45°
-    (225.0, -45.0), // 10: Back-Left, down 45°
-    (315.0, -45.0), // 11: Left-Forward, down 45°
+    // Next 4: upper cube vertices, between adjacent horizontal directions
+    (45.0, vertexInclination),  // 4: Forward-Right, upper corner
+    (135.0, vertexInclination), // 5: Right-Back, upper corner
+    (225.0, vertexInclination), // 6: Back-Left, upper corner
+    (315.0, vertexInclination), // 7: Left-Forward, upper corner
+    // Next 4: lower cube vertices
+    (45.0, -vertexInclination),  // 8: Forward-Right, lower corner
+    (135.0, -vertexInclination), // 9: Right-Back, lower corner
+    (225.0, -vertexInclination), // 10: Back-Left, lower corner
+    (315.0, -vertexInclination), // 11: Left-Forward, lower corner
     // Last 2: near-vertical (bearing doesn't matter)
     (0.0, 80.0),   // 12: Up (any bearing)
     (0.0, -80.0),  // 13: Down (any bearing)
