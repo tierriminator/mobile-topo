@@ -92,6 +92,20 @@ class Area {
     );
   }
 
+  /// Replace the section with the same ID (recursive)
+  Area replaceSection(Section section) {
+    return copyWith(
+      subAreas: [for (final a in subAreas) a.replaceSection(section)],
+      sections: [for (final s in sections) s.id == section.id ? section : s],
+    );
+  }
+
+  /// All sections in this area and its sub-areas (recursive)
+  List<Section> get allSections => [
+        ...sections,
+        for (final subArea in subAreas) ...subArea.allSections,
+      ];
+
   /// Check if this area is empty
   bool get isEmpty => subAreas.isEmpty && sections.isEmpty;
 
@@ -159,6 +173,20 @@ class Cave {
       modifiedAt: DateTime.now(),
     );
   }
+
+  /// Replace the section with the same ID anywhere in the hierarchy
+  Cave replaceSection(Section section) {
+    return copyWith(
+      areas: [for (final a in areas) a.replaceSection(section)],
+      sections: [for (final s in sections) s.id == section.id ? section : s],
+    );
+  }
+
+  /// All sections in this cave, including those nested in areas
+  List<Section> get allSections => [
+        ...sections,
+        for (final area in areas) ...area.allSections,
+      ];
 
   /// Check if this cave is empty
   bool get isEmpty => areas.isEmpty && sections.isEmpty;

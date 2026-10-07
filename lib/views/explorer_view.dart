@@ -32,13 +32,42 @@ class _ExplorerViewState extends State<ExplorerView> {
 
   bool _initialized = false;
 
+  late final SelectionState _selectionState;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
+      _selectionState = context.read<SelectionState>();
+      _selectionState.addListener(_onSelectionChanged);
       _loadCaves();
     }
+  }
+
+  @override
+  void dispose() {
+    _selectionState.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  /// Keep the loaded caves in sync with edits made to the selected section
+  /// in other views.
+  void _onSelectionChanged() {
+    final caveId = _selectionState.selectedCaveId;
+    final section = _selectionState.selectedSection;
+    if (caveId == null || section == null) return;
+
+    final cave = _explorerState.findCave(caveId);
+    if (cave == null) return;
+    if (cave.allSections.any((s) => identical(s, section))) return;
+
+    setState(() {
+      _explorerState = _explorerState.copyWith(caves: [
+        for (final c in _explorerState.caves)
+          c.id == caveId ? c.replaceSection(section) : c,
+      ]);
+    });
   }
 
   Future<void> _loadCaves() async {
@@ -88,7 +117,7 @@ class _ExplorerViewState extends State<ExplorerView> {
     });
 
     // Update shared selection state
-    context.read<SelectionState>().selectSection(caveId, section);
+    context.read<SelectionState>().selectSection(cave, section);
   }
 
   /// Find a section in a cave, returning the section, path, and IDs to expand
@@ -235,7 +264,10 @@ class _ExplorerViewState extends State<ExplorerView> {
     });
 
     // Update shared selection state
-    context.read<SelectionState>().selectSection(path.caveId, section);
+    final cave = _explorerState.findCave(path.caveId);
+    if (cave != null) {
+      context.read<SelectionState>().selectSection(cave, section);
+    }
 
     // Persist the selection
     final settingsController = context.read<SettingsController>();

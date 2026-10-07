@@ -1,22 +1,24 @@
 import 'package:flutter/foundation.dart';
 import '../models/cave.dart';
 
-/// Holds the currently selected section across views.
+/// Holds the currently selected section and the cave containing it
+/// across views.
 class SelectionState extends ChangeNotifier {
-  String? _selectedCaveId;
+  Cave? _selectedCave;
   Section? _selectedSection;
 
-  String? get selectedCaveId => _selectedCaveId;
+  Cave? get selectedCave => _selectedCave;
+  String? get selectedCaveId => _selectedCave?.id;
   Section? get selectedSection => _selectedSection;
 
-  void selectSection(String caveId, Section section) {
-    _selectedCaveId = caveId;
+  void selectSection(Cave cave, Section section) {
+    _selectedCave = cave;
     _selectedSection = section;
     notifyListeners();
   }
 
   void clearSelection() {
-    _selectedCaveId = null;
+    _selectedCave = null;
     _selectedSection = null;
     notifyListeners();
   }
@@ -25,6 +27,7 @@ class SelectionState extends ChangeNotifier {
   void updateSection(Section section) {
     if (_selectedSection?.id == section.id) {
       _selectedSection = section;
+      _selectedCave = _selectedCave?.replaceSection(section);
       notifyListeners();
     }
   }

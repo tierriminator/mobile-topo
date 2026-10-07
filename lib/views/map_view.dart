@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
 import '../l10n/app_localizations.dart';
+import '../models/cave.dart';
 import '../models/survey.dart';
 
 class MapView extends StatefulWidget {
@@ -33,8 +34,30 @@ class _MapViewState extends State<MapView> {
   // Track current section to detect changes
   String? _currentSectionId;
 
-  void _updateFromSection(String? sectionId, Survey? survey) {
-    if (sectionId == null || survey == null) {
+  /// Merges the surveys of all sections of the cave into one, so stations
+  /// shared between sections connect them into a single network.
+  static Survey _caveSurvey(Cave cave) {
+    final sections = cave.allSections;
+    return Survey(
+      stretches: [for (final s in sections) ...s.survey.stretches],
+      referencePoints: [for (final s in sections) ...s.survey.referencePoints],
+    );
+  }
+
+  /// Stations measured or referenced in the given section
+  static Set<Point> _sectionStations(Survey survey) {
+    return {
+      for (final ref in survey.referencePoints) ref.id,
+      for (final stretch in survey.stretches) ...[
+        stretch.from,
+        if (stretch.to != null) stretch.to!,
+      ],
+    };
+  }
+
+  void _updateFromSection(String? sectionId, Survey? caveSurvey,
+      Set<Point> sectionStations) {
+    if (sectionId == null || caveSurvey == null) {
       if (_currentSectionId != null) {
         _positions = {};
         _currentSectionId = null;
@@ -43,17 +66,25 @@ class _MapViewState extends State<MapView> {
     }
 
     // Always recompute positions (survey data may have changed)
-    _positions = survey.computeStationPositions();
+    _positions = caveSurvey.computeStationPositions();
 
     // Only recenter when switching to a different section
     if (sectionId != _currentSectionId) {
       _currentSectionId = sectionId;
-      _centerView();
+      _centerView(sectionStations);
     }
   }
 
-  void _centerView() {
+  /// Centers on the selected section, or on the whole cave if none of the
+  /// section's stations have a position.
+  void _centerView(Set<Point> sectionStations) {
     if (_positions.isEmpty) return;
+
+    var centerOn = [
+      for (final station in sectionStations)
+        if (_positions[station] case final pos?) pos,
+    ];
+    if (centerOn.isEmpty) centerOn = _positions.values.toList();
 
     // Compute bounds
     double minX = double.infinity;
@@ -61,7 +92,7 @@ class _MapViewState extends State<MapView> {
     double maxX = double.negativeInfinity;
     double maxY = double.negativeInfinity;
 
-    for (final pos in _positions.values) {
+    for (final pos in centerOn) {
       if (pos.east < minX) minX = pos.east;
       if (-pos.north < minY) minY = -pos.north;
       if (pos.east > maxX) maxX = pos.east;
@@ -137,12 +168,18 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final section = context.watch<SelectionState>().selectedSection;
+    final selectionState = context.watch<SelectionState>();
+    final section = selectionState.selectedSection;
+    final cave = selectionState.selectedCave;
+    final caveSurvey = cave == null ? null : _caveSurvey(cave);
+    final sectionStations = section == null
+        ? const <Point>{}
+        : _sectionStations(section.survey);
 
     // Update positions when section changes
-    _updateFromSection(section?.id, section?.survey);
+    _updateFromSection(section?.id, caveSurvey, sectionStations);
 
-    if (section == null) {
+    if (section == null || caveSurvey == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -164,9 +201,8 @@ class _MapViewState extends State<MapView> {
       );
     }
 
-    final survey = section.survey;
-    final depth = survey.computeDepth(_positions);
-    final length = survey.totalLength;
+    final depth = caveSurvey.computeDepth(_positions);
+    final length = caveSurvey.totalLength;
 
     String statusText;
     if (_selectedStation != null && _positions.containsKey(_selectedStation)) {
@@ -224,7 +260,9 @@ class _MapViewState extends State<MapView> {
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _MapPainter(
-                              survey: survey,
+                              caveSurvey: caveSurvey,
+                              sectionSurvey: section.survey,
+                              sectionStations: sectionStations,
                               positions: _positions,
                               scale: _scale,
                               offset: _offset,
@@ -257,15 +295,20 @@ class _MapViewState extends State<MapView> {
   }
 }
 
+/// Draws the whole cave in black, with the selected section in red on top.
 class _MapPainter extends CustomPainter {
-  final Survey survey;
+  final Survey caveSurvey;
+  final Survey sectionSurvey;
+  final Set<Point> sectionStations;
   final Map<Point, StationPosition> positions;
   final double scale;
   final Offset offset;
   final Point? selectedStation;
 
   _MapPainter({
-    required this.survey,
+    required this.caveSurvey,
+    required this.sectionSurvey,
+    required this.sectionStations,
     required this.positions,
     required this.scale,
     required this.offset,
@@ -279,14 +322,37 @@ class _MapPainter extends CustomPainter {
     );
   }
 
+  void _drawStretches(
+      Canvas canvas, Size size, Iterable<MeasuredDistance> stretches, Paint paint) {
+    for (final stretch in stretches) {
+      final fromPos = positions[stretch.from];
+      final toPos = positions[stretch.to];
+
+      if (fromPos != null && toPos != null) {
+        final from = _worldToScreen(fromPos.east, fromPos.north, size);
+        final to = _worldToScreen(toPos.east, toPos.north, size);
+        canvas.drawLine(from, to, paint);
+      }
+    }
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
+    final caveLinePaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final sectionLinePaint = Paint()
       ..color = Colors.red
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    final stationPaint = Paint()
+    final caveStationPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
+
+    final sectionStationPaint = Paint()
       ..color = Colors.red
       ..style = PaintingStyle.fill;
 
@@ -294,25 +360,34 @@ class _MapPainter extends CustomPainter {
       ..color = Colors.blue
       ..style = PaintingStyle.fill;
 
-    // Draw survey shots
-    for (final stretch in survey.stretches) {
-      final fromPos = positions[stretch.from];
-      final toPos = positions[stretch.to];
+    // Draw survey shots: the rest of the cave first, the section on top
+    final sectionStretches = Set<MeasuredDistance>.identity()
+      ..addAll(sectionSurvey.stretches);
+    _drawStretches(
+      canvas,
+      size,
+      caveSurvey.stretches.where((s) => !sectionStretches.contains(s)),
+      caveLinePaint,
+    );
+    _drawStretches(canvas, size, sectionSurvey.stretches, sectionLinePaint);
 
-      if (fromPos != null && toPos != null) {
-        final from = _worldToScreen(fromPos.east, fromPos.north, size);
-        final to = _worldToScreen(toPos.east, toPos.north, size);
-        canvas.drawLine(from, to, linePaint);
-      }
-    }
-
-    // Draw stations
-    for (final entry in positions.entries) {
+    // Draw stations, again with the section's stations on top
+    final orderedStations = positions.entries.toList()
+      ..sort((a, b) {
+        final aInSection = sectionStations.contains(a.key) ? 1 : 0;
+        final bInSection = sectionStations.contains(b.key) ? 1 : 0;
+        return aInSection - bInSection;
+      });
+    for (final entry in orderedStations) {
       final pos = entry.value;
       final screenPos = _worldToScreen(pos.east, pos.north, size);
 
       final isSelected = entry.key == selectedStation;
-      final paint = isSelected ? selectedPaint : stationPaint;
+      final paint = isSelected
+          ? selectedPaint
+          : sectionStations.contains(entry.key)
+              ? sectionStationPaint
+              : caveStationPaint;
       final radius = isSelected ? 6.0 : 4.0;
 
       canvas.drawCircle(screenPos, radius, paint);
@@ -344,6 +419,7 @@ class _MapPainter extends CustomPainter {
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
         oldDelegate.selectedStation != selectedStation ||
-        oldDelegate.positions != positions;
+        oldDelegate.positions != positions ||
+        oldDelegate.sectionSurvey != sectionSurvey;
   }
 }
