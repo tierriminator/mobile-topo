@@ -1212,6 +1212,13 @@ class _CalibrationGuidance extends StatelessWidget {
         ? _getLocalizedSuggestedDescription(l10n)
         : null;
 
+    // Direction of the next shot, which decides how precisely to aim.
+    final int? nextDirection = isRetake
+        ? measurements[badIndex].direction
+        : useAutoDetect
+            ? calibration.suggestedNext?.direction
+            : (count < 56 ? count ~/ 4 : null);
+
     // If all 56 slots filled and no bad measurements, show completion
     if (filledSlots >= 56 && !isRetake) {
       return Container(
@@ -1325,6 +1332,11 @@ class _CalibrationGuidance extends StatelessWidget {
                           color: Theme.of(context).colorScheme.outline,
                         ),
                       ),
+                    if (nextDirection != null)
+                      _AimingHint(
+                        precise: CalibrationPositions.isPrecise(nextDirection),
+                        l10n: l10n,
+                      ),
                   ],
                 ),
               ),
@@ -1408,6 +1420,49 @@ class _CalibrationGuidance extends StatelessWidget {
     final dir = _DirectionGroup.getDirectionLabel(l10n, dirIndex);
     final roll = _DirectionGroup.getRollLabel(l10n, rollIndex);
     return l10n.calibrationShotDescription(dir, roll, progress);
+  }
+}
+
+/// How precisely the next calibration shot has to be aimed.
+///
+/// The four horizontal directions form unidirectional groups, so their shots
+/// must hit one target point; the others are free measurements, for which
+/// only the rough direction matters.
+class _AimingHint extends StatelessWidget {
+  final bool precise;
+  final AppLocalizations l10n;
+
+  const _AimingHint({required this.precise, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = precise
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.outline;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            precise ? Icons.gps_fixed : Icons.explore_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              precise ? l10n.calibrationAimPrecise : l10n.calibrationAimRough,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: precise ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

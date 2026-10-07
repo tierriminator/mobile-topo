@@ -616,6 +616,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get calibrationAimPrecise =>
+      'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot';
+
+  @override
+  String get calibrationAimRough =>
+      'Aim roughly in this direction – it doesn\'t need to be exact';
+
+  @override
   String calibrationShotDescription(
     String direction,
     String roll,

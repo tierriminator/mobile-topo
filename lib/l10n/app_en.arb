@@ -753,6 +753,14 @@
       }
     }
   },
+  "calibrationAimPrecise": "Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot",
+  "@calibrationAimPrecise": {
+    "description": "Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups"
+  },
+  "calibrationAimRough": "Aim roughly in this direction – it doesn't need to be exact",
+  "@calibrationAimRough": {
+    "description": "Aiming guidance for the ten calibration directions whose shots are free measurements"
+  },
   "calibrationShotDescription": "{direction}, roll {roll} ({progress}/4)",
   "@calibrationShotDescription": {
     "description": "Description of a calibration shot",

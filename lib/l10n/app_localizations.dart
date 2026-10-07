@@ -1233,6 +1233,18 @@ abstract class AppLocalizations {
   /// **'Roll {n}'**
   String calibrationRollN(int n);
 
+  /// Aiming guidance for the four horizontal calibration directions, whose shots form unidirectional groups
+  ///
+  /// In en, this message translates to:
+  /// **'Aim precisely at one fixed target point – all 4 shots of this direction must hit the same spot'**
+  String get calibrationAimPrecise;
+
+  /// Aiming guidance for the ten calibration directions whose shots are free measurements
+  ///
+  /// In en, this message translates to:
+  /// **'Aim roughly in this direction – it doesn\'t need to be exact'**
+  String get calibrationAimRough;
+
   /// Description of a calibration shot
   ///
   /// In en, this message translates to:
