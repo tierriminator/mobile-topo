@@ -10,7 +10,9 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/cross_section.dart';
 import 'package:mobile_topo/models/settings.dart';
+import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/sketch_view.dart';
@@ -152,6 +154,99 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.saved.last.survey.stretches.single.flipped, isTrue);
+  });
+
+  testWidgets('a cross section is placed by the tap after choosing it',
+      (tester) async {
+    final section = _section('section', _singleShot);
+    final repository = _RecordingCaveRepository();
+    await _pumpSketchView(tester, _cave([section]), section,
+        repository: repository);
+
+    // Stations at 0 m and 5 m east, centred at the default 20 px per metre
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+    await tester.longPressAt(center + const Offset(50, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(
+        PopupMenuItem<VoidCallback>, 'Vertical Cross Section'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tap where to draw the cross section of 1.1'),
+        findsOneWidget);
+
+    await tester.tapAt(center + const Offset(0, 100));
+    await tester.pump(kDoubleTapTimeout);
+
+    final crossSection =
+        repository.saved.last.outlineSketch.crossSections.single;
+    expect(crossSection.station, const Point(1, 1));
+    expect(crossSection.kind, CrossSectionKind.vertical);
+    // 100 px below the centre, which is 2.5 m east of the first station
+    expect(crossSection.position, const Offset(2.5, 5));
+    expect(find.textContaining('Tap where'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.undo));
+    await tester.pump();
+    expect(repository.saved.last.outlineSketch.crossSections, isEmpty);
+  });
+
+  testWidgets('a cross section shows only the section\'s own measurements',
+      (tester) async {
+    // 1.1 ends the entrance section and starts the continuation; both
+    // measured a splay there
+    final entrance = _section(
+      'entrance',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), null, 2, 0, 0),
+        ],
+        referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+      ),
+    );
+    final continuation = _section(
+      'continuation',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 1), Point(1, 2), 4, 90, 0),
+          MeasuredDistance(Point(1, 1), null, 1, 180, 0),
+        ],
+        referencePoints: [],
+      ),
+    ).copyWith(
+      outlineSketch: const Sketch(crossSections: [
+        CrossSection(
+          station: Point(1, 1),
+          position: Offset(5, 10),
+          kind: CrossSectionKind.vertical,
+        ),
+      ]),
+    );
+    await _pumpSketchView(
+        tester, _cave([entrance, continuation]), continuation,
+        settings: SettingsController(const Settings(showGrid: false)));
+
+    // The shot, the splay at 1.1 and one line in the cross section
+    expect(tester.renderObject(find.byType(CustomPaint).last),
+        paintsExactlyCountTimes(#drawLine, 3));
+  });
+
+  testWidgets('only the side view offers horizontal cross sections',
+      (tester) async {
+    final section = _section('section', _singleShot);
+    await _pumpSketchView(tester, _cave([section]), section);
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+
+    await tester.longPressAt(center + const Offset(50, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Horizontal Cross Section'), findsNothing);
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.terrain));
+    await tester.pump();
+    await tester.longPressAt(center + const Offset(50, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Horizontal Cross Section'), findsOneWidget);
   });
 
   testWidgets('Show All adds the rest of the cave to the outline',

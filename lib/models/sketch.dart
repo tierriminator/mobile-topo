@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'cross_section.dart';
+
 /// A single stroke (polyline) in the sketch
 class Stroke {
   final List<Offset> points;
@@ -65,33 +67,53 @@ class Stroke {
   }
 }
 
-/// A collection of strokes forming a complete sketch
+/// A collection of strokes and cross sections forming a complete sketch
 class Sketch {
   final List<Stroke> strokes;
+  final List<CrossSection> crossSections;
 
-  const Sketch({this.strokes = const []});
+  const Sketch({this.strokes = const [], this.crossSections = const []});
 
   /// Create a copy with an additional stroke
   Sketch addStroke(Stroke stroke) {
     if (!stroke.isVisible) return this;
-    return Sketch(strokes: [...strokes, stroke]);
+    return Sketch(strokes: [...strokes, stroke], crossSections: crossSections);
   }
 
   /// Create a copy without the last stroke (for undo)
   Sketch removeLastStroke() {
     if (strokes.isEmpty) return this;
-    return Sketch(strokes: strokes.sublist(0, strokes.length - 1));
+    return Sketch(
+      strokes: strokes.sublist(0, strokes.length - 1),
+      crossSections: crossSections,
+    );
   }
 
   /// Create a copy without the specified stroke
   Sketch removeStroke(Stroke stroke) {
-    return Sketch(strokes: strokes.where((s) => s != stroke).toList());
+    return Sketch(
+      strokes: strokes.where((s) => s != stroke).toList(),
+      crossSections: crossSections,
+    );
   }
 
-  /// Erase at a point - splits any strokes that pass through the eraser area.
+  /// Create a copy with an additional cross section
+  Sketch addCrossSection(CrossSection crossSection) {
+    return Sketch(
+      strokes: strokes,
+      crossSections: [...crossSections, crossSection],
+    );
+  }
+
+  /// Erase at a point - splits any strokes that pass through the eraser area
+  /// and removes cross sections whose station copy is in it.
   /// Returns null if nothing was erased, otherwise returns the new Sketch.
   Sketch? eraseAt(Offset point, double threshold) {
-    bool anyChanged = false;
+    final remainingCrossSections = [
+      for (final c in crossSections)
+        if ((c.position - point).distance >= threshold) c,
+    ];
+    bool anyChanged = remainingCrossSections.length != crossSections.length;
     final newStrokes = <Stroke>[];
 
     for (final stroke in strokes) {
@@ -116,7 +138,7 @@ class Sketch {
     }
 
     if (!anyChanged) return null;
-    return Sketch(strokes: newStrokes);
+    return Sketch(strokes: newStrokes, crossSections: remainingCrossSections);
   }
 
   /// Find stroke near a given point (for eraser)
@@ -132,9 +154,9 @@ class Sketch {
   }
 
   /// Check if sketch is empty
-  bool get isEmpty => strokes.isEmpty;
+  bool get isEmpty => strokes.isEmpty && crossSections.isEmpty;
 
-  /// Get bounding box of all strokes (for export)
+  /// Get bounding box of all strokes and cross section stations (for export)
   Rect? get bounds {
     if (isEmpty) return null;
 
@@ -143,13 +165,14 @@ class Sketch {
     double maxX = double.negativeInfinity;
     double maxY = double.negativeInfinity;
 
-    for (final stroke in strokes) {
-      for (final point in stroke.points) {
-        if (point.dx < minX) minX = point.dx;
-        if (point.dy < minY) minY = point.dy;
-        if (point.dx > maxX) maxX = point.dx;
-        if (point.dy > maxY) maxY = point.dy;
-      }
+    for (final point in [
+      for (final stroke in strokes) ...stroke.points,
+      for (final crossSection in crossSections) crossSection.position,
+    ]) {
+      if (point.dx < minX) minX = point.dx;
+      if (point.dy < minY) minY = point.dy;
+      if (point.dx > maxX) maxX = point.dx;
+      if (point.dy > maxY) maxY = point.dy;
     }
 
     return Rect.fromLTRB(minX, minY, maxX, maxY);

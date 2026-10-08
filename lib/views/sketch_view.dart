@@ -9,6 +9,7 @@ import '../data/cave_repository.dart';
 import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/cross_section.dart';
 import '../models/settings.dart';
 import '../models/side_view.dart';
 import '../models/sketch.dart';
@@ -38,6 +39,14 @@ class _SketchViewState extends State<SketchView> {
   // "Show All"
   _SurveyDrawing _outlineRestDrawing = const _SurveyDrawing();
   bool _showAll = false;
+
+  // Survey data cross sections are drawn from: the section's own
+  // measurements, oriented along the whole cave's survey shots
+  Survey _sectionSurvey = const Survey(stretches: [], referencePoints: []);
+  Survey _caveSurvey = const Survey(stretches: [], referencePoints: []);
+
+  // Cross section chosen from the station menu, placed by the next tap
+  ({Point station, CrossSectionKind kind})? _pendingCrossSection;
 
   // View mode
   SketchViewMode _viewMode = SketchViewMode.outline;
@@ -91,7 +100,10 @@ class _SketchViewState extends State<SketchView> {
         _outlineRestDrawing = const _SurveyDrawing();
         _outlineSketch = const Sketch();
         _sideViewSketch = const Sketch();
+        _sectionSurvey = const Survey(stretches: [], referencePoints: []);
+        _caveSurvey = const Survey(stretches: [], referencePoints: []);
         _selectedStation = null;
+        _pendingCrossSection = null;
         _currentSectionId = null;
       }
       return;
@@ -130,6 +142,8 @@ class _SketchViewState extends State<SketchView> {
       sideView.stationPositions,
       sideView.splayEnd,
     );
+    _sectionSurvey = sectionSurvey;
+    _caveSurvey = caveSurvey;
 
     // Only reset sketches and recenter when switching to a different section
     if (section.id != _currentSectionId) {
@@ -138,6 +152,7 @@ class _SketchViewState extends State<SketchView> {
       _outlineHistory.clear();
       _sideViewHistory.clear();
       _selectedStation = null;
+      _pendingCrossSection = null;
       _currentSectionId = section.id;
       _centerViews();
     }
@@ -163,12 +178,49 @@ class _SketchViewState extends State<SketchView> {
   /// coordinates
   Map<Point, Offset> get _stationPositions => _drawing.stations;
 
-  /// Selects the station at a tap in move mode, or clears the selection
-  /// when no station is near
+  /// Places a cross section chosen from the station menu at a tap in move
+  /// mode. Otherwise selects the station at the tap, or clears the
+  /// selection when no station is near.
   void _onTapUp(TapUpDetails details) {
+    if (_pendingCrossSection case final pending?) {
+      _currentHistory.record(_currentSketch);
+      setState(() {
+        _currentSketch = _currentSketch.addCrossSection(CrossSection(
+          station: pending.station,
+          position: _screenToWorld(details.localPosition),
+          kind: pending.kind,
+        ));
+        _pendingCrossSection = null;
+      });
+      _saveSketch();
+      return;
+    }
     final tapped = stationAt(
         _stationPositions, details.localPosition, _transform, _canvasSize);
     setState(() => _selectedStation = tapped);
+  }
+
+  /// The cross sections of the current sketch as drawn: the station copy
+  /// and the ends of the station's cross section measurements
+  List<_CrossSectionDrawing> get _crossSectionDrawings => [
+        for (final c in _currentSketch.crossSections)
+          _crossSectionDrawing(c),
+      ];
+
+  _CrossSectionDrawing _crossSectionDrawing(CrossSection crossSection) {
+    final station = crossSection.station;
+    return (
+      station: station,
+      position: crossSection.position,
+      // Only the section's own measurements, like the splays drawn at the
+      // station. The passage direction is taken from the whole cave, as the
+      // shot leading on may be in another section; without one, a vertical
+      // cross section looks north.
+      ends: crossSection.splayEnds(
+        _sectionSurvey.splaysAt(station),
+        azimuth: _caveSurvey.passageAzimuth(station) ?? 0,
+      ),
+    );
   }
 
   /// Opens the context menu of the station at [localPosition], if any
@@ -197,6 +249,14 @@ class _SketchViewState extends State<SketchView> {
   List<PopupMenuEntry<VoidCallback>> _stationMenuItems(
       Point station, Survey survey) {
     final l10n = AppLocalizations.of(context)!;
+    PopupMenuItem<VoidCallback> crossSectionItem(
+            CrossSectionKind kind, String label) =>
+        PopupMenuItem(
+          value: () => setState(() =>
+              _pendingCrossSection = (station: station, kind: kind)),
+          child: Text(label),
+        );
+
     return [
       if (_viewMode == SketchViewMode.sideView) ...[
         // No undo for flipping, as in PocketTopo: flipping again reverts it
@@ -210,6 +270,12 @@ class _SketchViewState extends State<SketchView> {
           child: Text(l10n.sketchFlipAll),
         ),
       ],
+      crossSectionItem(
+          CrossSectionKind.vertical, l10n.sketchCrossSectionVertical),
+      // As in PocketTopo, only the side view offers horizontal ones
+      if (_viewMode == SketchViewMode.sideView)
+        crossSectionItem(
+            CrossSectionKind.horizontal, l10n.sketchCrossSectionHorizontal),
     ];
   }
 
@@ -361,8 +427,12 @@ class _SketchViewState extends State<SketchView> {
     return settings.lengthUnit == LengthUnit.feet ? 5 * 0.3048 : 1.0;
   }
 
-  /// The selected station's ID and coordinates, or else the scale
+  /// What to do to place a chosen cross section, the selected station's ID
+  /// and coordinates, or else the scale
   String _statusText(AppLocalizations l10n, double pixelsPerMm) {
+    if (_pendingCrossSection case final pending?) {
+      return l10n.sketchPlaceCrossSection(pending.station.toString());
+    }
     final pos = _positions[_selectedStation];
     if (pos == null) {
       return l10n.sketchScale(_transform.scaleLabel(pixelsPerMm));
@@ -428,6 +498,7 @@ class _SketchViewState extends State<SketchView> {
                     _viewMode = index == 0
                         ? SketchViewMode.outline
                         : SketchViewMode.sideView;
+                    _pendingCrossSection = null;
                   });
                 },
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
@@ -544,6 +615,7 @@ class _SketchViewState extends State<SketchView> {
                                   : null,
                               selectedStation: _selectedStation,
                               sketch: _currentSketch,
+                              crossSections: _crossSectionDrawings,
                               currentStroke: _currentStroke,
                               transform: _transform,
                               gridSpacing: _gridSpacing(settings, pixelsPerMm),
@@ -586,6 +658,7 @@ class _SketchViewState extends State<SketchView> {
       onPressed: () {
         setState(() {
           _sketchMode = mode;
+          _pendingCrossSection = null;
         });
       },
       tooltip: tooltip,
@@ -607,6 +680,7 @@ class _SketchViewState extends State<SketchView> {
         setState(() {
           _sketchMode = SketchMode.draw;
           _currentColor = color;
+          _pendingCrossSection = null;
         });
       },
       child: Container(
@@ -628,6 +702,14 @@ class _SketchViewState extends State<SketchView> {
 
 /// The survey data of a section as drawn in one of the sketch views, in
 /// world coordinates
+/// A cross section as drawn, in world coordinates: a copy of [station] at
+/// [position] with lines to the [ends] of its cross section measurements
+typedef _CrossSectionDrawing = ({
+  Point station,
+  Offset position,
+  List<Offset> ends,
+});
+
 class _SurveyDrawing {
   /// The section's stations
   final Map<Point, Offset> stations;
@@ -681,6 +763,7 @@ class _SketchPainter extends CustomPainter {
 
   final Point? selectedStation;
   final Sketch sketch;
+  final List<_CrossSectionDrawing> crossSections;
   final Stroke? currentStroke;
   final ViewTransform transform;
 
@@ -692,6 +775,7 @@ class _SketchPainter extends CustomPainter {
     this.background,
     this.selectedStation,
     required this.sketch,
+    this.crossSections = const [],
     this.currentStroke,
     required this.transform,
     this.gridSpacing,
@@ -771,6 +855,20 @@ class _SketchPainter extends CustomPainter {
     _drawSurvey(canvas, size, drawing,
         color: Colors.red, splayColor: Colors.orange);
 
+    final crossSectionPaint = Paint()
+      ..color = Colors.orange
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+    for (final crossSection in crossSections) {
+      final center = _worldToScreen(crossSection.position, size);
+      for (final end in crossSection.ends) {
+        canvas.drawLine(
+            center, _worldToScreen(end, size), crossSectionPaint);
+      }
+      paintStation(canvas, center, crossSection.station,
+          color: Colors.red, selected: false, radius: 3);
+    }
+
     for (final stroke in sketch.strokes) {
       _drawStroke(canvas, size, stroke);
     }
@@ -806,6 +904,7 @@ class _SketchPainter extends CustomPainter {
   bool shouldRepaint(covariant _SketchPainter oldDelegate) {
     return oldDelegate.transform != transform ||
         oldDelegate.sketch != sketch ||
+        oldDelegate.crossSections != crossSections ||
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.gridSpacing != gridSpacing ||
         oldDelegate.selectedStation != selectedStation ||

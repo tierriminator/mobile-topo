@@ -115,6 +115,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sketchShowAll => 'Show All';
 
   @override
+  String get sketchCrossSectionVertical => 'Vertical Cross Section';
+
+  @override
+  String get sketchCrossSectionHorizontal => 'Horizontal Cross Section';
+
+  @override
+  String sketchPlaceCrossSection(String station) {
+    return 'Tap where to draw the cross section of $station';
+  }
+
+  @override
   String get sketchFlip => 'Flip';
 
   @override

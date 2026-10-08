@@ -400,6 +400,39 @@ class Survey {
     return copyWith(stretches: newStretches);
   }
 
+  /// The cross section measurements and splays taken at [station]
+  Iterable<MeasuredDistance> splaysAt(Point station) =>
+      stretches.where((s) => s.to == null && s.from == station);
+
+  /// The azimuth in degrees the passage runs in at [station]: the bisector
+  /// of the first survey shot leading to it and the first one leading on
+  /// from it, both taken in the direction the survey progressed. Further
+  /// shots, like branches or a second shot closing a loop, are ignored. A
+  /// steep shot counts less, a vertical one not at all. Null if neither shot
+  /// has a horizontal direction, or they point in opposite directions.
+  double? passageAzimuth(Point station) {
+    final shots = stretches.where((s) => s.to != null);
+    final leadingTo = shots.where((s) => s.station == station).firstOrNull;
+    final leadingOn = shots
+        .where((s) =>
+            s.station != station && (s.from == station || s.to == station))
+        .firstOrNull;
+
+    var east = 0.0, north = 0.0;
+    for (final s in [?leadingTo, ?leadingOn]) {
+      // A backward shot was measured against the survey direction
+      final backward = s.station == s.from;
+      final azimuth =
+          (s.azimut.toDouble() + (backward ? 180 : 0)) * math.pi / 180;
+      final horizontal =
+          math.cos(s.inclination.toDouble() * math.pi / 180).abs();
+      east += horizontal * math.sin(azimuth);
+      north += horizontal * math.cos(azimuth);
+    }
+    if (east.abs() < 1e-9 && north.abs() < 1e-9) return null;
+    return math.atan2(east, north) * 180 / math.pi;
+  }
+
   /// Whether a survey shot leads to [station], which [flip] would turn around
   bool canFlip(Point station) =>
       stretches.any((s) => s.to != null && s.station == station);

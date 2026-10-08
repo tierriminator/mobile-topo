@@ -146,6 +146,21 @@
   "@sketchShowAll": {
     "description": "Outline menu option to also show the survey data of the rest of the cave"
   },
+  "sketchCrossSectionVertical": "Vertical Cross Section",
+  "@sketchCrossSectionVertical": {
+    "description": "Station menu: place a cross section seen along the passage (PocketTopo's 'XSection |')"
+  },
+  "sketchCrossSectionHorizontal": "Horizontal Cross Section",
+  "@sketchCrossSectionHorizontal": {
+    "description": "Side view station menu: place a cross section seen from above (PocketTopo's 'XSection –')"
+  },
+  "sketchPlaceCrossSection": "Tap where to draw the cross section of {station}",
+  "@sketchPlaceCrossSection": {
+    "description": "Sketch status bar after choosing a cross section from the station menu",
+    "placeholders": {
+      "station": {"type": "String"}
+    }
+  },
   "sketchFlip": "Flip",
   "@sketchFlip": {
     "description": "Side view station menu: turn around the direction of the shot leading to the station"

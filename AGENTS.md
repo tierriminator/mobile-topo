@@ -124,9 +124,14 @@ Pure domain objects without serialization logic:
 
 - **`sketch.dart`**: Drawing primitives
   - `Stroke`: Single polyline with color and width
-  - `Sketch`: Collection of strokes
+  - `Sketch`: Collection of strokes and cross sections
   - `SketchColors`: Available drawing colors
   - `SketchMode`: Drawing mode enum (move, draw, erase)
+
+- **`cross_section.dart`**: `CrossSection` placed in a sketch (PocketTopo's
+  "XSection"): a station copy whose cross section measurements are projected
+  from the current survey data when drawn, either vertical (looking along the
+  passage) or horizontal (seen from above, north up)
 
 - **`side_view.dart`**: `SideView` lays out the extended elevation for the
   side view sketch: shots run left to right in survey direction, splays are
@@ -196,6 +201,7 @@ Persistence and serialization:
 - **`cave_file.dart`**: JSON serialization for cave metadata
 - **`section_file.dart`**: JSON serialization for section data
 - **`sketch_serialization.dart`**: Binary serialization for sketches
+  (format version 2 adds cross sections; version 1 files still load)
 - **`settings_repository.dart`**: SharedPreferences-based settings persistence
 
 **File structure on disk:**

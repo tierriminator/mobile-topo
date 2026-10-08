@@ -292,6 +292,24 @@ abstract class AppLocalizations {
   /// **'Show All'**
   String get sketchShowAll;
 
+  /// Station menu: place a cross section seen along the passage (PocketTopo's 'XSection |')
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical Cross Section'**
+  String get sketchCrossSectionVertical;
+
+  /// Side view station menu: place a cross section seen from above (PocketTopo's 'XSection –')
+  ///
+  /// In en, this message translates to:
+  /// **'Horizontal Cross Section'**
+  String get sketchCrossSectionHorizontal;
+
+  /// Sketch status bar after choosing a cross section from the station menu
+  ///
+  /// In en, this message translates to:
+  /// **'Tap where to draw the cross section of {station}'**
+  String sketchPlaceCrossSection(String station);
+
   /// Side view station menu: turn around the direction of the shot leading to the station
   ///
   /// In en, this message translates to:
