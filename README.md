@@ -41,7 +41,7 @@ what you intend to build for.
 ### 1. Toolchain
 
 The Flutter SDK and JDK are pinned with [mise](https://mise.jdx.dev/) in
-`mise.toml` at the **repository root** — one level *above* this Flutter package.
+`mise.toml` at the repository root, which is also the Flutter project root.
 
 ```bash
 brew install mise
@@ -130,7 +130,7 @@ anywhere in the repository.
 | `mise run analyze` | Lint |
 | `mise run test` | Run tests |
 | `mise run run` | Run the app (`-- -d <device_id>` to pick a device) |
-| `mise run l10n` | Regenerate localizations from `l10n/*.arb` |
+| `mise run l10n` | Regenerate localizations from `lib/l10n/*.arb` |
 | `mise run build-macos` | Build the macOS desktop app |
 | `mise run build-apk` | Build the Android APK |
 | `mise run build-ios` | Build for iOS device (unsigned) |

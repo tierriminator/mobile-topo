@@ -27,7 +27,7 @@ description = "Run tests"
 run = "flutter test"
 
 [tasks.l10n]
-description = "Regenerate localizations from l10n/*.arb"
+description = "Regenerate localizations from lib/l10n/*.arb"
 run = "flutter gen-l10n"
 
 [tasks.run]
