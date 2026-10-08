@@ -10,8 +10,8 @@ import '../models/cave.dart';
 import '../models/settings.dart';
 import '../models/survey.dart';
 import '../services/measurement_service.dart';
-import 'trip_page.dart';
 import 'widgets/data_tables.dart';
+import 'widgets/trip_picker.dart';
 
 class DataView extends StatefulWidget {
   const DataView({super.key});
@@ -287,21 +287,22 @@ class _DataViewState extends State<DataView> {
   String? get _activeTripId =>
       context.read<SelectionState>().selectedCave?.activeTrip?.id;
 
-  /// Opens the trip a row was measured on for inspection and editing
-  Future<void> _showTrip(MeasuredDistance stretch) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final opened = selectionState.selectedCave;
-    final trip = opened?.findTrip(stretch.tripId);
-    if (opened == null || trip == null) return;
+  /// Lets the user pick the trip the row at [index] was measured on
+  Future<void> _changeTrip(Section section, int index) async {
+    final cave = context.read<SelectionState>().selectedCave;
+    if (cave == null) return;
+    final current = section.survey.stretches[index].tripId;
 
-    final edited = await editTrip(context, opened, trip);
-    // The cave may have changed while the page was open
-    final cave = selectionState.selectedCave;
-    if (edited == null || cave?.findTrip(trip.id) == null) return;
+    final trip = await pickTrip(context, cave, currentTripId: current);
+    if (trip == null || trip.id == current) return;
 
-    selectionState.updateTrips(cave!.replaceTrip(edited));
-    await repository.saveTrip(cave.id, edited);
+    // The rows may have changed while the dialog was open, so the stretch is
+    // taken from the latest survey
+    await _changeSurvey(section.id, (survey) {
+      if (index >= survey.stretches.length) return survey;
+      return survey.updateStretchAt(
+          index, survey.stretches[index].copyWith(tripId: trip.id));
+    });
   }
 
   /// Station used when the whole cave has no data yet
@@ -481,6 +482,8 @@ class _DataViewState extends State<DataView> {
         stretches.length - section.survey.stretches.length;
     final pointOffset =
         referencePoints.length - section.survey.referencePoints.length;
+    final hasTrips =
+        context.read<SelectionState>().selectedCave?.trips.isNotEmpty ?? false;
 
     return IndexedStack(
       index: _mode == DataViewMode.stretches ? 0 : 1,
@@ -536,7 +539,9 @@ class _DataViewState extends State<DataView> {
                     _toSurveyShot(section, index - stretchOffset),
                 onRenumber: (index) =>
                     _renumber(section, index - stretchOffset),
-                onShowTrip: _showTrip,
+                onChangeTrip: hasTrips
+                    ? (index) => _changeTrip(section, index - stretchOffset)
+                    : null,
                 // Series can span sections, so their ends are taken from the
                 // whole cave
                 seriesEnds: caveSurvey.seriesEnds,

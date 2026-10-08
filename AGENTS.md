@@ -235,7 +235,10 @@ UI widgets:
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status
   text shared by the map and sketch views
-- **`trip_page.dart`**: Trip edit page opened from the explorer and data view
+- **`trip_page.dart`**: Trip edit page opened from the explorer
+- **`widgets/trip_picker.dart`**: Picks a trip by day from a calendar, then
+  from a list if several trips share the day; used to change a shot's trip
+  in the data view
 - **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`
 

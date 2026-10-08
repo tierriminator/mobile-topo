@@ -451,8 +451,8 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
   /// PocketTopo's "Renumber" from the stretch at an index
   final void Function(int index)? onRenumber;
 
-  /// Opens the trip of a stretch; offered for stretches that have one
-  final void Function(MeasuredDistance stretch)? onShowTrip;
+  /// Lets the user pick another trip for the stretch at an index
+  final void Function(int index)? onChangeTrip;
 
   /// Stations where "Continue Here" is offered: the last station of a series
   final Set<Point> seriesEnds;
@@ -477,7 +477,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     this.onFlipShot,
     this.onToSurveyShot,
     this.onRenumber,
-    this.onShowTrip,
+    this.onChangeTrip,
     this.seriesEnds = const {},
   });
 
@@ -583,9 +583,9 @@ class StretchesTableState
         PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       if (station != null && widget.seriesEnds.contains(station))
         PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
-      if (item.tripId != null && widget.onShowTrip != null)
-        PopupMenuItem(value: 'trip', child: Text('${l10n.trip}…')),
       if (!isReadOnly(index)) ...[
+        if (widget.onChangeTrip != null)
+          PopupMenuItem(value: 'trip', child: Text('${l10n.trip}…')),
         if (item.to != null && widget.onFlipShot != null)
           PopupMenuItem(value: 'flipShot', child: Text(l10n.flipShot)),
         if (item.to == null && widget.onToSurveyShot != null)
@@ -614,7 +614,7 @@ class StretchesTableState
       case 'renumber':
         widget.onRenumber?.call(index);
       case 'trip':
-        widget.onShowTrip?.call(item);
+        widget.onChangeTrip?.call(index);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':
