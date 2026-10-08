@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
+import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/settings.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
@@ -291,6 +294,20 @@ class _SketchViewState extends State<SketchView> {
   Offset _screenToWorld(Offset screenPos) =>
       _transform.screenToWorld(screenPos, _canvasSize);
 
+  /// Grid line spacing in metres: 1 m, or 5 ft when lengths are in feet.
+  /// Null when the grid is turned off or the scale is 1:1000 or smaller,
+  /// where a metre takes up no more than a millimetre on the screen.
+  double? _gridSpacing(SettingsController settings, double pixelsPerMm) {
+    if (!settings.showGrid || _transform.scale <= pixelsPerMm) return null;
+    return settings.lengthUnit == LengthUnit.feet ? 5 * 0.3048 : 1.0;
+  }
+
+  void _toggleGrid() {
+    final settings = context.read<SettingsController>();
+    settings.showGrid = !settings.showGrid;
+    context.read<SettingsRepository>().save(settings.settings);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -321,6 +338,9 @@ class _SketchViewState extends State<SketchView> {
         ),
       );
     }
+
+    final settings = context.watch<SettingsController>();
+    final pixelsPerMm = context.watch<ScreenDensity>().logicalPixelsPerMm;
 
     return Column(
       children: [
@@ -372,6 +392,16 @@ class _SketchViewState extends State<SketchView> {
                 icon: const Icon(Icons.redo),
                 onPressed: _currentHistory.canRedo ? _redo : null,
                 tooltip: l10n.redo,
+              ),
+              PopupMenuButton<VoidCallback>(
+                onSelected: (action) => action(),
+                itemBuilder: (context) => [
+                  CheckedPopupMenuItem(
+                    value: _toggleGrid,
+                    checked: settings.showGrid,
+                    child: Text(l10n.optionsShowGrid),
+                  ),
+                ],
               ),
             ],
           ),
@@ -428,6 +458,7 @@ class _SketchViewState extends State<SketchView> {
                               currentStroke: _currentStroke,
                               transform: _transform,
                               isOutlineView: _viewMode == SketchViewMode.outline,
+                              gridSpacing: _gridSpacing(settings, pixelsPerMm),
                             ),
                             size: Size.infinite,
                           ),
@@ -444,8 +475,7 @@ class _SketchViewState extends State<SketchView> {
           child: Row(
             children: [
               Text(
-                l10n.sketchScale(_transform.scaleLabel(
-                    context.watch<ScreenDensity>().logicalPixelsPerMm)),
+                l10n.sketchScale(_transform.scaleLabel(pixelsPerMm)),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -514,6 +544,9 @@ class _SketchPainter extends CustomPainter {
   final ViewTransform transform;
   final bool isOutlineView;
 
+  /// Distance between grid lines in metres, or null for no grid
+  final double? gridSpacing;
+
   _SketchPainter({
     required this.survey,
     required this.stationPositions,
@@ -521,6 +554,7 @@ class _SketchPainter extends CustomPainter {
     this.currentStroke,
     required this.transform,
     required this.isOutlineView,
+    this.gridSpacing,
   });
 
   Offset _worldToScreen(Offset worldPos, Size size) =>
@@ -549,8 +583,31 @@ class _SketchPainter extends CustomPainter {
     }
   }
 
+  void _drawGrid(Canvas canvas, Size size, double spacing) {
+    final paint = Paint()
+      ..color = Colors.grey.shade300
+      ..strokeWidth = 1.0;
+    final topLeft = transform.screenToWorld(Offset.zero, size);
+    final bottomRight = transform.screenToWorld(size.bottomRight(Offset.zero), size);
+
+    for (var i = (topLeft.dx / spacing).ceil();
+        i * spacing <= bottomRight.dx;
+        i++) {
+      final x = _worldToScreen(Offset(i * spacing, 0), size).dx;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var i = (topLeft.dy / spacing).ceil();
+        i * spacing <= bottomRight.dy;
+        i++) {
+      final y = _worldToScreen(Offset(0, i * spacing), size).dy;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (gridSpacing case final spacing?) _drawGrid(canvas, size, spacing);
+
     final shotPaint = Paint()
       ..color = Colors.red
       ..strokeWidth = 1.5
@@ -627,6 +684,7 @@ class _SketchPainter extends CustomPainter {
         oldDelegate.sketch != sketch ||
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.isOutlineView != isOutlineView ||
+        oldDelegate.gridSpacing != gridSpacing ||
         oldDelegate.survey != survey ||
         oldDelegate.stationPositions != stationPositions;
   }
