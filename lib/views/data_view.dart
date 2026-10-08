@@ -438,12 +438,16 @@ class _DataViewState extends State<DataView> {
                 tooltip: l10n.redo,
               ),
               IconButton(
-                icon: Icon(
-                  Icons.edit,
-                  color: _cellEditMode
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
+                icon: const Icon(Icons.edit),
+                // Filled while editing, so edit mode is hard to miss
+                style: _cellEditMode
+                    ? IconButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.primary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                      )
+                    : null,
                 onPressed: () {
                   setState(() {
                     _cellEditMode = !_cellEditMode;

@@ -528,6 +528,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   }
 
   bool isEditing(int row, int col) => _editingRow == row && _editingCol == col;
+
+  /// Whether the cells of a row are shown as text fields
+  bool isEditable(int row) => widget.editMode && !isReadOnly(row);
 }
 
 // =============================================================================
@@ -621,12 +624,14 @@ class StretchesTableState
     return [
       _PointCell(
         point: stretch.from,
+        editable: isEditable(index),
         isEditing: isEditing(index, 0),
         onChanged: (p) => _updateStretch(index, stretch, from: p),
         onEditingComplete: _clearEditing,
       ),
       _PointCell(
         point: stretch.to,
+        editable: isEditable(index),
         isEditing: isEditing(index, 1),
         onChanged: (p) => _updateStretch(index, stretch, to: p),
         onEditingComplete: _clearEditing,
@@ -634,6 +639,7 @@ class StretchesTableState
       _NumberCell(
         value: length.fromMeters(stretch.distance),
         decimalPlaces: 2,
+        editable: isEditable(index),
         isEditing: isEditing(index, 2),
         onChanged: (v) =>
             _updateStretch(index, stretch, distance: length.toMeters(v)),
@@ -642,6 +648,7 @@ class StretchesTableState
       _NumberCell(
         value: angle.fromDegrees(stretch.azimut),
         decimalPlaces: 0,
+        editable: isEditable(index),
         isEditing: isEditing(index, 3),
         onChanged: (v) =>
             _updateStretch(index, stretch, azimut: angle.toDegrees(v)),
@@ -651,6 +658,7 @@ class StretchesTableState
         value: angle.fromDegrees(stretch.inclination),
         signed: true,
         decimalPlaces: 0,
+        editable: isEditable(index),
         isEditing: isEditing(index, 4),
         onChanged: (v) =>
             _updateStretch(index, stretch, inclination: angle.toDegrees(v)),
@@ -796,6 +804,7 @@ class ReferencePointsTableState
     return [
       _PointCell(
         point: point.id,
+        editable: isEditable(index),
         isEditing: isEditing(index, 0),
         onChanged: (p) => _updatePoint(index, point, id: p),
         onEditingComplete: _clearEditing,
@@ -803,6 +812,7 @@ class ReferencePointsTableState
       _NumberCell(
         value: length.fromMeters(point.east),
         signed: true,
+        editable: isEditable(index),
         isEditing: isEditing(index, 1),
         onChanged: (v) =>
             _updatePoint(index, point, east: length.toMeters(v)),
@@ -811,6 +821,7 @@ class ReferencePointsTableState
       _NumberCell(
         value: length.fromMeters(point.north),
         signed: true,
+        editable: isEditable(index),
         isEditing: isEditing(index, 2),
         onChanged: (v) =>
             _updatePoint(index, point, north: length.toMeters(v)),
@@ -819,6 +830,7 @@ class ReferencePointsTableState
       _NumberCell(
         value: length.fromMeters(point.altitude),
         signed: true,
+        editable: isEditable(index),
         isEditing: isEditing(index, 3),
         onChanged: (v) =>
             _updatePoint(index, point, altitude: length.toMeters(v)),
@@ -1001,14 +1013,43 @@ class _CommentDialogState extends State<_CommentDialog> {
   }
 }
 
+/// The box of a cell shown as a text field in edit mode, so editable cells
+/// stand out. It takes the place of a plain cell's padding, keeping the row
+/// height: 2 pixels margin, 1 pixel border, 1 pixel padding.
+class _FieldBox extends StatelessWidget {
+  const _FieldBox({required this.isEditing, required this.child});
+
+  final bool isEditing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(1),
+      decoration: BoxDecoration(
+        color: isEditing ? colors.primaryContainer : null,
+        border: Border.all(color: isEditing ? colors.primary : colors.outline),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: child,
+    );
+  }
+}
+
 class _PointCell extends StatefulWidget {
   final Point? point;
+
+  /// Whether the cell is shown as a text field, as in edit mode
+  final bool editable;
   final bool isEditing;
   final void Function(Point?)? onChanged;
   final VoidCallback? onEditingComplete;
 
   const _PointCell({
     required this.point,
+    this.editable = false,
     this.isEditing = false,
     this.onChanged,
     this.onEditingComplete,
@@ -1086,29 +1127,28 @@ class _PointCellState extends State<_PointCell> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isEditing) {
+      final text = Text(
+        _pointToString(widget.point),
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+      if (widget.editable) return _FieldBox(isEditing: false, child: text);
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Text(
-          _pointToString(widget.point),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        child: text,
       );
     }
 
-    return ColoredBox(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          style: Theme.of(context).textTheme.bodySmall,
-          decoration: const InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-          ),
-          onSubmitted: (_) => _focusNode.unfocus(),
+    return _FieldBox(
+      isEditing: true,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        style: Theme.of(context).textTheme.bodySmall,
+        decoration: const InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
         ),
+        onSubmitted: (_) => _focusNode.unfocus(),
       ),
     );
   }
@@ -1118,6 +1158,9 @@ class _NumberCell extends StatefulWidget {
   final num value;
   final bool signed;
   final int? decimalPlaces;
+
+  /// Whether the cell is shown as a text field, as in edit mode
+  final bool editable;
   final bool isEditing;
   final void Function(num)? onChanged;
   final VoidCallback? onEditingComplete;
@@ -1126,6 +1169,7 @@ class _NumberCell extends StatefulWidget {
     required this.value,
     this.signed = false,
     this.decimalPlaces,
+    this.editable = false,
     this.isEditing = false,
     this.onChanged,
     this.onEditingComplete,
@@ -1197,38 +1241,37 @@ class _NumberCellState extends State<_NumberCell> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isEditing) {
+      final text = Text(
+        _formatValue(widget.value),
+        style: Theme.of(context).textTheme.bodySmall,
+      );
+      if (widget.editable) return _FieldBox(isEditing: false, child: text);
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Text(
-          _formatValue(widget.value),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        child: text,
       );
     }
 
-    return ColoredBox(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          style: Theme.of(context).textTheme.bodySmall,
-          decoration: const InputDecoration(
-            isCollapsed: true,
-            border: InputBorder.none,
-          ),
-          keyboardType: TextInputType.numberWithOptions(
-            decimal: true,
-            signed: widget.signed,
-          ),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(
-              widget.signed ? RegExp(r'^-?\d*\.?\d*') : RegExp(r'^\d*\.?\d*'),
-            ),
-          ],
-          onSubmitted: (_) => _focusNode.unfocus(),
+    return _FieldBox(
+      isEditing: true,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        style: Theme.of(context).textTheme.bodySmall,
+        decoration: const InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
         ),
+        keyboardType: TextInputType.numberWithOptions(
+          decimal: true,
+          signed: widget.signed,
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(
+            widget.signed ? RegExp(r'^-?\d*\.?\d*') : RegExp(r'^\d*\.?\d*'),
+          ),
+        ],
+        onSubmitted: (_) => _focusNode.unfocus(),
       ),
     );
   }

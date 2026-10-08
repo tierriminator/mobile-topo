@@ -697,7 +697,7 @@ void main() {
     });
   });
 
-  group('bulk edits', () {
+  group('edit mode', () {
     final previous = section(
       'previous',
       const Survey(
@@ -751,7 +751,30 @@ void main() {
       expect(find.text('Delete'), findsNothing);
     });
 
-    testWidgets('the checkboxes keep the height of the rows', (tester) async {
+    testWidgets('editable cells are shown as text fields', (tester) async {
+      await pump(tester);
+      bool shownAsField(String text) => find
+          .ancestor(
+            of: find.text(text),
+            matching: find.byWidgetPredicate((w) =>
+                w is Container &&
+                (w.decoration as BoxDecoration?)?.border != null),
+          )
+          .evaluate()
+          .isNotEmpty;
+
+      expect(shownAsField('2.00'), isTrue);
+      expect(shownAsField('1.4'), isTrue);
+      // The row of the other section is read-only
+      expect(shownAsField('9.00'), isFalse);
+
+      await tester.tap(find.byTooltip('Edit cells'));
+      await tester.pumpAndSettle();
+      expect(shownAsField('2.00'), isFalse);
+    });
+
+    testWidgets('the checkboxes and fields keep the height of the rows',
+        (tester) async {
       await pump(tester);
       final inEditMode = tester.getTopLeft(find.text('4.00')).dy;
       await tester.tap(find.byTooltip('Edit cells'));
