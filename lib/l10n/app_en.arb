@@ -263,14 +263,15 @@
   "@explorerAddTrip": {
     "description": "Menu item to add a new trip to a cave"
   },
-  "explorerImportPocketTopo": "Import PocketTopo File",
+  "explorerImportPocketTopo": "Import PocketTopo Files",
   "@explorerImportPocketTopo": {
-    "description": "Menu item to import a PocketTopo .top file into a cave as a new section"
+    "description": "Menu item to import PocketTopo .top files into a cave, each as a new section"
   },
-  "importPocketTopoFailed": "The file could not be imported: {error}",
+  "importPocketTopoFailed": "{file} could not be imported: {error}",
   "@importPocketTopoFailed": {
     "description": "Message shown when a PocketTopo file cannot be read",
     "placeholders": {
+      "file": {"type": "String"},
       "error": {"type": "String"}
     }
   },

@@ -34,6 +34,46 @@ class PocketTopoImport {
     required this.sideViewSketch,
     required this.skippedShots,
   });
+
+  /// This import with each trip that matches one of [existing], or an
+  /// earlier trip of the file, replaced by that trip: [trips] keeps only the
+  /// trips to add. Trips match if they are on the same day with the same
+  /// declination and comment, as when several files were surveyed on one
+  /// trip.
+  PocketTopoImport withTripsFrom(List<Trip> existing) {
+    final known = [...existing];
+    final added = <Trip>[];
+    final replaced = <String, String>{};
+    for (final trip in trips) {
+      final same = known.where((t) => _isSameTrip(t, trip)).firstOrNull;
+      if (same != null) {
+        replaced[trip.id] = same.id;
+      } else {
+        known.add(trip);
+        added.add(trip);
+      }
+    }
+    return PocketTopoImport(
+      trips: added,
+      survey: survey.copyWith(stretches: [
+        for (final s in survey.stretches)
+          switch (replaced[s.tripId]) {
+            final id? => s.copyWith(tripId: id),
+            null => s,
+          },
+      ]),
+      outlineSketch: outlineSketch,
+      sideViewSketch: sideViewSketch,
+      skippedShots: skippedShots,
+    );
+  }
+
+  static bool _isSameTrip(Trip a, Trip b) =>
+      a.date.year == b.date.year &&
+      a.date.month == b.date.month &&
+      a.date.day == b.date.day &&
+      (a.declination - b.declination).abs() < 1e-9 &&
+      a.comment.trim() == b.comment.trim();
 }
 
 /// Reads PocketTopo `.top` files, version 3, as described in

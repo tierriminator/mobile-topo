@@ -6,6 +6,7 @@ import 'package:mobile_topo/data/pocket_topo_file.dart';
 import 'package:mobile_topo/models/cross_section.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
+import 'package:mobile_topo/models/trip.dart';
 
 /// Writes `.top` files byte by byte as described in
 /// docs/pocket_topo/PocketTopoFileFormat.txt
@@ -211,6 +212,66 @@ void main() {
         },
       ));
       expect(result.survey.stretches.map((s) => s.tripId), ['trip1', null]);
+    });
+  });
+
+  group('matching trips', () {
+    final existing = Trip(
+      id: 'existing',
+      date: DateTime(2009, 7, 14),
+      declination: 2.8125,
+      comment: 'Anna, Ben',
+      createdAt: DateTime(2009, 7, 14, 9),
+    );
+
+    /// A file whose shots are measured on its trips in turn
+    PocketTopoImport fileWithTrips(List<(DateTime, String, int)> trips) =>
+        read(topFile(
+          tripCount: trips.length,
+          trips: (w) {
+            for (final (time, comment, declination) in trips) {
+              w.trip(time, comment: comment, declination: declination);
+            }
+          },
+          shotCount: trips.length,
+          shots: (w) {
+            for (var i = 0; i < trips.length; i++) {
+              w.shot(TopWriter.majorMinor(1, i), TopWriter.majorMinor(1, i + 1),
+                  1000, 0, 0,
+                  trip: i);
+            }
+          },
+        ));
+
+    test('reuses a trip on the same day with the same values', () {
+      final result = fileWithTrips([
+        (DateTime(2009, 7, 14, 16, 45), 'Anna, Ben ', 0x0200),
+      ]).withTripsFrom([existing]);
+
+      expect(result.trips, isEmpty);
+      expect(result.survey.stretches.single.tripId, 'existing');
+    });
+
+    test('keeps trips that differ in day, declination or comment', () {
+      final result = fileWithTrips([
+        (DateTime(2009, 7, 15), 'Anna, Ben', 0x0200),
+        (DateTime(2009, 7, 14), 'Anna, Ben', 0x0300),
+        (DateTime(2009, 7, 14), 'Carla', 0x0200),
+      ]).withTripsFrom([existing]);
+
+      expect(result.trips.map((t) => t.id), ['trip0', 'trip1', 'trip2']);
+      expect(result.survey.stretches.map((s) => s.tripId),
+          ['trip0', 'trip1', 'trip2']);
+    });
+
+    test('merges identical trips of the same file', () {
+      final result = fileWithTrips([
+        (DateTime(2009, 7, 14, 10), 'Carla', 0),
+        (DateTime(2009, 7, 14, 14), 'Carla', 0),
+      ]).withTripsFrom([]);
+
+      expect(result.trips.map((t) => t.id), ['trip0']);
+      expect(result.survey.stretches.map((s) => s.tripId), ['trip0', 'trip0']);
     });
   });
 

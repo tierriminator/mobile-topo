@@ -259,8 +259,9 @@ class ExplorerViewState extends State<ExplorerView> {
     });
   }
 
-  /// Imports a PocketTopo file the user picks as a new section of [cave],
-  /// named after the file; its trips are added to the cave
+  /// Imports the PocketTopo files the user picks, each as a new section of
+  /// [cave] named after the file, in the order of their names. Their trips
+  /// are added to the cave unless it already has the same trip.
   Future<void> _importPocketTopo(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
     final repository = context.read<CaveRepository>();
@@ -268,44 +269,57 @@ class ExplorerViewState extends State<ExplorerView> {
 
     // Not filtered by extension: platforms without a type for .top would
     // offer no file at all. The reader checks the contents instead.
-    final file = await FilePicker.pickFile();
-    if (file == null) return;
+    final files = [...await FilePicker.pickFiles()]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    if (files.isEmpty) return;
 
-    final PocketTopoImport imported;
-    try {
-      imported = PocketTopoFile.read(await file.readAsBytes());
-    } on FormatException catch (e) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(l10n.importPocketTopoFailed(e.message))));
-      return;
+    var updatedCave = cave;
+    var skipped = 0;
+    final failures = <String>[];
+    for (final file in files) {
+      final PocketTopoImport imported;
+      try {
+        imported = PocketTopoFile.read(await file.readAsBytes())
+            .withTripsFrom(updatedCave.trips);
+      } on FormatException catch (e) {
+        failures.add(l10n.importPocketTopoFailed(file.name, e.message));
+        continue;
+      }
+
+      final now = DateTime.now();
+      final name =
+          file.name.replaceFirst(RegExp(r'\.top$', caseSensitive: false), '');
+      final section = Section(
+        id: _uuid.v4(),
+        name: name.isEmpty ? l10n.explorerNewSection : name,
+        survey: imported.survey,
+        outlineSketch: imported.outlineSketch,
+        sideViewSketch: imported.sideViewSketch,
+        createdAt: now,
+        modifiedAt: now,
+      );
+      updatedCave = updatedCave
+          .copyWith(trips: [...updatedCave.trips, ...imported.trips])
+          .addSection(section);
+      skipped += imported.skippedShots;
     }
 
-    final now = DateTime.now();
-    final name =
-        file.name.replaceFirst(RegExp(r'\.top$', caseSensitive: false), '');
-    final section = Section(
-      id: _uuid.v4(),
-      name: name.isEmpty ? l10n.explorerNewSection : name,
-      survey: imported.survey,
-      outlineSketch: imported.outlineSketch,
-      sideViewSketch: imported.sideViewSketch,
-      createdAt: now,
-      modifiedAt: now,
-    );
-    final updatedCave = cave
-        .copyWith(trips: [...cave.trips, ...imported.trips])
-        .addSection(section);
-    await repository.saveCave(updatedCave);
-    if (!mounted) return;
-    context.read<SelectionState>().updateTrips(updatedCave);
-    await _loadCaves();
+    if (!identical(updatedCave, cave)) {
+      await repository.saveCave(updatedCave);
+      if (!mounted) return;
+      context.read<SelectionState>().updateTrips(updatedCave);
+      await _loadCaves();
+      setState(() {
+        _expandedIds.add(cave.id);
+      });
+    }
 
-    setState(() {
-      _expandedIds.add(cave.id);
-    });
-    if (imported.skippedShots > 0) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(l10n.importPocketTopoSkipped(imported.skippedShots))));
+    final messages = [
+      ...failures,
+      if (skipped > 0) l10n.importPocketTopoSkipped(skipped),
+    ];
+    if (messages.isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(messages.join('\n'))));
     }
   }
 

@@ -44,14 +44,14 @@ final class _MemoryFile extends PlatformFile {
   Stream<Uint8List> readAsByteStream() => Stream.value(bytes);
 }
 
-/// Picker that returns a fixed file
+/// Picker that returns fixed files
 class _FakeFilePicker extends FilePickerPlatform {
-  final PlatformFile? file;
+  final List<PlatformFile> files;
 
-  _FakeFilePicker(this.file);
+  _FakeFilePicker(this.files);
 
   @override
-  Future<PlatformFile?> pickFile({
+  Future<List<PlatformFile>> pickFiles({
     String? dialogTitle,
     String? initialDirectory,
     FileType type = FileType.any,
@@ -64,7 +64,7 @@ class _FakeFilePicker extends FilePickerPlatform {
     LinuxOptions linuxOptions = const LinuxOptions(),
     WebOptions webOptions = const WebOptions(),
   }) async =>
-      file;
+      files;
 }
 
 /// Repository holding a single cave in memory, replaced on every save
@@ -105,7 +105,7 @@ void main() {
   final existingTrip = Trip(id: 'existing', date: now, createdAt: now);
 
   Future<_SingleCaveRepository> pumpExplorer(
-      WidgetTester tester, PlatformFile? picked) async {
+      WidgetTester tester, List<PlatformFile> picked) async {
     FilePickerPlatform.instance = _FakeFilePicker(picked);
     final repository = _SingleCaveRepository(Cave(
       id: 'cave',
@@ -144,7 +144,7 @@ void main() {
   Future<void> importFromMenu(WidgetTester tester) async {
     await tester.tap(find.byIcon(Icons.more_vert).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import PocketTopo File'));
+    await tester.tap(find.text('Import PocketTopo Files'));
     await tester.pumpAndSettle();
   }
 
@@ -164,7 +164,7 @@ void main() {
       },
     );
     final repository =
-        await pumpExplorer(tester, _MemoryFile('Hoelloch.TOP', bytes));
+        await pumpExplorer(tester, [_MemoryFile('Hoelloch.TOP', bytes)]);
 
     await importFromMenu(tester);
 
@@ -187,20 +187,55 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('imports several files, sharing their common trip',
+      (tester) async {
+    Uint8List fileFrom(int series) => topFile(
+          tripCount: 1,
+          trips: (w) =>
+              w.trip(DateTime(2009, 7, 14, 9 + series), comment: 'Anna'),
+          shotCount: 1,
+          shots: (w) => w.shot(TopWriter.majorMinor(series, 0),
+              TopWriter.majorMinor(series, 1), 5000, 0, 0,
+              trip: 0),
+        );
+    final repository = await pumpExplorer(tester, [
+      _MemoryFile('b.top', fileFrom(2)),
+      _MemoryFile('notes.txt', Uint8List.fromList([1, 2, 3, 4])),
+      _MemoryFile('a.top', fileFrom(1)),
+    ]);
+
+    await importFromMenu(tester);
+
+    final cave = repository.cave;
+    expect(repository.saveCount, 1);
+    expect(cave.sections.map((s) => s.name), ['Section', 'a', 'b']);
+    final [_, trip] = cave.trips;
+    expect(trip.comment, 'Anna');
+    expect(
+        [
+          for (final s in cave.sections.skip(1))
+            s.survey.stretches.single.tripId
+        ],
+        [trip.id, trip.id]);
+    expect(
+        find.text('notes.txt could not be imported: Not a PocketTopo file'),
+        findsOneWidget);
+  });
+
   testWidgets('reports files that cannot be read and imports nothing',
       (tester) async {
     final repository = await pumpExplorer(
-        tester, _MemoryFile('notes.txt', Uint8List.fromList([1, 2, 3, 4])));
+        tester, [_MemoryFile('notes.txt', Uint8List.fromList([1, 2, 3, 4]))]);
 
     await importFromMenu(tester);
 
     expect(repository.saveCount, 0);
-    expect(find.textContaining('The file could not be imported'),
+    expect(find.textContaining('notes.txt could not be imported'),
         findsOneWidget);
   });
 
   testWidgets('cancelling the picker imports nothing', (tester) async {
-    final repository = await pumpExplorer(tester, null);
+    final repository = await pumpExplorer(tester, []);
 
     await importFromMenu(tester);
 

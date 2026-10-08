@@ -212,11 +212,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerAddTrip => 'Add Trip';
 
   @override
-  String get explorerImportPocketTopo => 'Import PocketTopo File';
+  String get explorerImportPocketTopo => 'Import PocketTopo Files';
 
   @override
-  String importPocketTopoFailed(String error) {
-    return 'The file could not be imported: $error';
+  String importPocketTopoFailed(String file, String error) {
+    return '$file could not be imported: $error';
   }
 
   @override
