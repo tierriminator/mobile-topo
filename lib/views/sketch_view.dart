@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
+import '../services/screen_density.dart';
 import 'widgets/view_transform.dart';
 
 enum SketchViewMode { outline, sideView }
@@ -443,7 +444,8 @@ class _SketchViewState extends State<SketchView> {
           child: Row(
             children: [
               Text(
-                l10n.sketchScale(_transform.scaleLabel),
+                l10n.sketchScale(_transform.scaleLabel(
+                    context.watch<ScreenDensity>().logicalPixelsPerMm)),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],

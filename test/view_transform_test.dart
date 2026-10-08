@@ -71,12 +71,13 @@ void main() {
   });
 
   group('scaleLabel', () {
-    test('rounds ratios of at least 1:1', () {
-      expect(const ViewTransform(scale: 20).scaleLabel, '1:50');
+    test('accounts for the physical size of pixels', () {
+      // 1 m at 20 px/m on a screen with 6.3 px/mm is about 3.2 mm long
+      expect(const ViewTransform(scale: 20).scaleLabel(6.3), '1:315');
     });
 
     test('keeps two significant digits beyond 1:1', () {
-      expect(const ViewTransform(scale: 6000).scaleLabel, '1:0.17');
+      expect(const ViewTransform(scale: 6000).scaleLabel(1), '1:0.17');
     });
   });
 }

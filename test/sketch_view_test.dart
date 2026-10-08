@@ -8,6 +8,7 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/survey.dart';
+import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/sketch_view.dart';
 
 class _NoopCaveRepository implements CaveRepository {
@@ -54,6 +55,8 @@ void main() {
           ChangeNotifierProvider(
               create: (_) => SelectionState()..selectSection(cave, continuation)),
           Provider<CaveRepository>.value(value: _NoopCaveRepository()),
+          // A typical phone: 160 dp per inch
+          Provider.value(value: const ScreenDensity(6.3)),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -93,6 +96,8 @@ void main() {
           ChangeNotifierProvider(
               create: (_) => SelectionState()..selectSection(cave, section)),
           Provider<CaveRepository>.value(value: _NoopCaveRepository()),
+          // A typical phone: 160 dp per inch
+          Provider.value(value: const ScreenDensity(6.3)),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -102,10 +107,10 @@ void main() {
       ),
     );
 
-    // Each scroll step zooms in by 10%; 60 steps go far past the former
-    // limit of 1:5
+    // Each scroll step zooms in by 10%; 80 steps go far past the former
+    // limit of 200 px/m
     final center = tester.getCenter(find.byType(CustomPaint).last);
-    for (var i = 0; i < 60; i++) {
+    for (var i = 0; i < 80; i++) {
       await tester.sendEventToBinding(PointerScrollEvent(
         position: center,
         scrollDelta: const Offset(0, -10),

@@ -14,6 +14,7 @@ import 'services/bluetooth_adapter_macos.dart';
 import 'services/calibration_service.dart';
 import 'services/distox_service.dart';
 import 'services/measurement_service.dart';
+import 'services/screen_density.dart';
 import 'views/data_view.dart';
 import 'views/map_view.dart';
 import 'views/sketch_view.dart';
@@ -36,6 +37,9 @@ void main() async {
   final settingsRepository = SettingsRepository();
   final settings = await settingsRepository.load();
   final settingsController = SettingsController(settings);
+
+  // Physical size of logical pixels, for true map scales
+  final screenDensity = await ScreenDensity.load();
 
   // Create platform-specific Bluetooth adapter
   final bluetoothAdapter = createBluetoothAdapter();
@@ -75,6 +79,7 @@ void main() async {
         ChangeNotifierProvider.value(value: calibrationService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => settingsRepository),
+        Provider<ScreenDensity>.value(value: screenDensity),
       ],
       child: const MyApp(),
     ),

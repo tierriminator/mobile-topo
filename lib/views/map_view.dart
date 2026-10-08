@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
+import '../services/screen_density.dart';
 import 'widgets/view_transform.dart';
 
 class MapView extends StatefulWidget {
@@ -151,7 +152,8 @@ class _MapViewState extends State<MapView> {
       statusText = l10n.mapStatusOverview(
         length.toStringAsFixed(1),
         depth.toStringAsFixed(1),
-        _transform.scaleLabel,
+        _transform.scaleLabel(
+            context.watch<ScreenDensity>().logicalPixelsPerMm),
       );
     }
 

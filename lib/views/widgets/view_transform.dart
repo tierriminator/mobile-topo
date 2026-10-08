@@ -65,10 +65,12 @@ class ViewTransform {
     return ViewTransform(scale: scale, offset: -bounds.center * scale);
   }
 
-  /// The scale as a ratio, assuming 1 mm per pixel. Zoomed in beyond 1:1 the
-  /// ratio keeps two significant digits instead of rounding to 0.
-  String get scaleLabel {
-    final ratio = 1000 / scale;
+  /// The scale as a ratio, given how many logical pixels fit into a
+  /// millimetre on the screen. Zoomed in beyond 1:1 the ratio keeps two
+  /// significant digits instead of rounding to 0.
+  String scaleLabel(double pixelsPerMm) {
+    // 1 m of the world takes up scale / pixelsPerMm millimetres on screen
+    final ratio = 1000 * pixelsPerMm / scale;
     return '1:${ratio >= 1 ? ratio.round() : ratio.toStringAsPrecision(2)}';
   }
 
