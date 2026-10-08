@@ -235,7 +235,8 @@ UI widgets:
 - **`data_view.dart`**: Table of stretches and reference points, handles DistoX measurements
 - **`map_view.dart`**: 2D overview of survey with pan/zoom
 - **`sketch_view.dart`**: Drawing canvas with outline/side view toggle
-- **`explorer_view.dart`**: Cave/section browser
+- **`explorer_view.dart`**: Cave/section browser; imports a PocketTopo
+  file as a new section of a cave, adding its trips to the cave
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status

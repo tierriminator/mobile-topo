@@ -212,6 +212,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerAddTrip => 'Add Trip';
 
   @override
+  String get explorerImportPocketTopo => 'Import PocketTopo File';
+
+  @override
+  String importPocketTopoFailed(String error) {
+    return 'The file could not be imported: $error';
+  }
+
+  @override
+  String importPocketTopoSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count measurements belong to no station and were left out.',
+      one: '1 measurement belongs to no station and was left out.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get tripActive => '(active)';
 
   @override

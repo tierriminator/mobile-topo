@@ -471,6 +471,24 @@ abstract class AppLocalizations {
   /// **'Add Trip'**
   String get explorerAddTrip;
 
+  /// Menu item to import a PocketTopo .top file into a cave as a new section
+  ///
+  /// In en, this message translates to:
+  /// **'Import PocketTopo File'**
+  String get explorerImportPocketTopo;
+
+  /// Message shown when a PocketTopo file cannot be read
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be imported: {error}'**
+  String importPocketTopoFailed(String error);
+
+  /// Message shown after importing a PocketTopo file with measurements that have no station
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 measurement belongs to no station and was left out.} other{{count} measurements belong to no station and were left out.}}'**
+  String importPocketTopoSkipped(int count);
+
   /// Shown next to the active trip, which new measurements are assigned to
   ///
   /// In en, this message translates to:

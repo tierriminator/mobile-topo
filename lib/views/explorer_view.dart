@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../controllers/explorer_state.dart';
 import '../controllers/selection_state.dart';
 import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
+import '../data/pocket_topo_file.dart';
 import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -257,6 +259,56 @@ class ExplorerViewState extends State<ExplorerView> {
     });
   }
 
+  /// Imports a PocketTopo file the user picks as a new section of [cave],
+  /// named after the file; its trips are added to the cave
+  Future<void> _importPocketTopo(Cave cave) async {
+    final l10n = AppLocalizations.of(context)!;
+    final repository = context.read<CaveRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Not filtered by extension: platforms without a type for .top would
+    // offer no file at all. The reader checks the contents instead.
+    final file = await FilePicker.pickFile();
+    if (file == null) return;
+
+    final PocketTopoImport imported;
+    try {
+      imported = PocketTopoFile.read(await file.readAsBytes());
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.importPocketTopoFailed(e.message))));
+      return;
+    }
+
+    final now = DateTime.now();
+    final name =
+        file.name.replaceFirst(RegExp(r'\.top$', caseSensitive: false), '');
+    final section = Section(
+      id: _uuid.v4(),
+      name: name.isEmpty ? l10n.explorerNewSection : name,
+      survey: imported.survey,
+      outlineSketch: imported.outlineSketch,
+      sideViewSketch: imported.sideViewSketch,
+      createdAt: now,
+      modifiedAt: now,
+    );
+    final updatedCave = cave
+        .copyWith(trips: [...cave.trips, ...imported.trips])
+        .addSection(section);
+    await repository.saveCave(updatedCave);
+    if (!mounted) return;
+    context.read<SelectionState>().updateTrips(updatedCave);
+    await _loadCaves();
+
+    setState(() {
+      _expandedIds.add(cave.id);
+    });
+    if (imported.skippedShots > 0) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.importPocketTopoSkipped(imported.skippedShots))));
+    }
+  }
+
   /// Expansion key of a cave's trips node
   String _tripsNodeId(Cave cave) => '${cave.id}/trips';
 
@@ -441,6 +493,8 @@ class ExplorerViewState extends State<ExplorerView> {
                   _createNewSection(cave);
                 case 'add_trip':
                   _createTrip(cave);
+                case 'import_pocket_topo':
+                  _importPocketTopo(cave);
               }
             },
             itemBuilder: (context) => [
@@ -461,6 +515,16 @@ class ExplorerViewState extends State<ExplorerView> {
                     const Icon(Icons.event, size: 20),
                     const SizedBox(width: 8),
                     Text(l10n.explorerAddTrip),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'import_pocket_topo',
+                child: Row(
+                  children: [
+                    const Icon(Icons.file_open, size: 20),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text(l10n.explorerImportPocketTopo)),
                   ],
                 ),
               ),
