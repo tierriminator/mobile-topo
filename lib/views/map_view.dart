@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
+import 'widgets/view_transform.dart';
 
 class MapView extends StatefulWidget {
   const MapView({super.key});
@@ -15,14 +16,11 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   Map<Point, StationPosition> _positions = {};
 
-  // View transformation
-  double _scale = 20.0; // pixels per meter
-  Offset _offset = Offset.zero;
+  ViewTransform _transform = const ViewTransform();
 
-  // For gesture handling
-  double _startScale = 1.0;
-  Offset _startOffset = Offset.zero;
-  Offset _startFocalPoint = Offset.zero;
+  // Transform and focal point at the start of a pan or pinch gesture
+  ViewTransform _gestureStart = const ViewTransform();
+  Offset _gestureFocalPoint = Offset.zero;
 
   // Selected station
   Point? _selectedStation;
@@ -56,63 +54,30 @@ class _MapViewState extends State<MapView> {
   /// Centers on the selected section, or on the whole cave if none of the
   /// section's stations have a position.
   void _centerView(Set<Point> sectionStations) {
-    if (_positions.isEmpty) return;
-
-    var centerOn = [
+    final sectionPositions = [
       for (final station in sectionStations)
-        if (_positions[station] case final pos?) pos,
+        if (_positions[station] case final pos?) pos.plan,
     ];
-    if (centerOn.isEmpty) centerOn = _positions.values.toList();
-
-    // Compute bounds
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = double.negativeInfinity;
-    double maxY = double.negativeInfinity;
-
-    for (final pos in centerOn) {
-      if (pos.east < minX) minX = pos.east;
-      if (-pos.north < minY) minY = -pos.north;
-      if (pos.east > maxX) maxX = pos.east;
-      if (-pos.north > maxY) maxY = -pos.north;
-    }
-
-    final centerX = (minX + maxX) / 2;
-    final centerY = (minY + maxY) / 2;
-    _offset = Offset(-centerX * _scale, -centerY * _scale);
+    _transform = _transform.centeredOn(sectionPositions.isNotEmpty
+        ? sectionPositions
+        : _positions.values.map((p) => p.plan));
   }
 
   void _onScaleStart(ScaleStartDetails details) {
-    _startScale = _scale;
-    _startOffset = _offset;
-    _startFocalPoint = details.focalPoint;
+    _gestureStart = _transform;
+    _gestureFocalPoint = details.localFocalPoint;
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      _scale = (_startScale * details.scale).clamp(5.0, 200.0);
-      final focalPointDelta = details.focalPoint - _startFocalPoint;
-      _offset = _startOffset + focalPointDelta;
+      _transform = _gestureStart.pinched(
+          details.scale, details.localFocalPoint - _gestureFocalPoint);
     });
   }
 
   void _onPointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
-      final newScale = (_scale * zoomFactor).clamp(5.0, 200.0);
-
-      if (newScale != _scale) {
-        // Zoom towards cursor position
-        final cursorPos = event.localPosition;
-        final center = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
-        final cursorFromCenter = cursorPos - center;
-
-        setState(() {
-          // Adjust offset to keep cursor position stable
-          _offset = cursorFromCenter - (cursorFromCenter - _offset) * (newScale / _scale);
-          _scale = newScale;
-        });
-      }
+      setState(() => _transform = _transform.scrolled(event, _canvasSize));
     }
   }
 
@@ -120,8 +85,8 @@ class _MapViewState extends State<MapView> {
     final tapPos = details.localPosition;
 
     for (final entry in _positions.entries) {
-      final station = entry.value;
-      final screenPos = _worldToScreen(station.east, station.north, _canvasSize);
+      final screenPos =
+          _transform.worldToScreen(entry.value.plan, _canvasSize);
 
       if ((screenPos - tapPos).distance < 20) {
         setState(() {
@@ -134,13 +99,6 @@ class _MapViewState extends State<MapView> {
     setState(() {
       _selectedStation = null;
     });
-  }
-
-  Offset _worldToScreen(double east, double north, Size size) {
-    return Offset(
-      east * _scale + _offset.dx + size.width / 2,
-      -north * _scale + _offset.dy + size.height / 2,
-    );
   }
 
   @override
@@ -193,7 +151,7 @@ class _MapViewState extends State<MapView> {
       statusText = l10n.mapStatusOverview(
         length.toStringAsFixed(1),
         depth.toStringAsFixed(1),
-        '1:${(1000 / _scale).round()}',
+        _transform.scaleLabel,
       );
     }
 
@@ -240,8 +198,7 @@ class _MapViewState extends State<MapView> {
                               sectionSurvey: section.survey,
                               sectionStations: sectionStations,
                               positions: _positions,
-                              scale: _scale,
-                              offset: _offset,
+                              transform: _transform,
                               selectedStation: _selectedStation,
                             ),
                             size: Size.infinite,
@@ -277,8 +234,7 @@ class _MapPainter extends CustomPainter {
   final Survey sectionSurvey;
   final Set<Point> sectionStations;
   final Map<Point, StationPosition> positions;
-  final double scale;
-  final Offset offset;
+  final ViewTransform transform;
   final Point? selectedStation;
 
   _MapPainter({
@@ -286,17 +242,12 @@ class _MapPainter extends CustomPainter {
     required this.sectionSurvey,
     required this.sectionStations,
     required this.positions,
-    required this.scale,
-    required this.offset,
+    required this.transform,
     this.selectedStation,
   });
 
-  Offset _worldToScreen(double east, double north, Size size) {
-    return Offset(
-      east * scale + offset.dx + size.width / 2,
-      -north * scale + offset.dy + size.height / 2,
-    );
-  }
+  Offset _toScreen(StationPosition pos, Size size) =>
+      transform.worldToScreen(pos.plan, size);
 
   void _drawStretches(
       Canvas canvas, Size size, Iterable<MeasuredDistance> stretches, Paint paint) {
@@ -305,8 +256,8 @@ class _MapPainter extends CustomPainter {
       final toPos = positions[stretch.to];
 
       if (fromPos != null && toPos != null) {
-        final from = _worldToScreen(fromPos.east, fromPos.north, size);
-        final to = _worldToScreen(toPos.east, toPos.north, size);
+        final from = _toScreen(fromPos, size);
+        final to = _toScreen(toPos, size);
         canvas.drawLine(from, to, paint);
       }
     }
@@ -355,8 +306,7 @@ class _MapPainter extends CustomPainter {
         return aInSection - bInSection;
       });
     for (final entry in orderedStations) {
-      final pos = entry.value;
-      final screenPos = _worldToScreen(pos.east, pos.north, size);
+      final screenPos = _toScreen(entry.value, size);
 
       final isSelected = entry.key == selectedStation;
       final paint = isSelected
@@ -375,8 +325,7 @@ class _MapPainter extends CustomPainter {
     );
 
     for (final entry in positions.entries) {
-      final pos = entry.value;
-      final screenPos = _worldToScreen(pos.east, pos.north, size);
+      final screenPos = _toScreen(entry.value, size);
 
       textPainter.text = TextSpan(
         text: entry.key.toString(),
@@ -392,8 +341,7 @@ class _MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MapPainter oldDelegate) {
-    return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset ||
+    return oldDelegate.transform != transform ||
         oldDelegate.selectedStation != selectedStation ||
         oldDelegate.positions != positions ||
         oldDelegate.sectionSurvey != sectionSurvey;

@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
+import 'widgets/view_transform.dart';
 
 enum SketchViewMode { outline, sideView }
 
@@ -40,15 +41,12 @@ class _SketchViewState extends State<SketchView> {
   Stroke? _currentStroke;
 
   // View transformation (separate for each view mode)
-  double _outlineScale = 20.0;
-  Offset _outlineOffset = Offset.zero;
-  double _sideViewScale = 20.0;
-  Offset _sideViewOffset = Offset.zero;
+  ViewTransform _outlineTransform = const ViewTransform();
+  ViewTransform _sideViewTransform = const ViewTransform();
 
-  // Gesture handling
-  double _startScale = 1.0;
-  Offset _startOffset = Offset.zero;
-  Offset _startFocalPoint = Offset.zero;
+  // Transform and focal point at the start of a pan or pinch gesture
+  ViewTransform _gestureStart = const ViewTransform();
+  Offset _gestureFocalPoint = Offset.zero;
 
   // Save lock to prevent concurrent writes
   Future<void>? _pendingSave;
@@ -58,21 +56,14 @@ class _SketchViewState extends State<SketchView> {
   // Track current section to detect changes
   String? _currentSectionId;
 
-  double get _scale => _viewMode == SketchViewMode.outline ? _outlineScale : _sideViewScale;
-  set _scale(double value) {
+  ViewTransform get _transform => _viewMode == SketchViewMode.outline
+      ? _outlineTransform
+      : _sideViewTransform;
+  set _transform(ViewTransform value) {
     if (_viewMode == SketchViewMode.outline) {
-      _outlineScale = value;
+      _outlineTransform = value;
     } else {
-      _sideViewScale = value;
-    }
-  }
-
-  Offset get _offset => _viewMode == SketchViewMode.outline ? _outlineOffset : _sideViewOffset;
-  set _offset(Offset value) {
-    if (_viewMode == SketchViewMode.outline) {
-      _outlineOffset = value;
-    } else {
-      _sideViewOffset = value;
+      _sideViewTransform = value;
     }
   }
 
@@ -114,34 +105,10 @@ class _SketchViewState extends State<SketchView> {
   }
 
   void _centerViews() {
-    // Center outline view
-    final outlineBounds = _computeBounds(
-      _positions.values.map((p) => Offset(p.east, -p.north)).toList(),
-    );
-    if (outlineBounds != null) {
-      _outlineOffset = -outlineBounds.center * _outlineScale;
-    }
-
-    // Center side view
-    final sideBounds = _computeBounds(_sideViewPositions.values.toList());
-    if (sideBounds != null) {
-      _sideViewOffset = -sideBounds.center * _sideViewScale;
-    }
-  }
-
-  Rect? _computeBounds(List<Offset> points) {
-    if (points.isEmpty) return null;
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = double.negativeInfinity;
-    double maxY = double.negativeInfinity;
-    for (final p in points) {
-      if (p.dx < minX) minX = p.dx;
-      if (p.dy < minY) minY = p.dy;
-      if (p.dx > maxX) maxX = p.dx;
-      if (p.dy > maxY) maxY = p.dy;
-    }
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
+    _outlineTransform =
+        _outlineTransform.centeredOn(_positions.values.map((p) => p.plan));
+    _sideViewTransform =
+        _sideViewTransform.centeredOn(_sideViewPositions.values);
   }
 
   Map<Point, Offset> _computeSideViewPositions(Survey survey) {
@@ -214,9 +181,8 @@ class _SketchViewState extends State<SketchView> {
       _viewMode == SketchViewMode.outline ? _outlineHistory : _sideViewHistory;
 
   void _onScaleStart(ScaleStartDetails details) {
-    _startScale = _scale;
-    _startOffset = _offset;
-    _startFocalPoint = details.localFocalPoint;
+    _gestureStart = _transform;
+    _gestureFocalPoint = details.localFocalPoint;
 
     if (details.pointerCount == 1) {
       if (_sketchMode == SketchMode.draw) {
@@ -245,36 +211,21 @@ class _SketchViewState extends State<SketchView> {
       _eraseAt(details.localFocalPoint);
     } else if (_sketchMode == SketchMode.move || details.pointerCount > 1) {
       setState(() {
-        _scale = (_startScale * details.scale).clamp(5.0, 200.0);
-        final focalPointDelta = details.localFocalPoint - _startFocalPoint;
-        _offset = _startOffset + focalPointDelta;
+        _transform = _gestureStart.pinched(
+            details.scale, details.localFocalPoint - _gestureFocalPoint);
       });
     }
   }
 
   void _onPointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
-      final newScale = (_scale * zoomFactor).clamp(5.0, 200.0);
-
-      if (newScale != _scale) {
-        // Zoom towards cursor position
-        final cursorPos = event.localPosition;
-        final center = Offset(_canvasSize.width / 2, _canvasSize.height / 2);
-        final cursorFromCenter = cursorPos - center;
-
-        setState(() {
-          // Adjust offset to keep cursor position stable
-          _offset = cursorFromCenter - (cursorFromCenter - _offset) * (newScale / _scale);
-          _scale = newScale;
-        });
-      }
+      setState(() => _transform = _transform.scrolled(event, _canvasSize));
     }
   }
 
   void _eraseAt(Offset screenPos) {
     final worldPos = _screenToWorld(screenPos);
-    final newSketch = _currentSketch.eraseAt(worldPos, 15 / _scale);
+    final newSketch = _currentSketch.eraseAt(worldPos, 15 / _transform.scale);
     if (newSketch != null) {
       setState(() {
         _currentSketch = newSketch;
@@ -336,12 +287,8 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  Offset _screenToWorld(Offset screenPos) {
-    return Offset(
-      (screenPos.dx - _canvasSize.width / 2 - _offset.dx) / _scale,
-      (screenPos.dy - _canvasSize.height / 2 - _offset.dy) / _scale,
-    );
-  }
+  Offset _screenToWorld(Offset screenPos) =>
+      _transform.screenToWorld(screenPos, _canvasSize);
 
   @override
   Widget build(BuildContext context) {
@@ -474,12 +421,11 @@ class _SketchViewState extends State<SketchView> {
                             painter: _SketchPainter(
                               survey: section.survey,
                               stationPositions: _viewMode == SketchViewMode.outline
-                                  ? _positions.map((k, v) => MapEntry(k, Offset(v.east, -v.north)))
+                                  ? _positions.map((k, v) => MapEntry(k, v.plan))
                                   : _sideViewPositions,
                               sketch: _currentSketch,
                               currentStroke: _currentStroke,
-                              scale: _scale,
-                              offset: _offset,
+                              transform: _transform,
                               isOutlineView: _viewMode == SketchViewMode.outline,
                             ),
                             size: Size.infinite,
@@ -497,7 +443,7 @@ class _SketchViewState extends State<SketchView> {
           child: Row(
             children: [
               Text(
-                l10n.sketchScale('1:${(1000 / _scale).round()}'),
+                l10n.sketchScale(_transform.scaleLabel),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -563,8 +509,7 @@ class _SketchPainter extends CustomPainter {
   final Map<Point, Offset> stationPositions;
   final Sketch sketch;
   final Stroke? currentStroke;
-  final double scale;
-  final Offset offset;
+  final ViewTransform transform;
   final bool isOutlineView;
 
   _SketchPainter({
@@ -572,17 +517,12 @@ class _SketchPainter extends CustomPainter {
     required this.stationPositions,
     required this.sketch,
     this.currentStroke,
-    required this.scale,
-    required this.offset,
+    required this.transform,
     required this.isOutlineView,
   });
 
-  Offset _worldToScreen(Offset worldPos, Size size) {
-    return Offset(
-      worldPos.dx * scale + offset.dx + size.width / 2,
-      worldPos.dy * scale + offset.dy + size.height / 2,
-    );
-  }
+  Offset _worldToScreen(Offset worldPos, Size size) =>
+      transform.worldToScreen(worldPos, size);
 
   /// Calculate splay shot endpoint in world coordinates
   Offset _calculateSplayEndpoint(Offset from, MeasuredDistance stretch) {
@@ -681,8 +621,7 @@ class _SketchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SketchPainter oldDelegate) {
-    return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset ||
+    return oldDelegate.transform != transform ||
         oldDelegate.sketch != sketch ||
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.isOutlineView != isOutlineView ||
