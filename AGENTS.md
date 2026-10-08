@@ -210,6 +210,9 @@ Persistence and serialization:
 - **`sketch_serialization.dart`**: Binary serialization for sketches
   (format version 2 adds cross sections; version 1 files still load)
 - **`settings_repository.dart`**: SharedPreferences-based settings persistence
+- **`pocket_topo_file.dart`**: Reads PocketTopo `.top` files (format in
+  `docs/pocket_topo/PocketTopoFileFormat.txt`) into trips, a survey and
+  sketches; repeated measurements of a survey shot are averaged
 
 **File structure on disk:**
 ```

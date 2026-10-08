@@ -187,8 +187,9 @@ class SketchColors {
   static const Color blue = Color(0xFF0000FF);
   static const Color red = Color(0xFFFF0000);
   static const Color green = Color(0xFF008000);
+  static const Color orange = Color(0xFFFF8C00);
 
-  static const List<Color> all = [black, brown, gray, blue, red, green];
+  static const List<Color> all = [black, brown, gray, blue, red, green, orange];
 }
 
 /// Drawing mode for the sketch view
