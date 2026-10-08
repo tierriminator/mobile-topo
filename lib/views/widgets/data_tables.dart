@@ -98,12 +98,18 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   /// Build a data row for the given index and item.
   List<Widget> buildDataCells(int index, T item);
 
-  /// Build context menu items for the given row.
+  /// The station shown in the given column of a row, or null if the column
+  /// holds no station or is empty.
+  Point? stationAt(T item, int col);
+
+  /// Build context menu items for the given row. [station] is the station in
+  /// the pressed cell, if any; station actions are only offered for it.
   List<PopupMenuEntry<String>> buildContextMenuItems(
-      AppLocalizations l10n, int index, T item);
+      AppLocalizations l10n, int index, T item, Point? station);
 
   /// Handle context menu selection.
-  void handleContextMenuSelection(String? value, int index, T item);
+  void handleContextMenuSelection(
+      String? value, int index, T item, Point? station);
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +259,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
         },
         onLongPressStart: (details) {
           // Show context menu (row already selected from onTapDown)
+          final station = stationAt(item, col);
           showMenu(
             context: context,
             position: RelativeRect.fromLTRB(
@@ -261,8 +268,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
               details.globalPosition.dx,
               details.globalPosition.dy,
             ),
-            items: buildContextMenuItems(l10n, row, item),
-          ).then((value) => handleContextMenuSelection(value, row, item));
+            items: buildContextMenuItems(l10n, row, item, station),
+          ).then((value) =>
+              handleContextMenuSelection(value, row, item, station));
         },
         child: child,
       ),
@@ -376,11 +384,19 @@ class StretchesTableState
   }
 
   @override
-  List<PopupMenuEntry<String>> buildContextMenuItems(
-      AppLocalizations l10n, int index, MeasuredDistance item) {
+  Point? stationAt(MeasuredDistance item, int col) => switch (col) {
+        0 => item.from,
+        1 => item.to,
+        _ => null,
+      };
+
+  @override
+  List<PopupMenuEntry<String>> buildContextMenuItems(AppLocalizations l10n,
+      int index, MeasuredDistance item, Point? station) {
     return [
-      PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
-      if (widget.seriesEnds.contains(item.station))
+      if (station != null)
+        PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
+      if (station != null && widget.seriesEnds.contains(station))
         PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
       if (!isReadOnly(index)) ...[
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
@@ -392,12 +408,12 @@ class StretchesTableState
 
   @override
   void handleContextMenuSelection(
-      String? value, int index, MeasuredDistance item) {
+      String? value, int index, MeasuredDistance item, Point? station) {
     switch (value) {
       case 'startHere':
-        widget.onStartHere?.call(item.station);
+        widget.onStartHere?.call(station!);
       case 'continueHere':
-        widget.onContinueHere?.call(item.station);
+        widget.onContinueHere?.call(station!);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':
@@ -496,10 +512,14 @@ class ReferencePointsTableState
   }
 
   @override
+  Point? stationAt(ReferencePoint item, int col) => col == 0 ? item.id : null;
+
+  @override
   List<PopupMenuEntry<String>> buildContextMenuItems(
-      AppLocalizations l10n, int index, ReferencePoint item) {
+      AppLocalizations l10n, int index, ReferencePoint item, Point? station) {
     return [
-      PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
+      if (station != null)
+        PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       if (!isReadOnly(index)) ...[
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
         PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
@@ -510,10 +530,10 @@ class ReferencePointsTableState
 
   @override
   void handleContextMenuSelection(
-      String? value, int index, ReferencePoint item) {
+      String? value, int index, ReferencePoint item, Point? station) {
     switch (value) {
       case 'startHere':
-        widget.onStartHere?.call(item.id);
+        widget.onStartHere?.call(station!);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

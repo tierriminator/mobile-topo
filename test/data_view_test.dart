@@ -61,13 +61,18 @@ void main() {
     );
   }
 
-  Future<void> openMenuOn(WidgetTester tester, String cellText) async {
-    await tester.longPress(find.text(cellText).first);
+  /// Long-presses the first cell showing [cellText], or the last one if
+  /// [last] is set
+  Future<void> openMenuOn(WidgetTester tester, String cellText,
+      {bool last = false}) async {
+    final cells = find.text(cellText);
+    await tester.longPress(last ? cells.last : cells.first);
     await tester.pumpAndSettle();
   }
 
-  Future<void> startHereOn(WidgetTester tester, String cellText) async {
-    await openMenuOn(tester, cellText);
+  Future<void> startHereOn(WidgetTester tester, String cellText,
+      {bool last = false}) async {
+    await openMenuOn(tester, cellText, last: last);
     await tester.tap(find.text('Start here'));
     await tester.pumpAndSettle();
   }
@@ -169,10 +174,51 @@ void main() {
 
       expect(find.text('5.00'), findsOneWidget);
 
-      await openMenuOn(tester, '5.00');
+      await openMenuOn(tester, '1.0');
       expect(find.text('Start here'), findsOneWidget);
       expect(find.text('Delete'), findsNothing);
       expect(find.text('Insert above'), findsNothing);
+    });
+  });
+
+  group('cell menus', () {
+    final current = section(
+      'current',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), null, 2, 0, 0),
+        ],
+        referencePoints: [],
+      ),
+    );
+
+    Future<void> pump(WidgetTester tester) => pumpDataView(
+          tester,
+          SelectionState()..selectSection(cave([current]), current),
+          MeasurementService(SettingsController()),
+        );
+
+    testWidgets('offer no station actions on a measurement cell',
+        (tester) async {
+      await pump(tester);
+
+      await openMenuOn(tester, '5.00');
+
+      expect(find.text('Start here'), findsNothing);
+      expect(find.text('Continue here'), findsNothing);
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('offer no station actions on an empty To cell',
+        (tester) async {
+      await pump(tester);
+
+      await openMenuOn(tester, '');
+
+      expect(find.text('Start here'), findsNothing);
+      expect(find.text('Continue here'), findsNothing);
+      expect(find.text('Delete'), findsOneWidget);
     });
   });
 
@@ -186,7 +232,7 @@ void main() {
       ),
     );
 
-    testWidgets('on a survey shot starts a new series at its To station',
+    testWidgets('on a To cell starts a new series at that station',
         (tester) async {
       final current = section(
         'current',
@@ -200,7 +246,8 @@ void main() {
       final measurementService = MeasurementService(SettingsController());
       await pumpDataView(tester, selectionState, measurementService);
 
-      await startHereOn(tester, '5.00');
+      // The other section's row lists 1.1 as From, this section's as To
+      await startHereOn(tester, '1.1', last: true);
 
       final stretches = selectionState.selectedSection!.survey.stretches;
       expect(stretches, hasLength(2));
@@ -211,15 +258,12 @@ void main() {
       expect(measurementService.currentStation, const Point(3, 0));
     });
 
-    testWidgets('on a backward shot starts a new series at its From station',
+    testWidgets('on a From cell starts a new series at that station',
         (tester) async {
       final current = section(
         'current',
         const Survey(
-          stretches: [
-            MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
-            MeasuredDistance(Point(1, 2), Point(1, 1), 6, 270, 0),
-          ],
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
           referencePoints: [],
         ),
       );
@@ -228,10 +272,10 @@ void main() {
       await pumpDataView(
           tester, selectionState, MeasurementService(SettingsController()));
 
-      await startHereOn(tester, '6.00');
+      await startHereOn(tester, '1.0');
 
       final dummy = selectionState.selectedSection!.survey.stretches.last;
-      expect(dummy.from, const Point(1, 2));
+      expect(dummy.from, const Point(1, 0));
       expect(dummy.to, const Point(3, 0));
     });
 
@@ -251,7 +295,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Reference Points'));
       await tester.pumpAndSettle();
-      await startHereOn(tester, '600');
+      await startHereOn(tester, '1.0');
 
       final stretches = selectionState.selectedSection!.survey.stretches;
       expect(stretches, hasLength(1));
@@ -284,7 +328,7 @@ void main() {
       final measurementService = MeasurementService(SettingsController());
       await pumpDataView(tester, selectionState, measurementService);
 
-      await openMenuOn(tester, '6.00');
+      await openMenuOn(tester, '1.2');
       await tester.tap(find.text('Continue here'));
       await tester.pumpAndSettle();
 
@@ -298,7 +342,7 @@ void main() {
       expect(measurementService.nextStation, const Point(1, 3));
     });
 
-    testWidgets('is offered on a backward shot ending a series',
+    testWidgets('is offered on the From cell of a backward shot ending a series',
         (tester) async {
       final backward = section(
         'backward',
@@ -315,7 +359,7 @@ void main() {
       await pumpDataView(
           tester, selectionState, MeasurementService(SettingsController()));
 
-      await openMenuOn(tester, '6.00');
+      await openMenuOn(tester, '1.2');
       await tester.tap(find.text('Continue here'));
       await tester.pumpAndSettle();
 
@@ -330,7 +374,7 @@ void main() {
       await pumpDataView(
           tester, selectionState, MeasurementService(SettingsController()));
 
-      await openMenuOn(tester, '5.00');
+      await openMenuOn(tester, '1.0');
 
       expect(find.text('Start here'), findsOneWidget);
       expect(find.text('Continue here'), findsNothing);
@@ -350,8 +394,10 @@ void main() {
       await pumpDataView(
           tester, selectionState, MeasurementService(SettingsController()));
 
-      await openMenuOn(tester, '6.00');
+      // 1.2 appears as From in the later section and as To in this one
+      await openMenuOn(tester, '1.2', last: true);
 
+      expect(find.text('Start here'), findsOneWidget);
       expect(find.text('Continue here'), findsNothing);
     });
   });
