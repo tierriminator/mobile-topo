@@ -142,6 +142,10 @@
   "@sketchModeErase": {
     "description": "Tooltip for eraser mode"
   },
+  "sketchShowAll": "Show All",
+  "@sketchShowAll": {
+    "description": "Outline menu option to also show the survey data of the rest of the cave"
+  },
   "sketchFlip": "Flip",
   "@sketchFlip": {
     "description": "Side view station menu: turn around the direction of the shot leading to the station"

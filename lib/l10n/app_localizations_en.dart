@@ -112,6 +112,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sketchModeErase => 'Erase';
 
   @override
+  String get sketchShowAll => 'Show All';
+
+  @override
   String get sketchFlip => 'Flip';
 
   @override

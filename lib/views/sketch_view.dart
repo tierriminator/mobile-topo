@@ -34,6 +34,11 @@ class _SketchViewState extends State<SketchView> {
   _SurveyDrawing _outlineDrawing = const _SurveyDrawing();
   _SurveyDrawing _sideViewDrawing = const _SurveyDrawing();
 
+  // The survey data of the rest of the cave in the outline, drawn with
+  // "Show All"
+  _SurveyDrawing _outlineRestDrawing = const _SurveyDrawing();
+  bool _showAll = false;
+
   // View mode
   SketchViewMode _viewMode = SketchViewMode.outline;
 
@@ -83,6 +88,7 @@ class _SketchViewState extends State<SketchView> {
         _positions = {};
         _outlineDrawing = const _SurveyDrawing();
         _sideViewDrawing = const _SurveyDrawing();
+        _outlineRestDrawing = const _SurveyDrawing();
         _outlineSketch = const Sketch();
         _sideViewSketch = const Sketch();
         _selectedStation = null;
@@ -102,11 +108,22 @@ class _SketchViewState extends State<SketchView> {
     _positions = Map.fromEntries(
         allPositions.entries.where((e) => stations.contains(e.key)));
 
-    _outlineDrawing = _SurveyDrawing.of(
-      sectionSurvey,
-      allPositions.map((k, v) => MapEntry(k, v.plan)),
-      (splay) => _planSplayEnd(allPositions, splay),
+    final planPositions = allPositions.map((k, v) => MapEntry(k, v.plan));
+    Offset? planSplayEnd(MeasuredDistance splay) =>
+        _planSplayEnd(allPositions, splay);
+    _outlineDrawing =
+        _SurveyDrawing.of(sectionSurvey, planPositions, planSplayEnd);
+    final otherSections = [
+      ...?cave?.allSections.where((s) => s.id != section.id),
+    ];
+    final restSurvey = Survey(
+      stretches: [for (final s in otherSections) ...s.survey.stretches],
+      referencePoints: [
+        for (final s in otherSections) ...s.survey.referencePoints,
+      ],
     );
+    _outlineRestDrawing = _SurveyDrawing.of(
+        cave?.corrected(restSurvey) ?? restSurvey, planPositions, planSplayEnd);
     final sideView = SideView.of(caveSurvey, allPositions);
     _sideViewDrawing = _SurveyDrawing.of(
       sectionSurvey,
@@ -452,6 +469,14 @@ class _SketchViewState extends State<SketchView> {
                     checked: settings.showGrid,
                     child: Text(l10n.optionsShowGrid),
                   ),
+                  // As in PocketTopo, only the outline can show the rest of
+                  // the cave
+                  if (_viewMode == SketchViewMode.outline)
+                    CheckedPopupMenuItem(
+                      value: () => setState(() => _showAll = !_showAll),
+                      checked: _showAll,
+                      child: Text(l10n.sketchShowAll),
+                    ),
                 ],
               ),
             ],
@@ -513,6 +538,10 @@ class _SketchViewState extends State<SketchView> {
                           child: CustomPaint(
                             painter: _SketchPainter(
                               drawing: _drawing,
+                              background: _showAll &&
+                                      _viewMode == SketchViewMode.outline
+                                  ? _outlineRestDrawing
+                                  : null,
                               selectedStation: _selectedStation,
                               sketch: _currentSketch,
                               currentStroke: _currentStroke,
@@ -646,6 +675,10 @@ class _SurveyDrawing {
 
 class _SketchPainter extends CustomPainter {
   final _SurveyDrawing drawing;
+
+  /// Survey data drawn underneath [drawing], for "Show All"
+  final _SurveyDrawing? background;
+
   final Point? selectedStation;
   final Sketch sketch;
   final Stroke? currentStroke;
@@ -656,6 +689,7 @@ class _SketchPainter extends CustomPainter {
 
   _SketchPainter({
     required this.drawing,
+    this.background,
     this.selectedStation,
     required this.sketch,
     this.currentStroke,
@@ -687,17 +721,20 @@ class _SketchPainter extends CustomPainter {
     }
   }
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (gridSpacing case final spacing?) _drawGrid(canvas, size, spacing);
-
+  void _drawSurvey(
+    Canvas canvas,
+    Size size,
+    _SurveyDrawing drawing, {
+    required Color color,
+    required Color splayColor,
+  }) {
     final shotPaint = Paint()
-      ..color = Colors.red
+      ..color = color
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final splayPaint = Paint()
-      ..color = Colors.orange
+      ..color = splayColor
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
@@ -715,11 +752,24 @@ class _SketchPainter extends CustomPainter {
         canvas,
         _worldToScreen(entry.value, size),
         entry.key,
-        color: Colors.red,
+        color: color,
         selected: entry.key == selectedStation,
         radius: 3,
       );
     }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (gridSpacing case final spacing?) _drawGrid(canvas, size, spacing);
+
+    // The rest of the cave in black, as in the map view
+    if (background case final background?) {
+      _drawSurvey(canvas, size, background,
+          color: Colors.black, splayColor: Colors.grey);
+    }
+    _drawSurvey(canvas, size, drawing,
+        color: Colors.red, splayColor: Colors.orange);
 
     for (final stroke in sketch.strokes) {
       _drawStroke(canvas, size, stroke);
@@ -759,6 +809,7 @@ class _SketchPainter extends CustomPainter {
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.gridSpacing != gridSpacing ||
         oldDelegate.selectedStation != selectedStation ||
-        oldDelegate.drawing != drawing;
+        oldDelegate.drawing != drawing ||
+        oldDelegate.background != background;
   }
 }

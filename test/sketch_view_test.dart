@@ -10,6 +10,7 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/sketch_view.dart';
@@ -151,6 +152,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.saved.last.survey.stretches.single.flipped, isTrue);
+  });
+
+  testWidgets('Show All adds the rest of the cave to the outline',
+      (tester) async {
+    final entrance = _section('entrance', _singleShot);
+    final continuation = _section(
+      'continuation',
+      const Survey(
+        stretches: [MeasuredDistance(Point(1, 1), Point(1, 2), 4, 180, 0)],
+        referencePoints: [],
+      ),
+    );
+    // Without the grid, the only lines are survey shots
+    await _pumpSketchView(
+        tester, _cave([entrance, continuation]), continuation,
+        settings: SettingsController(const Settings(showGrid: false)));
+    final canvas = find.byType(CustomPaint).last;
+
+    expect(tester.renderObject(canvas),
+        paintsExactlyCountTimes(#drawLine, 1));
+
+    await tester.tap(find.byType(PopupMenuButton<VoidCallback>));
+    await tester.pumpAndSettle();
+    await tester.tap(
+        find.widgetWithText(CheckedPopupMenuItem<VoidCallback>, 'Show All'));
+    await tester.pumpAndSettle();
+
+    expect(tester.renderObject(canvas),
+        paintsExactlyCountTimes(#drawLine, 2));
   });
 
   testWidgets('the grid is toggled from the menu', (tester) async {

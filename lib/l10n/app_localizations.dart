@@ -286,6 +286,12 @@ abstract class AppLocalizations {
   /// **'Erase'**
   String get sketchModeErase;
 
+  /// Outline menu option to also show the survey data of the rest of the cave
+  ///
+  /// In en, this message translates to:
+  /// **'Show All'**
+  String get sketchShowAll;
+
   /// Side view station menu: turn around the direction of the shot leading to the station
   ///
   /// In en, this message translates to:
