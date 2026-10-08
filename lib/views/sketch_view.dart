@@ -13,6 +13,7 @@ import '../models/settings.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
+import 'widgets/station_markers.dart';
 import 'widgets/view_transform.dart';
 
 enum SketchViewMode { outline, sideView }
@@ -57,6 +58,9 @@ class _SketchViewState extends State<SketchView> {
 
   Size _canvasSize = Size.zero;
 
+  // Station tapped in move mode, shown in the status bar
+  Point? _selectedStation;
+
   // Track current section to detect changes
   String? _currentSectionId;
 
@@ -78,6 +82,7 @@ class _SketchViewState extends State<SketchView> {
         _sideViewPositions = {};
         _outlineSketch = const Sketch();
         _sideViewSketch = const Sketch();
+        _selectedStation = null;
         _currentSectionId = null;
       }
       return;
@@ -103,9 +108,25 @@ class _SketchViewState extends State<SketchView> {
       _sideViewSketch = section.sideViewSketch;
       _outlineHistory.clear();
       _sideViewHistory.clear();
+      _selectedStation = null;
       _currentSectionId = section.id;
       _centerViews();
     }
+  }
+
+  /// Where the stations appear in the current view, in world coordinates
+  Map<Point, Offset> get _stationPositions =>
+      _viewMode == SketchViewMode.outline
+          ? _positions.map((k, v) => MapEntry(k, v.plan))
+          : _sideViewPositions;
+
+  /// Selects the station at a tap in move mode, or clears the selection
+  /// when no station is near
+  void _onTapUp(TapUpDetails details) {
+    if (_sketchMode != SketchMode.move) return;
+    final tapped = stationAt(
+        _stationPositions, details.localPosition, _transform, _canvasSize);
+    setState(() => _selectedStation = tapped);
   }
 
   void _centerViews() {
@@ -302,6 +323,15 @@ class _SketchViewState extends State<SketchView> {
     return settings.lengthUnit == LengthUnit.feet ? 5 * 0.3048 : 1.0;
   }
 
+  /// The selected station's ID and coordinates, or else the scale
+  String _statusText(AppLocalizations l10n, double pixelsPerMm) {
+    final pos = _positions[_selectedStation];
+    if (pos == null) {
+      return l10n.sketchScale(_transform.scaleLabel(pixelsPerMm));
+    }
+    return stationStatus(l10n, pos);
+  }
+
   void _toggleGrid() {
     final settings = context.read<SettingsController>();
     settings.showGrid = !settings.showGrid;
@@ -447,13 +477,13 @@ class _SketchViewState extends State<SketchView> {
                         onScaleStart: _onScaleStart,
                         onScaleUpdate: _onScaleUpdate,
                         onScaleEnd: _onScaleEnd,
+                        onTapUp: _onTapUp,
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _SketchPainter(
                               survey: section.survey,
-                              stationPositions: _viewMode == SketchViewMode.outline
-                                  ? _positions.map((k, v) => MapEntry(k, v.plan))
-                                  : _sideViewPositions,
+                              stationPositions: _stationPositions,
+                              selectedStation: _selectedStation,
                               sketch: _currentSketch,
                               currentStroke: _currentStroke,
                               transform: _transform,
@@ -474,9 +504,11 @@ class _SketchViewState extends State<SketchView> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              Text(
-                l10n.sketchScale(_transform.scaleLabel(pixelsPerMm)),
-                style: Theme.of(context).textTheme.bodySmall,
+              Expanded(
+                child: Text(
+                  _statusText(l10n, pixelsPerMm),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -539,6 +571,7 @@ class _SketchViewState extends State<SketchView> {
 class _SketchPainter extends CustomPainter {
   final Survey survey;
   final Map<Point, Offset> stationPositions;
+  final Point? selectedStation;
   final Sketch sketch;
   final Stroke? currentStroke;
   final ViewTransform transform;
@@ -550,6 +583,7 @@ class _SketchPainter extends CustomPainter {
   _SketchPainter({
     required this.survey,
     required this.stationPositions,
+    this.selectedStation,
     required this.sketch,
     this.currentStroke,
     required this.transform,
@@ -618,10 +652,6 @@ class _SketchPainter extends CustomPainter {
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
-    final stationPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-
     for (final stretch in survey.stretches) {
       final fromPos = stationPositions[stretch.from];
 
@@ -643,8 +673,14 @@ class _SketchPainter extends CustomPainter {
     }
 
     for (final entry in stationPositions.entries) {
-      final screenPos = _worldToScreen(entry.value, size);
-      canvas.drawCircle(screenPos, 3, stationPaint);
+      paintStation(
+        canvas,
+        _worldToScreen(entry.value, size),
+        entry.key,
+        color: Colors.red,
+        selected: entry.key == selectedStation,
+        radius: 3,
+      );
     }
 
     for (final stroke in sketch.strokes) {
@@ -685,6 +721,7 @@ class _SketchPainter extends CustomPainter {
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.isOutlineView != isOutlineView ||
         oldDelegate.gridSpacing != gridSpacing ||
+        oldDelegate.selectedStation != selectedStation ||
         oldDelegate.survey != survey ||
         oldDelegate.stationPositions != stationPositions;
   }

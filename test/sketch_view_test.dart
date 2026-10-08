@@ -106,6 +106,25 @@ void main() {
     expect(find.textContaining('Scale: 1:0.'), findsOneWidget);
   });
 
+  testWidgets('tapping a station shows its coordinates', (tester) async {
+    final section = _section('section', _singleShot);
+    await _pumpSketchView(tester, _cave([section]), section);
+
+    // The view is centred between the stations at 0 m and 5 m east, at the
+    // default 20 px per metre
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+    await tester.tapAt(center + const Offset(50, 0));
+    await tester.pump(kDoubleTapTimeout);
+
+    expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
+
+    // Tapping away from the stations shows the scale again
+    await tester.tapAt(center + const Offset(0, 100));
+    await tester.pump(kDoubleTapTimeout);
+
+    expect(find.textContaining('Scale: '), findsOneWidget);
+  });
+
   testWidgets('the grid is toggled from the menu', (tester) async {
     final section = _section('section', _singleShot);
     final settings = SettingsController();

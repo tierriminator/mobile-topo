@@ -90,12 +90,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String mapStatusStation(
-    String id,
-    String east,
-    String north,
-    String altitude,
-  ) {
+  String stationStatus(String id, String east, String north, String altitude) {
     return 'Station $id: E ${east}m, N ${north}m, Alt ${altitude}m';
   }
 

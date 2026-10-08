@@ -109,9 +109,9 @@
       "scale": {"type": "String"}
     }
   },
-  "mapStatusStation": "Station {id}: E {east}m, N {north}m, Alt {altitude}m",
-  "@mapStatusStation": {
-    "description": "Map status bar showing selected station info",
+  "stationStatus": "Station {id}: E {east}m, N {north}m, Alt {altitude}m",
+  "@stationStatus": {
+    "description": "Map and sketch status bar showing selected station info",
     "placeholders": {
       "id": {"type": "String"},
       "east": {"type": "String"},

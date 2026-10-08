@@ -250,16 +250,11 @@ abstract class AppLocalizations {
   /// **'Length: {length}m  Depth: {depth}m  Scale: {scale}'**
   String mapStatusOverview(String length, String depth, String scale);
 
-  /// Map status bar showing selected station info
+  /// Map and sketch status bar showing selected station info
   ///
   /// In en, this message translates to:
   /// **'Station {id}: E {east}m, N {north}m, Alt {altitude}m'**
-  String mapStatusStation(
-    String id,
-    String east,
-    String north,
-    String altitude,
-  );
+  String stationStatus(String id, String east, String north, String altitude);
 
   /// Label for outline (plan) view in sketch
   ///

@@ -5,6 +5,7 @@ import '../controllers/selection_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
+import 'widgets/station_markers.dart';
 import 'widgets/view_transform.dart';
 
 class MapView extends StatefulWidget {
@@ -83,23 +84,13 @@ class _MapViewState extends State<MapView> {
   }
 
   void _handleTapUp(TapUpDetails details) {
-    final tapPos = details.localPosition;
-
-    for (final entry in _positions.entries) {
-      final screenPos =
-          _transform.worldToScreen(entry.value.plan, _canvasSize);
-
-      if ((screenPos - tapPos).distance < 20) {
-        setState(() {
-          _selectedStation = entry.key;
-        });
-        return;
-      }
-    }
-
-    setState(() {
-      _selectedStation = null;
-    });
+    final tapped = stationAt(
+      _positions.map((k, v) => MapEntry(k, v.plan)),
+      details.localPosition,
+      _transform,
+      _canvasSize,
+    );
+    setState(() => _selectedStation = tapped);
   }
 
   @override
@@ -140,14 +131,8 @@ class _MapViewState extends State<MapView> {
     final length = caveSurvey.totalLength;
 
     String statusText;
-    if (_selectedStation != null && _positions.containsKey(_selectedStation)) {
-      final pos = _positions[_selectedStation]!;
-      statusText = l10n.mapStatusStation(
-        _selectedStation.toString(),
-        pos.east.toStringAsFixed(1),
-        pos.north.toStringAsFixed(1),
-        pos.altitude.toStringAsFixed(1),
-      );
+    if (_positions[_selectedStation] case final pos?) {
+      statusText = stationStatus(l10n, pos);
     } else {
       statusText = l10n.mapStatusOverview(
         length.toStringAsFixed(1),
@@ -277,18 +262,6 @@ class _MapPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    final caveStationPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-
-    final sectionStationPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
-
-    final selectedPaint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.fill;
-
     // Draw survey shots: the rest of the cave first, the section on top
     final sectionStretches = Set<MeasuredDistance>.identity()
       ..addAll(sectionSurvey.stretches);
@@ -308,36 +281,13 @@ class _MapPainter extends CustomPainter {
         return aInSection - bInSection;
       });
     for (final entry in orderedStations) {
-      final screenPos = _toScreen(entry.value, size);
-
-      final isSelected = entry.key == selectedStation;
-      final paint = isSelected
-          ? selectedPaint
-          : sectionStations.contains(entry.key)
-              ? sectionStationPaint
-              : caveStationPaint;
-      final radius = isSelected ? 6.0 : 4.0;
-
-      canvas.drawCircle(screenPos, radius, paint);
-    }
-
-    // Draw station labels
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-
-    for (final entry in positions.entries) {
-      final screenPos = _toScreen(entry.value, size);
-
-      textPainter.text = TextSpan(
-        text: entry.key.toString(),
-        style: TextStyle(
-          color: entry.key == selectedStation ? Colors.blue : Colors.black87,
-          fontSize: 10,
-        ),
+      paintStation(
+        canvas,
+        _toScreen(entry.value, size),
+        entry.key,
+        color: sectionStations.contains(entry.key) ? Colors.red : Colors.black,
+        selected: entry.key == selectedStation,
       );
-      textPainter.layout();
-      textPainter.paint(canvas, screenPos + const Offset(6, -12));
     }
   }
 
