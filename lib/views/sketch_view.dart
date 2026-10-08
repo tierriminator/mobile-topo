@@ -492,12 +492,15 @@ class _SketchViewState extends State<SketchView> {
   /// where a metre takes up no more than a millimetre on the screen.
   double? _gridSpacing(SettingsController settings, double pixelsPerMm) {
     if (!settings.showGrid || _transform.scale <= pixelsPerMm) return null;
-    return settings.lengthUnit == LengthUnit.feet ? 5 * 0.3048 : 1.0;
+    return settings.lengthUnit == LengthUnit.feet
+        ? LengthUnit.feet.toMeters(5)
+        : 1.0;
   }
 
   /// What to do to place a chosen cross section, the selected station's ID
   /// and coordinates, or else the scale
-  String _statusText(AppLocalizations l10n, double pixelsPerMm) {
+  String _statusText(
+      AppLocalizations l10n, double pixelsPerMm, LengthUnit lengthUnit) {
     if (_pendingCrossSection case final pending?) {
       return l10n.sketchPlaceCrossSection(pending.station.toString());
     }
@@ -505,7 +508,7 @@ class _SketchViewState extends State<SketchView> {
     if (pos == null) {
       return l10n.sketchScale(_transform.scaleLabel(pixelsPerMm));
     }
-    return stationStatus(l10n, pos);
+    return stationStatus(l10n, pos, lengthUnit);
   }
 
   void _toggleGrid() {
@@ -704,7 +707,7 @@ class _SketchViewState extends State<SketchView> {
             children: [
               Expanded(
                 child: Text(
-                  _statusText(l10n, pixelsPerMm),
+                  _statusText(l10n, pixelsPerMm, settings.lengthUnit),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

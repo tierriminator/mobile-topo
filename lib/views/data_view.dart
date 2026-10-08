@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/settings_controller.dart';
 import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
@@ -443,6 +444,7 @@ class _DataViewState extends State<DataView> {
 
   Widget _buildDataContent(Section section) {
     final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsController>();
 
     // Like PocketTopo, the table lists the whole cave: the other sections'
     // rows come first and are read-only, this section's rows follow. Table
@@ -483,6 +485,8 @@ class _DataViewState extends State<DataView> {
             : StretchesTable(
                 key: _stretchesTableKey,
                 data: stretches,
+                lengthUnit: settings.lengthUnit,
+                angleUnit: settings.angleUnit,
                 readOnlyRows: stretchOffset,
                 onShowStation: _viewNavigation.show,
                 sketchStations: section.survey.stations,
@@ -532,6 +536,7 @@ class _DataViewState extends State<DataView> {
             : ReferencePointsTable(
                 key: _referencePointsTableKey,
                 data: referencePoints,
+                lengthUnit: settings.lengthUnit,
                 readOnlyRows: pointOffset,
                 onShowStation: _viewNavigation.show,
                 sketchStations: section.survey.stations,

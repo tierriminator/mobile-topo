@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
+import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/views/trip_page.dart';
@@ -39,18 +42,25 @@ void main() {
     modifiedAt: DateTime(2026),
   );
 
-  /// Opens the page for [trip] and returns the pending result of editTrip
+  /// Opens the page for [tripToEdit], or else [trip], with [settings] and
+  /// returns the pending result of editTrip
   Future<Future<Trip?>> open(WidgetTester tester,
-      {Future<bool> Function()? onDelete}) async {
+      {Future<bool> Function()? onDelete,
+      Trip? tripToEdit,
+      Settings settings = const Settings()}) async {
     late Future<Trip?> result;
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () =>
-              result = editTrip(context, cave, trip, onDelete: onDelete),
-          child: const Text('open'),
+    await tester.pumpWidget(ChangeNotifierProvider(
+      create: (_) => SettingsController(settings),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => result = editTrip(
+                context, cave, tripToEdit ?? trip,
+                onDelete: onDelete),
+            child: const Text('open'),
+          ),
         ),
       ),
     ));
@@ -93,6 +103,46 @@ void main() {
     await open(tester);
     // Only the trip's survey shots count, not its cross section
     expect(find.text('12.5 m'), findsOneWidget);
+  });
+
+  testWidgets('the surveyed length is shown in the length unit',
+      (tester) async {
+    await open(tester, settings: const Settings(lengthUnit: LengthUnit.feet));
+    expect(find.text('41.0 ft'), findsOneWidget);
+  });
+
+  group('in grad', () {
+    const grad = Settings(angleUnit: AngleUnit.grad);
+    final tripInGrad = trip.copyWith(declination: 0.9);
+
+    testWidgets('the declination is shown in grad', (tester) async {
+      await open(tester, tripToEdit: tripInGrad, settings: grad);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('g'), findsOneWidget);
+    });
+
+    testWidgets('an entered declination is stored in degrees',
+        (tester) async {
+      final result =
+          await open(tester, tripToEdit: tripInGrad, settings: grad);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Declination correction'), '2');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect((await result)?.declination, closeTo(1.8, 1e-9));
+    });
+
+    testWidgets('an unchanged declination is kept as it is', (tester) async {
+      // 0.95° shows rounded to 1.056g; leaving it must not store 1.056g
+      final result = await open(tester,
+          tripToEdit: trip.copyWith(declination: 0.95), settings: grad);
+      expect(find.text('1.056'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(await result, isNull);
+    });
   });
 
   testWidgets('without onDelete there is no delete button', (tester) async {

@@ -1,8 +1,34 @@
 /// App settings for Mobile Topo
 
-enum LengthUnit { meters, feet }
+/// Unit lengths are shown and edited in. Lengths are always stored in meters.
+enum LengthUnit {
+  meters(1, 'm'),
+  feet(0.3048, 'ft');
 
-enum AngleUnit { degrees, grad }
+  const LengthUnit(this.inMeters, this.symbol);
+
+  /// Length of one unit in meters
+  final double inMeters;
+  final String symbol;
+
+  double fromMeters(num value) => value / inMeters;
+  double toMeters(num value) => value * inMeters;
+}
+
+/// Unit angles are shown and edited in. Angles are always stored in degrees.
+enum AngleUnit {
+  degrees(360, '°'),
+  grad(400, 'g');
+
+  const AngleUnit(this.fullCircle, this.symbol);
+
+  /// Number of units in a full circle
+  final double fullCircle;
+  final String symbol;
+
+  double fromDegrees(num value) => value * fullCircle / 360;
+  double toDegrees(num value) => value * 360 / fullCircle;
+}
 
 enum ShotDirection { forward, backward }
 

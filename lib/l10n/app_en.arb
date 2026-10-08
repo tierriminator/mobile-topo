@@ -100,23 +100,25 @@
   "@columnAltitude": {
     "description": "Column header for altitude"
   },
-  "mapStatusOverview": "Length: {length}m  Depth: {depth}m  Scale: {scale}",
+  "mapStatusOverview": "Length: {length}{unit}  Depth: {depth}{unit}  Scale: {scale}",
   "@mapStatusOverview": {
     "description": "Map status bar showing cave overview",
     "placeholders": {
       "length": {"type": "String"},
       "depth": {"type": "String"},
+      "unit": {"type": "String", "description": "Length unit symbol, like m or ft"},
       "scale": {"type": "String"}
     }
   },
-  "stationStatus": "Station {id}: E {east}m, N {north}m, Alt {altitude}m",
+  "stationStatus": "Station {id}: E {east}{unit}, N {north}{unit}, Alt {altitude}{unit}",
   "@stationStatus": {
     "description": "Map and sketch status bar showing selected station info",
     "placeholders": {
       "id": {"type": "String"},
       "east": {"type": "String"},
       "north": {"type": "String"},
-      "altitude": {"type": "String"}
+      "altitude": {"type": "String"},
+      "unit": {"type": "String", "description": "Length unit symbol, like m or ft"}
     }
   },
   "sketchOutline": "Outline",

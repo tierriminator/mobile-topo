@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../controllers/view_navigation.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/settings.dart';
 import '../../models/survey.dart';
+import 'number_format.dart';
 
 /// Base class for editable data tables with sticky headers.
 abstract class EditableDataTable<T> extends StatefulWidget {
@@ -27,6 +29,10 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   /// outline and side view
   final Set<Point> sketchStations;
 
+  /// Units lengths and angles are shown and edited in
+  final LengthUnit lengthUnit;
+  final AngleUnit angleUnit;
+
   const EditableDataTable({
     super.key,
     required this.data,
@@ -39,6 +45,8 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.readOnlyRows = 0,
     this.onShowStation,
     this.sketchStations = const {},
+    this.lengthUnit = LengthUnit.meters,
+    this.angleUnit = AngleUnit.degrees,
   });
 }
 
@@ -452,6 +460,8 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.readOnlyRows,
     super.onShowStation,
     super.sketchStations,
+    super.lengthUnit,
+    super.angleUnit,
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
@@ -497,6 +507,8 @@ class StretchesTableState
 
   @override
   List<Widget> buildDataCells(int index, MeasuredDistance stretch) {
+    final length = widget.lengthUnit;
+    final angle = widget.angleUnit;
     return [
       _PointCell(
         point: stretch.from,
@@ -511,25 +523,28 @@ class StretchesTableState
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: stretch.distance,
+        value: length.fromMeters(stretch.distance),
         decimalPlaces: 2,
         isEditing: isEditing(index, 2),
-        onChanged: (v) => _updateStretch(index, stretch, distance: v),
+        onChanged: (v) =>
+            _updateStretch(index, stretch, distance: length.toMeters(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: stretch.azimut,
+        value: angle.fromDegrees(stretch.azimut),
         decimalPlaces: 0,
         isEditing: isEditing(index, 3),
-        onChanged: (v) => _updateStretch(index, stretch, azimut: v),
+        onChanged: (v) =>
+            _updateStretch(index, stretch, azimut: angle.toDegrees(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: stretch.inclination,
+        value: angle.fromDegrees(stretch.inclination),
         signed: true,
         decimalPlaces: 0,
         isEditing: isEditing(index, 4),
-        onChanged: (v) => _updateStretch(index, stretch, inclination: v),
+        onChanged: (v) =>
+            _updateStretch(index, stretch, inclination: angle.toDegrees(v)),
         onEditingComplete: _clearEditing,
       ),
     ];
@@ -606,6 +621,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.readOnlyRows,
     super.onShowStation,
     super.sketchStations,
+    super.lengthUnit,
     this.onUpdate,
     this.onStartHere,
   });
@@ -645,6 +661,7 @@ class ReferencePointsTableState
 
   @override
   List<Widget> buildDataCells(int index, ReferencePoint point) {
+    final length = widget.lengthUnit;
     return [
       _PointCell(
         point: point.id,
@@ -653,24 +670,27 @@ class ReferencePointsTableState
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: point.east,
+        value: length.fromMeters(point.east),
         signed: true,
         isEditing: isEditing(index, 1),
-        onChanged: (v) => _updatePoint(index, point, east: v),
+        onChanged: (v) =>
+            _updatePoint(index, point, east: length.toMeters(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: point.north,
+        value: length.fromMeters(point.north),
         signed: true,
         isEditing: isEditing(index, 2),
-        onChanged: (v) => _updatePoint(index, point, north: v),
+        onChanged: (v) =>
+            _updatePoint(index, point, north: length.toMeters(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: point.altitude,
+        value: length.fromMeters(point.altitude),
         signed: true,
         isEditing: isEditing(index, 3),
-        onChanged: (v) => _updatePoint(index, point, altitude: v),
+        onChanged: (v) =>
+            _updatePoint(index, point, altitude: length.toMeters(v)),
         onEditingComplete: _clearEditing,
       ),
     ];
@@ -979,16 +999,8 @@ class _NumberCellState extends State<_NumberCell> {
     }
   }
 
-  String _formatValue(num value) {
-    final decimals = widget.decimalPlaces;
-    if (decimals != null) {
-      return value.toDouble().toStringAsFixed(decimals);
-    }
-    if (value == value.toInt()) {
-      return value.toInt().toString();
-    }
-    return value.toString();
-  }
+  String _formatValue(num value) =>
+      formatNumber(value, decimals: widget.decimalPlaces);
 
   @override
   void dispose() {
@@ -1006,6 +1018,9 @@ class _NumberCellState extends State<_NumberCell> {
   }
 
   void _saveValue() {
+    // The shown value is rounded and possibly converted to another unit, so
+    // saving it unchanged would alter the stored value
+    if (_controller.text == _formatValue(widget.value)) return;
     final parsed = num.tryParse(_controller.text);
     if (parsed != null) {
       widget.onChanged?.call(parsed);

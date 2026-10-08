@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
+import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
@@ -41,6 +42,7 @@ Future<void> _pumpMapView(WidgetTester tester,
         ChangeNotifierProvider(
             create: (_) => SelectionState()..selectSection(cave, section)),
         ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
+        ChangeNotifierProvider(create: (_) => SettingsController()),
         // A typical phone: 160 dp per inch
         Provider.value(value: const ScreenDensity(6.3)),
       ],

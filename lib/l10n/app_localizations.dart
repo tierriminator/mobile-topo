@@ -247,14 +247,25 @@ abstract class AppLocalizations {
   /// Map status bar showing cave overview
   ///
   /// In en, this message translates to:
-  /// **'Length: {length}m  Depth: {depth}m  Scale: {scale}'**
-  String mapStatusOverview(String length, String depth, String scale);
+  /// **'Length: {length}{unit}  Depth: {depth}{unit}  Scale: {scale}'**
+  String mapStatusOverview(
+    String length,
+    String depth,
+    String unit,
+    String scale,
+  );
 
   /// Map and sketch status bar showing selected station info
   ///
   /// In en, this message translates to:
-  /// **'Station {id}: E {east}m, N {north}m, Alt {altitude}m'**
-  String stationStatus(String id, String east, String north, String altitude);
+  /// **'Station {id}: E {east}{unit}, N {north}{unit}, Alt {altitude}{unit}'**
+  String stationStatus(
+    String id,
+    String east,
+    String north,
+    String altitude,
+    String unit,
+  );
 
   /// Label for outline (plan) view in sketch
   ///

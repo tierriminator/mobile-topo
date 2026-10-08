@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/settings_controller.dart';
 import '../controllers/view_navigation.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
@@ -208,16 +209,18 @@ class _MapViewState extends State<MapView> {
       );
     }
 
+    final lengthUnit = context.watch<SettingsController>().lengthUnit;
     final depth = caveSurvey.computeDepth(_positions);
     final length = caveSurvey.totalLength;
 
     String statusText;
     if (_positions[_selectedStation] case final pos?) {
-      statusText = stationStatus(l10n, pos);
+      statusText = stationStatus(l10n, pos, lengthUnit);
     } else {
       statusText = l10n.mapStatusOverview(
-        length.toStringAsFixed(1),
-        depth.toStringAsFixed(1),
+        lengthUnit.fromMeters(length).toStringAsFixed(1),
+        lengthUnit.fromMeters(depth).toStringAsFixed(1),
+        lengthUnit.symbol,
         _transform.scaleLabel(
             context.watch<ScreenDensity>().logicalPixelsPerMm),
       );

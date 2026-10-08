@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/settings.dart';
 import '../models/trip.dart';
+import 'widgets/number_format.dart';
 
 /// Short description of a trip: its date, followed by the first line of its
 /// comment
@@ -60,20 +64,24 @@ class TripPage extends StatefulWidget {
 }
 
 class _TripPageState extends State<TripPage> {
+  /// The settings giving the units, which cannot change while the page is
+  /// open
+  late final Settings _settings;
   late DateTime _date;
+
+  /// The declination as first shown, in the angle unit
+  late final String _declinationText;
   late final TextEditingController _declinationController;
   late final TextEditingController _commentController;
 
   @override
   void initState() {
     super.initState();
+    _settings = context.read<SettingsController>().settings;
     _date = widget.trip.date;
-    final declination = widget.trip.declination;
-    _declinationController = TextEditingController(
-      text: declination == declination.toInt()
-          ? declination.toInt().toString()
-          : declination.toString(),
-    );
+    _declinationText =
+        formatNumber(_settings.angleUnit.fromDegrees(widget.trip.declination));
+    _declinationController = TextEditingController(text: _declinationText);
     _commentController = TextEditingController(text: widget.trip.comment);
   }
 
@@ -100,15 +108,24 @@ class _TripPageState extends State<TripPage> {
     if (deleted && mounted) Navigator.of(context).pop();
   }
 
+  /// The declination in degrees. Unless its text was changed, it is the
+  /// trip's own, which converting the shown, rounded value back would alter.
+  num get _declination {
+    final text = _declinationController.text;
+    if (text == _declinationText) return widget.trip.declination;
+    return _settings.angleUnit.toDegrees(num.tryParse(text) ?? 0);
+  }
+
   Trip get _edited => widget.trip.copyWith(
         date: _date,
-        declination: num.tryParse(_declinationController.text) ?? 0,
+        declination: _declination,
         comment: _commentController.text.trim(),
       );
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final lengthUnit = _settings.lengthUnit;
 
     return PopScope<Trip>(
       canPop: false,
@@ -125,7 +142,8 @@ class _TripPageState extends State<TripPage> {
               leading: const Icon(Icons.straighten),
               title: Text(l10n.tripLength),
               trailing: Text(
-                '${widget.cave.tripLength(widget.trip.id).toStringAsFixed(1)} m',
+                '${lengthUnit.fromMeters(widget.cave.tripLength(widget.trip.id)).toStringAsFixed(1)} '
+                '${lengthUnit.symbol}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -149,7 +167,7 @@ class _TripPageState extends State<TripPage> {
                 labelText: l10n.tripDeclination,
                 helperText: l10n.tripDeclinationHelp,
                 helperMaxLines: 3,
-                suffixText: '°',
+                suffixText: _settings.angleUnit.symbol,
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,

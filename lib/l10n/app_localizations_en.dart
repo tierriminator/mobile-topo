@@ -85,13 +85,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get columnAltitude => 'Alt.';
 
   @override
-  String mapStatusOverview(String length, String depth, String scale) {
-    return 'Length: ${length}m  Depth: ${depth}m  Scale: $scale';
+  String mapStatusOverview(
+    String length,
+    String depth,
+    String unit,
+    String scale,
+  ) {
+    return 'Length: $length$unit  Depth: $depth$unit  Scale: $scale';
   }
 
   @override
-  String stationStatus(String id, String east, String north, String altitude) {
-    return 'Station $id: E ${east}m, N ${north}m, Alt ${altitude}m';
+  String stationStatus(
+    String id,
+    String east,
+    String north,
+    String altitude,
+    String unit,
+  ) {
+    return 'Station $id: E $east$unit, N $north$unit, Alt $altitude$unit';
   }
 
   @override

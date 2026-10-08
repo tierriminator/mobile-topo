@@ -55,6 +55,7 @@ void main() {
           ChangeNotifierProvider.value(value: selectionState),
           ChangeNotifierProvider.value(value: measurementService),
           ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
+          ChangeNotifierProvider(create: (_) => SettingsController()),
           Provider<CaveRepository>.value(value: _InMemoryCaveRepository()),
         ],
         child: const MaterialApp(

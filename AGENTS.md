@@ -141,7 +141,9 @@ Pure domain objects without serialization logic:
 
 - **`settings.dart`**: App settings
   - `Settings`: Configuration options (smart mode, shot direction, units, etc.)
-  - `LengthUnit`, `AngleUnit`, `ShotDirection`: Enums for measurement preferences
+  - `LengthUnit`, `AngleUnit`, `ShotDirection`: Enums for measurement preferences.
+    Data is always stored in meters and degrees; the unit enums convert to
+    and from the unit chosen for display and editing
 
 ### Controllers (`lib/controllers/`)
 

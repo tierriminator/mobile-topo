@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/settings.dart';
 import '../../models/survey.dart';
 import 'view_transform.dart';
 
@@ -52,11 +53,13 @@ void paintStation(
   textPainter.paint(canvas, screenPos + const Offset(6, -12));
 }
 
-/// Status bar text with a station's ID and coordinates
-String stationStatus(AppLocalizations l10n, StationPosition pos) =>
+/// Status bar text with a station's ID and coordinates in [unit]
+String stationStatus(
+        AppLocalizations l10n, StationPosition pos, LengthUnit unit) =>
     l10n.stationStatus(
       pos.id.toString(),
-      pos.east.toStringAsFixed(1),
-      pos.north.toStringAsFixed(1),
-      pos.altitude.toStringAsFixed(1),
+      unit.fromMeters(pos.east).toStringAsFixed(1),
+      unit.fromMeters(pos.north).toStringAsFixed(1),
+      unit.fromMeters(pos.altitude).toStringAsFixed(1),
+      unit.symbol,
     );
