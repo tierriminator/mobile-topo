@@ -35,9 +35,9 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   active trip is not a setting: each trip is its own file with an ID, stretches
   store only the trip ID, and new measurements always go to the cave's most
   recently created trip. Trips are created and edited from the explorer.
-  A trip bar above the bottom navigation shows the active trip on every tab
-  and warns when it is from an earlier day or missing; connecting the DistoX
-  then asks to keep it or start a new one
+  When the active trip is from an earlier day or missing, a warning bar
+  appears above the bottom navigation on every tab, and connecting the DistoX
+  asks to keep it or start a new one
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -219,7 +219,7 @@ UI widgets:
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`trip_page.dart`**: Trip edit page opened from the explorer and data view
-- **`widgets/trip_bar.dart`**: Active trip bar and the trip check dialog,
+- **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`
 
 ### Localization (`lib/l10n/`)

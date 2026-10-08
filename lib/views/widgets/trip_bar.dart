@@ -3,18 +3,15 @@ import '../../l10n/app_localizations.dart';
 import '../../models/cave.dart';
 import '../trip_page.dart';
 
-/// Thin bar showing the trip new measurements are assigned to. With
-/// [warning] set, it stands out to point at a likely wrong trip: one from
-/// an earlier day, or none at all.
+/// Thin warning bar pointing at a likely wrong trip for new measurements:
+/// one from an earlier day, or none at all
 class TripBar extends StatelessWidget {
   final Cave cave;
-  final bool warning;
   final VoidCallback onTap;
 
   const TripBar({
     super.key,
     required this.cave,
-    required this.warning,
     required this.onTap,
   });
 
@@ -23,32 +20,20 @@ class TripBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
     final trip = cave.activeTrip;
-    final background =
-        warning ? colors.errorContainer : colors.surfaceContainerHigh;
-    final foreground =
-        warning ? colors.onErrorContainer : colors.onSurfaceVariant;
-
-    final String text;
-    if (trip == null) {
-      text = warning ? l10n.tripBarNoTripWarning : l10n.tripBarNoTrip;
-    } else {
-      final label = tripLabel(context, trip);
-      text = warning ? l10n.tripBarOldTrip(label) : '${l10n.trip}: $label';
-    }
+    final foreground = colors.onErrorContainer;
+    final text = trip == null
+        ? l10n.tripBarNoTripWarning
+        : l10n.tripBarOldTrip(tripLabel(context, trip));
 
     return Material(
-      color: background,
+      color: colors.errorContainer,
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             children: [
-              Icon(
-                warning ? Icons.warning_amber : Icons.event,
-                size: 18,
-                color: foreground,
-              ),
+              Icon(Icons.warning_amber, size: 18, color: foreground),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

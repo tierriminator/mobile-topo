@@ -200,9 +200,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trip => 'Trip';
 
   @override
-  String get tripBarNoTrip => 'No trip';
-
-  @override
   String get tripBarNoTripWarning => 'No trip – tap to start one';
 
   @override

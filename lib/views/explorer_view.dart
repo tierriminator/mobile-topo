@@ -21,8 +21,8 @@ class ExplorerView extends StatefulWidget {
   State<ExplorerView> createState() => ExplorerViewState();
 }
 
-/// Public so that trips can be created and opened from outside the explorer
-/// through a GlobalKey
+/// Public so that trips can be created from outside the explorer through a
+/// GlobalKey
 class ExplorerViewState extends State<ExplorerView> {
   final _uuid = const Uuid();
 
@@ -301,9 +301,6 @@ class ExplorerViewState extends State<ExplorerView> {
     final cave = _explorerState.findCave(caveId);
     if (cave != null) await _createTrip(cave);
   }
-
-  /// Opens a trip for editing
-  Future<void> openTrip(Trip trip) => _editTrip(trip);
 
   /// The loaded cave a trip belongs to. Looked up by the trip rather than
   /// kept, as the cave may change while a trip page is open.

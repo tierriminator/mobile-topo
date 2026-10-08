@@ -447,17 +447,11 @@ abstract class AppLocalizations {
   /// **'Surveyors, conditions, …'**
   String get tripCommentHint;
 
-  /// Label for the active trip in the trip bar, and context menu item showing a row's trip
+  /// Context menu item showing a row's trip
   ///
   /// In en, this message translates to:
   /// **'Trip'**
   String get trip;
-
-  /// Trip bar text when the cave has no trip and that was accepted
-  ///
-  /// In en, this message translates to:
-  /// **'No trip'**
-  String get tripBarNoTrip;
 
   /// Trip bar warning when the cave has no trip
   ///

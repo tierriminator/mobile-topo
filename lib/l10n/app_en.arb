@@ -248,11 +248,7 @@
   },
   "trip": "Trip",
   "@trip": {
-    "description": "Label for the active trip in the trip bar, and context menu item showing a row's trip"
-  },
-  "tripBarNoTrip": "No trip",
-  "@tripBarNoTrip": {
-    "description": "Trip bar text when the cave has no trip and that was accepted"
+    "description": "Context menu item showing a row's trip"
   },
   "tripBarNoTripWarning": "No trip – tap to start one",
   "@tripBarNoTripWarning": {

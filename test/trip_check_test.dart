@@ -18,6 +18,7 @@ import 'package:mobile_topo/services/distox_service.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/trip_page.dart';
+import 'package:mobile_topo/views/widgets/trip_bar.dart';
 
 /// Adapter that connects successfully and stays connected without sending
 /// data
@@ -138,13 +139,11 @@ void main() {
     expect(trip.isFromDayBefore(DateTime(2026, 10, 9, 0, 1)), isTrue);
   });
 
-  testWidgets('the trip bar shows a current trip without warning',
-      (tester) async {
+  testWidgets('a current trip shows no trip bar', (tester) async {
     final today = Trip(id: 't', date: now, comment: 'Carla', createdAt: now);
     final distoX = await pumpApp(tester, caveWith([today]));
 
-    expect(find.textContaining('Trip: '), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber), findsNothing);
+    expect(find.byType(TripBar), findsNothing);
 
     // A current trip needs no check when connecting
     await connect(tester, distoX);
@@ -156,7 +155,7 @@ void main() {
     expect(find.text('No trip – tap to start one'), findsOneWidget);
   });
 
-  testWidgets('connecting with an old trip asks; keeping it ends the warning',
+  testWidgets('connecting with an old trip asks; keeping it hides the bar',
       (tester) async {
     final distoX = await pumpApp(tester, caveWith([oldTrip]));
     expect(find.textContaining('Old trip: '), findsOneWidget);
@@ -168,8 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Check the trip'), findsNothing);
-    expect(find.textContaining('Trip: '), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber), findsNothing);
+    expect(find.byType(TripBar), findsNothing);
   });
 
   testWidgets('a connection made before the app is shown is checked too',
@@ -191,6 +189,6 @@ void main() {
 
     // The new trip is today's, so the warning is gone
     expect(find.text('Trips'), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber), findsNothing);
+    expect(find.byType(TripBar), findsNothing);
   });
 }

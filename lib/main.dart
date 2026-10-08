@@ -223,13 +223,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onTripBarTapped(Cave cave) {
-    final trip = cave.activeTrip;
-    if (trip == null) {
+    if (cave.activeTrip == null) {
       _newTrip(cave);
-    } else if (_needsTripCheck(cave)) {
-      _checkTrip(cave);
     } else {
-      _explorerKey.currentState?.openTrip(trip);
+      _checkTrip(cave);
     }
   }
 
@@ -247,12 +244,11 @@ class _MainScreenState extends State<MainScreen> {
               children: _views,
             ),
           ),
-          // Shown wherever measurements may come in, so a wrong trip is
-          // noticed before measuring
-          if (cave != null)
+          // Shown on every tab while the trip looks wrong, so that is noticed
+          // before measuring
+          if (cave != null && _needsTripCheck(cave))
             TripBar(
               cave: cave,
-              warning: _needsTripCheck(cave),
               onTap: () => _onTripBarTapped(cave),
             ),
         ],
