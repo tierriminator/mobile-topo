@@ -311,8 +311,10 @@ class ExplorerViewState extends State<ExplorerView> {
   /// Opens a trip for editing and saves the changes
   Future<void> _editTrip(Trip trip) async {
     final repository = context.read<CaveRepository>();
-    final edited =
-        await editTrip(context, trip, onDelete: () => _deleteTrip(trip));
+    final opened = _caveOfTrip(trip);
+    if (opened == null) return;
+    final edited = await editTrip(context, opened, trip,
+        onDelete: () => _deleteTrip(trip));
     if (edited == null || !mounted) return;
 
     final cave = _caveOfTrip(trip);

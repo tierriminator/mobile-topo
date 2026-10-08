@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../models/cave.dart';
 import '../models/trip.dart';
 
 /// Short description of a trip: its date, followed by the first line of its
@@ -11,17 +12,19 @@ String tripLabel(BuildContext context, Trip trip) {
   return comment.isEmpty ? date : '$date – $comment';
 }
 
-/// Opens the page for [trip] and returns the trip as it is when the page is
-/// left, or null if it is unchanged or was deleted. The page offers deleting
-/// the trip if [onDelete] is given; see [TripPage.onDelete].
+/// Opens the page for [trip] of [cave] and returns the trip as it is when
+/// the page is left, or null if it is unchanged or was deleted. The page
+/// offers deleting the trip if [onDelete] is given; see [TripPage.onDelete].
 Future<Trip?> editTrip(
   BuildContext context,
+  Cave cave,
   Trip trip, {
   Future<bool> Function()? onDelete,
 }) async {
   final edited = await Navigator.of(context).push<Trip>(
     MaterialPageRoute(
-      builder: (context) => TripPage(trip: trip, onDelete: onDelete),
+      builder: (context) =>
+          TripPage(cave: cave, trip: trip, onDelete: onDelete),
     ),
   );
   if (edited == null ||
@@ -33,16 +36,24 @@ Future<Trip?> editTrip(
   return edited;
 }
 
-/// Page to inspect and change a trip's date, declination and comment.
-/// Leaving the page pops it with the edited trip.
+/// Page giving an overview of what was surveyed on a trip, and to change
+/// the trip's date, declination and comment. Leaving the page pops it with
+/// the edited trip.
 class TripPage extends StatefulWidget {
+  /// The cave the trip belongs to, whose data the overview is taken from
+  final Cave cave;
   final Trip trip;
 
   /// Deletes the trip and returns whether it was deleted; the page closes
   /// if so. Without it, the page offers no delete button.
   final Future<bool> Function()? onDelete;
 
-  const TripPage({super.key, required this.trip, this.onDelete});
+  const TripPage({
+    super.key,
+    required this.cave,
+    required this.trip,
+    this.onDelete,
+  });
 
   @override
   State<TripPage> createState() => _TripPageState();
@@ -109,6 +120,16 @@ class _TripPageState extends State<TripPage> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.straighten),
+              title: Text(l10n.tripLength),
+              trailing: Text(
+                '${widget.cave.tripLength(widget.trip.id).toStringAsFixed(1)} m',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const Divider(height: 24),
             InkWell(
               onTap: _pickDate,
               child: InputDecorator(

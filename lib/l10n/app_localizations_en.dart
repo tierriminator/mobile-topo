@@ -181,6 +181,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tripTitle => 'Trip';
 
   @override
+  String get tripLength => 'Surveyed length';
+
+  @override
   String get tripDate => 'Date';
 
   @override

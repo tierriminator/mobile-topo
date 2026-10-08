@@ -2,11 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mobile_topo/l10n/app_localizations.dart';
+import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/views/trip_page.dart';
 
 void main() {
   final trip = Trip(id: 't', date: DateTime(2026, 10, 8), createdAt: DateTime(2026));
+
+  // Two survey shots and a cross section on the trip, one shot on another
+  final cave = Cave(
+    id: 'cave',
+    name: 'Cave',
+    sections: [
+      Section(
+        id: 's',
+        name: 'Section',
+        survey: const Survey(
+          stretches: [
+            MeasuredDistance(Point(1, 0), Point(1, 1), 5, 0, 0,
+                tripId: 't'),
+            MeasuredDistance(Point(1, 1), null, 2, 90, 0, tripId: 't'),
+            MeasuredDistance(Point(1, 1), Point(1, 2), 7.5, 0, 0,
+                tripId: 't'),
+            MeasuredDistance(Point(1, 2), Point(1, 3), 9, 0, 0,
+                tripId: 'other'),
+          ],
+          referencePoints: [],
+        ),
+        createdAt: DateTime(2026),
+        modifiedAt: DateTime(2026),
+      ),
+    ],
+    trips: [trip],
+    createdAt: DateTime(2026),
+    modifiedAt: DateTime(2026),
+  );
 
   /// Opens the page for [trip] and returns the pending result of editTrip
   Future<Future<Trip?>> open(WidgetTester tester,
@@ -18,7 +49,7 @@ void main() {
       home: Builder(
         builder: (context) => TextButton(
           onPressed: () =>
-              result = editTrip(context, trip, onDelete: onDelete),
+              result = editTrip(context, cave, trip, onDelete: onDelete),
           child: const Text('open'),
         ),
       ),
@@ -55,6 +86,13 @@ void main() {
 
   testWidgets('leaving the page unchanged returns null', (tester) async {
     expect(await editAndLeave(tester, () async {}), isNull);
+  });
+
+  testWidgets('the page shows the length surveyed on the trip',
+      (tester) async {
+    await open(tester);
+    // Only the trip's survey shots count, not its cross section
+    expect(find.text('12.5 m'), findsOneWidget);
   });
 
   testWidgets('without onDelete there is no delete button', (tester) async {

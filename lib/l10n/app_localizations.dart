@@ -417,6 +417,12 @@ abstract class AppLocalizations {
   /// **'Trip'**
   String get tripTitle;
 
+  /// Length of the survey shots measured on a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Surveyed length'**
+  String get tripLength;
+
   /// Label for the date of a trip
   ///
   /// In en, this message translates to:

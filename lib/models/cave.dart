@@ -188,6 +188,17 @@ class Cave {
     return copyWith(trips: [for (final t in trips) if (t.id != tripId) t]);
   }
 
+  /// Surveyed length measured on the given trip across all sections,
+  /// counted like [Survey.totalLength]
+  double tripLength(String tripId) => Survey(
+        stretches: [
+          for (final s in allSections)
+            for (final stretch in s.survey.stretches)
+              if (stretch.tripId == tripId) stretch,
+        ],
+        referencePoints: const [],
+      ).totalLength;
+
   /// Whether any stretch in this cave was measured on the given trip
   bool isTripUsed(String tripId) => allSections
       .any((s) => s.survey.stretches.any((stretch) => stretch.tripId == tripId));

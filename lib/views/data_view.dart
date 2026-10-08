@@ -304,10 +304,11 @@ class _DataViewState extends State<DataView> {
   Future<void> _showTrip(MeasuredDistance stretch) async {
     final selectionState = context.read<SelectionState>();
     final repository = context.read<CaveRepository>();
-    final trip = selectionState.selectedCave?.findTrip(stretch.tripId);
-    if (trip == null) return;
+    final opened = selectionState.selectedCave;
+    final trip = opened?.findTrip(stretch.tripId);
+    if (opened == null || trip == null) return;
 
-    final edited = await editTrip(context, trip);
+    final edited = await editTrip(context, opened, trip);
     // The cave may have changed while the page was open
     final cave = selectionState.selectedCave;
     if (edited == null || cave?.findTrip(trip.id) == null) return;

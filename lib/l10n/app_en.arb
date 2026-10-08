@@ -226,6 +226,10 @@
   "@tripTitle": {
     "description": "Title of the page editing a trip"
   },
+  "tripLength": "Surveyed length",
+  "@tripLength": {
+    "description": "Length of the survey shots measured on a trip"
+  },
   "tripDate": "Date",
   "@tripDate": {
     "description": "Label for the date of a trip"
