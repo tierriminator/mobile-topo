@@ -251,11 +251,13 @@ class Survey {
     return Point(maxSeries + 1, 0);
   }
 
-  /// Calculates total surveyed length (sum of all stretch distances)
+  /// Total surveyed length: the sum of all survey shots between two stations.
+  /// Cross sections and splays measure passage dimensions, not the cave's
+  /// length, so they are left out.
   double get totalLength {
     double total = 0;
     for (final stretch in stretches) {
-      total += stretch.distance.toDouble();
+      if (stretch.to != null) total += stretch.distance.toDouble();
     }
     return total;
   }

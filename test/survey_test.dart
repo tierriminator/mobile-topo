@@ -31,6 +31,20 @@ void main() {
     });
   });
 
+  test('Survey.totalLength sums survey shots but not cross sections', () {
+    const survey = Survey(
+      stretches: [
+        MeasuredDistance(Point(1, 0), Point(1, 1), 5, 0, 0),
+        MeasuredDistance(Point(1, 1), null, 2, 90, 0),
+        MeasuredDistance(Point(1, 1), null, 3, 270, 0),
+        MeasuredDistance(Point(1, 1), Point(1, 2), 7, 0, 0),
+      ],
+      referencePoints: [],
+    );
+
+    expect(survey.totalLength, 12);
+  });
+
   group('Survey.lastStation', () {
     Point? lastStation(List<MeasuredDistance> stretches,
             [List<ReferencePoint> referencePoints = const []]) =>
