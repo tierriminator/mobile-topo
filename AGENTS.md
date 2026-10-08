@@ -128,6 +128,10 @@ Pure domain objects without serialization logic:
   - `SketchColors`: Available drawing colors
   - `SketchMode`: Drawing mode enum (move, draw, erase)
 
+- **`side_view.dart`**: `SideView` lays out the extended elevation for the
+  side view sketch: shots run left to right in survey direction, splays are
+  projected onto the survey direction at their station
+
 - **`explorer_path.dart`**: Navigation path helper for cave hierarchy
 
 - **`settings.dart`**: App settings
@@ -218,6 +222,8 @@ UI widgets:
 - **`explorer_view.dart`**: Cave/section browser
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
+- **`widgets/station_markers.dart`**: Station hit testing, drawing and status
+  text shared by the map and sketch views
 - **`trip_page.dart`**: Trip edit page opened from the explorer and data view
 - **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`

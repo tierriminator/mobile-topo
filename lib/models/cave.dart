@@ -239,19 +239,23 @@ class Cave {
   /// computing positions.
   Survey get combinedSurvey {
     final all = allSections;
+    return corrected(Survey(
+      stretches: [for (final s in all) ...s.survey.stretches],
+      referencePoints: [for (final s in all) ...s.survey.referencePoints],
+    ));
+  }
+
+  /// [survey] with each stretch's azimuth corrected by the declination of
+  /// its trip
+  Survey corrected(Survey survey) {
     final declinations = {for (final t in trips) t.id: t.declination};
-    MeasuredDistance corrected(MeasuredDistance stretch) {
+    MeasuredDistance correct(MeasuredDistance stretch) {
       final declination = declinations[stretch.tripId] ?? 0;
       if (declination == 0) return stretch;
       return stretch.copyWith(azimut: stretch.azimut + declination);
     }
 
-    return Survey(
-      stretches: [
-        for (final s in all) ...s.survey.stretches.map(corrected),
-      ],
-      referencePoints: [for (final s in all) ...s.survey.referencePoints],
-    );
+    return survey.copyWith(stretches: survey.stretches.map(correct).toList());
   }
 
   /// Check if this cave is empty

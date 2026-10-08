@@ -10,6 +10,7 @@ import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/settings.dart';
+import '../models/side_view.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
@@ -26,8 +27,12 @@ class SketchView extends StatefulWidget {
 }
 
 class _SketchViewState extends State<SketchView> {
+  // Positions of the section's stations
   Map<Point, StationPosition> _positions = {};
-  Map<Point, Offset> _sideViewPositions = {};
+
+  // The section's survey data as drawn in each view
+  _SurveyDrawing _outlineDrawing = const _SurveyDrawing();
+  _SurveyDrawing _sideViewDrawing = const _SurveyDrawing();
 
   // View mode
   SketchViewMode _viewMode = SketchViewMode.outline;
@@ -79,7 +84,8 @@ class _SketchViewState extends State<SketchView> {
     if (section == null) {
       if (_currentSectionId != null) {
         _positions = {};
-        _sideViewPositions = {};
+        _outlineDrawing = const _SurveyDrawing();
+        _sideViewDrawing = const _SurveyDrawing();
         _outlineSketch = const Sketch();
         _sideViewSketch = const Sketch();
         _selectedStation = null;
@@ -91,16 +97,25 @@ class _SketchViewState extends State<SketchView> {
     // Always recompute positions (survey data may have changed). They are
     // computed over the whole cave, so a section without its own reference
     // point is placed relative to the sections it continues from; only the
-    // section's own stations are kept.
-    final survey = cave?.combinedSurvey ?? section.survey;
-    final stations = section.survey.stations;
-    _positions = Map.fromEntries(survey
-        .computeStationPositions()
-        .entries
-        .where((e) => stations.contains(e.key)));
-    _sideViewPositions = Map.fromEntries(_computeSideViewPositions(survey)
-        .entries
-        .where((e) => stations.contains(e.key)));
+    // section's own stations are drawn.
+    final caveSurvey = cave?.combinedSurvey ?? section.survey;
+    final sectionSurvey = cave?.corrected(section.survey) ?? section.survey;
+    final stations = sectionSurvey.stations;
+    final allPositions = caveSurvey.computeStationPositions();
+    _positions = Map.fromEntries(
+        allPositions.entries.where((e) => stations.contains(e.key)));
+
+    _outlineDrawing = _SurveyDrawing.of(
+      sectionSurvey,
+      allPositions.map((k, v) => MapEntry(k, v.plan)),
+      (splay) => _planSplayEnd(allPositions, splay),
+    );
+    final sideView = SideView.of(caveSurvey, allPositions);
+    _sideViewDrawing = _SurveyDrawing.of(
+      sectionSurvey,
+      sideView.stationPositions,
+      sideView.splayEnd,
+    );
 
     // Only reset sketches and recenter when switching to a different section
     if (section.id != _currentSectionId) {
@@ -114,11 +129,25 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
-  /// Where the stations appear in the current view, in world coordinates
-  Map<Point, Offset> get _stationPositions =>
-      _viewMode == SketchViewMode.outline
-          ? _positions.map((k, v) => MapEntry(k, v.plan))
-          : _sideViewPositions;
+  /// The end of a splay or cross section shot in the plan view
+  static Offset? _planSplayEnd(
+      Map<Point, StationPosition> positions, MeasuredDistance splay) {
+    final from = positions[splay.from];
+    if (from == null) return null;
+    final azimuth = splay.azimut.toDouble() * math.pi / 180;
+    final horizontal = splay.distance.toDouble() *
+        math.cos(splay.inclination.toDouble() * math.pi / 180);
+    return from.plan +
+        Offset(horizontal * math.sin(azimuth), -horizontal * math.cos(azimuth));
+  }
+
+  _SurveyDrawing get _drawing => _viewMode == SketchViewMode.outline
+      ? _outlineDrawing
+      : _sideViewDrawing;
+
+  /// Where the section's stations appear in the current view, in world
+  /// coordinates
+  Map<Point, Offset> get _stationPositions => _drawing.stations;
 
   /// Selects the station at a tap in move mode, or clears the selection
   /// when no station is near
@@ -131,64 +160,9 @@ class _SketchViewState extends State<SketchView> {
 
   void _centerViews() {
     _outlineTransform =
-        _outlineTransform.centeredOn(_positions.values.map((p) => p.plan));
+        _outlineTransform.centeredOn(_outlineDrawing.stations.values);
     _sideViewTransform =
-        _sideViewTransform.centeredOn(_sideViewPositions.values);
-  }
-
-  Map<Point, Offset> _computeSideViewPositions(Survey survey) {
-    final sidePositions = <Point, Offset>{};
-    final visited = <Point>{};
-
-    for (final ref in survey.referencePoints) {
-      sidePositions[ref.id] = Offset(0, -ref.altitude.toDouble());
-      _buildSideViewFromStation(survey, ref.id, 0, sidePositions, visited);
-    }
-
-    return sidePositions;
-  }
-
-  void _buildSideViewFromStation(
-    Survey survey,
-    Point station,
-    double horizontalPos,
-    Map<Point, Offset> positions,
-    Set<Point> visited,
-  ) {
-    if (visited.contains(station)) return;
-    visited.add(station);
-
-    for (final stretch in survey.stretches) {
-      Point? nextStation;
-      double distance = stretch.distance.toDouble();
-      double inclination = stretch.inclination.toDouble();
-      bool forward = true;
-
-      // Skip splay shots (no destination)
-      final stretchTo = stretch.to;
-      if (stretchTo == null) continue;
-
-      if (stretch.from == station && !visited.contains(stretchTo)) {
-        nextStation = stretchTo;
-      } else if (stretchTo == station && !visited.contains(stretch.from)) {
-        nextStation = stretch.from;
-        forward = false;
-      }
-
-      if (nextStation != null) {
-        final inclinationRad = inclination * math.pi / 180.0;
-        final horizDist = distance * math.cos(inclinationRad);
-        final vertDist = distance * math.sin(inclinationRad);
-
-        final currentPos = positions[station]!;
-        final sign = forward ? 1.0 : -1.0;
-        final nextHorizPos = currentPos.dx + sign * horizDist;
-        final nextVertPos = currentPos.dy - sign * vertDist;
-
-        positions[nextStation] = Offset(nextHorizPos, nextVertPos);
-        _buildSideViewFromStation(survey, nextStation, nextHorizPos, positions, visited);
-      }
-    }
+        _sideViewTransform.centeredOn(_sideViewDrawing.stations.values);
   }
 
   Sketch get _currentSketch =>
@@ -481,13 +455,11 @@ class _SketchViewState extends State<SketchView> {
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _SketchPainter(
-                              survey: section.survey,
-                              stationPositions: _stationPositions,
+                              drawing: _drawing,
                               selectedStation: _selectedStation,
                               sketch: _currentSketch,
                               currentStroke: _currentStroke,
                               transform: _transform,
-                              isOutlineView: _viewMode == SketchViewMode.outline,
                               gridSpacing: _gridSpacing(settings, pixelsPerMm),
                             ),
                             size: Size.infinite,
@@ -568,54 +540,74 @@ class _SketchViewState extends State<SketchView> {
   }
 }
 
+/// The survey data of a section as drawn in one of the sketch views, in
+/// world coordinates
+class _SurveyDrawing {
+  /// The section's stations
+  final Map<Point, Offset> stations;
+
+  /// Survey shots between two stations
+  final List<(Offset, Offset)> shots;
+
+  /// Splays and cross section shots
+  final List<(Offset, Offset)> splays;
+
+  const _SurveyDrawing({
+    this.stations = const {},
+    this.shots = const [],
+    this.splays = const [],
+  });
+
+  /// Draws [survey] given where all stations of the cave appear in the view
+  /// and where splays end. Shots to stations of other sections are drawn
+  /// too, so the section connects to them.
+  factory _SurveyDrawing.of(
+    Survey survey,
+    Map<Point, Offset> stationPositions,
+    Offset? Function(MeasuredDistance splay) splayEnd,
+  ) {
+    final shots = <(Offset, Offset)>[];
+    final splays = <(Offset, Offset)>[];
+    for (final stretch in survey.stretches) {
+      final from = stationPositions[stretch.from];
+      if (from == null) continue;
+      final to = stretch.to == null
+          ? splayEnd(stretch)
+          : stationPositions[stretch.to];
+      if (to == null) continue;
+      (stretch.to == null ? splays : shots).add((from, to));
+    }
+    final stations = survey.stations;
+    return _SurveyDrawing(
+      stations: Map.fromEntries(
+          stationPositions.entries.where((e) => stations.contains(e.key))),
+      shots: shots,
+      splays: splays,
+    );
+  }
+}
+
 class _SketchPainter extends CustomPainter {
-  final Survey survey;
-  final Map<Point, Offset> stationPositions;
+  final _SurveyDrawing drawing;
   final Point? selectedStation;
   final Sketch sketch;
   final Stroke? currentStroke;
   final ViewTransform transform;
-  final bool isOutlineView;
 
   /// Distance between grid lines in metres, or null for no grid
   final double? gridSpacing;
 
   _SketchPainter({
-    required this.survey,
-    required this.stationPositions,
+    required this.drawing,
     this.selectedStation,
     required this.sketch,
     this.currentStroke,
     required this.transform,
-    required this.isOutlineView,
     this.gridSpacing,
   });
 
   Offset _worldToScreen(Offset worldPos, Size size) =>
       transform.worldToScreen(worldPos, size);
-
-  /// Calculate splay shot endpoint in world coordinates
-  Offset _calculateSplayEndpoint(Offset from, MeasuredDistance stretch) {
-    final azimuthRad = stretch.azimut.toDouble() * math.pi / 180.0;
-    final inclinationRad = stretch.inclination.toDouble() * math.pi / 180.0;
-    final distance = stretch.distance.toDouble();
-
-    // Horizontal distance (plan view) and vertical distance
-    final horizDist = distance * math.cos(inclinationRad);
-    final vertDist = distance * math.sin(inclinationRad);
-
-    if (isOutlineView) {
-      // Plan view: X is east, Y is -north
-      // Azimuth 0 = north (negative Y), 90 = east (positive X)
-      final eastOffset = horizDist * math.sin(azimuthRad);
-      final northOffset = horizDist * math.cos(azimuthRad);
-      return Offset(from.dx + eastOffset, from.dy - northOffset);
-    } else {
-      // Side view: X is horizontal distance, Y is -altitude
-      // Show splay extending horizontally with altitude change
-      return Offset(from.dx + horizDist, from.dy - vertDist);
-    }
-  }
 
   void _drawGrid(Canvas canvas, Size size, double spacing) {
     final paint = Paint()
@@ -652,27 +644,16 @@ class _SketchPainter extends CustomPainter {
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
-    for (final stretch in survey.stretches) {
-      final fromPos = stationPositions[stretch.from];
-
-      if (stretch.to != null) {
-        // Survey shot - draw line to destination station
-        final toPos = stationPositions[stretch.to];
-        if (fromPos != null && toPos != null) {
-          final from = _worldToScreen(fromPos, size);
-          final to = _worldToScreen(toPos, size);
-          canvas.drawLine(from, to, shotPaint);
-        }
-      } else if (fromPos != null) {
-        // Splay shot - calculate endpoint from measurement
-        final splayEnd = _calculateSplayEndpoint(fromPos, stretch);
-        final from = _worldToScreen(fromPos, size);
-        final to = _worldToScreen(splayEnd, size);
-        canvas.drawLine(from, to, splayPaint);
-      }
+    for (final (from, to) in drawing.splays) {
+      canvas.drawLine(
+          _worldToScreen(from, size), _worldToScreen(to, size), splayPaint);
+    }
+    for (final (from, to) in drawing.shots) {
+      canvas.drawLine(
+          _worldToScreen(from, size), _worldToScreen(to, size), shotPaint);
     }
 
-    for (final entry in stationPositions.entries) {
+    for (final entry in drawing.stations.entries) {
       paintStation(
         canvas,
         _worldToScreen(entry.value, size),
@@ -719,10 +700,8 @@ class _SketchPainter extends CustomPainter {
     return oldDelegate.transform != transform ||
         oldDelegate.sketch != sketch ||
         oldDelegate.currentStroke != currentStroke ||
-        oldDelegate.isOutlineView != isOutlineView ||
         oldDelegate.gridSpacing != gridSpacing ||
         oldDelegate.selectedStation != selectedStation ||
-        oldDelegate.survey != survey ||
-        oldDelegate.stationPositions != stationPositions;
+        oldDelegate.drawing != drawing;
   }
 }
