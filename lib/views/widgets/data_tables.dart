@@ -271,19 +271,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
 
     if (widget.editMode) {
       // Edit mode: tap to edit cell, no selection or context menu. The
-      // comment is edited in a dialog, which also shows read-only comments.
-      if (isCommentColumn) {
-        return TableCell(
-          // Keep the cell tappable without a star in it
-          verticalAlignment: TableCellVerticalAlignment.fill,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _openComment(row, item),
-            child: child,
-          ),
-        );
-      }
-      if (isReadOnly(row)) return TableCell(child: child);
+      // comment column only shows the star, as the scroll bar may cover it;
+      // comments are edited from the context menu.
+      if (isReadOnly(row) || isCommentColumn) return TableCell(child: child);
       return TableCell(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -310,8 +300,8 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     }
 
     return TableCell(
-      // Stretch the highlight over the full row height, and keep the comment
-      // cell tappable without a star in it
+      // Stretch the highlight over the full row height, and let the comment
+      // cell select the row even without a star in it
       verticalAlignment: isCellSelected || isCommentColumn
           ? TableCellVerticalAlignment.fill
           : null,
@@ -327,12 +317,6 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           });
         },
         onTap: () {
-          // As in PocketTopo, tapping the comment field of the selected row
-          // opens the comment
-          if (_wasSelectedBeforeTouch && isCommentColumn) {
-            _openComment(row, item);
-            return;
-          }
           // If it was already selected before touch, deselect it
           if (_wasSelectedBeforeTouch) {
             setState(() {
