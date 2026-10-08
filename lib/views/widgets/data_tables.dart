@@ -32,6 +32,10 @@ abstract class EditableDataTable<T> extends StatefulWidget {
 abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     extends State<W> {
   int? _selectedIndex;
+
+  /// The selected cell's column when a station cell is selected, or null
+  /// when the whole row is selected
+  int? _selectedCol;
   int? _editingRow;
   int? _editingCol;
   bool _wasSelectedBeforeTouch = false;
@@ -74,12 +78,14 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     // Clear selection when switching to edit mode
     if (!oldWidget.editMode && widget.editMode) {
       _selectedIndex = null;
+      _selectedCol = null;
     }
   }
 
   void clearSelection() {
     setState(() {
       _selectedIndex = null;
+      _selectedCol = null;
       _editingRow = null;
       _editingCol = null;
     });
@@ -189,14 +195,11 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     T item,
   ) {
     // Don't show selection highlight in edit mode
-    final isSelected = !widget.editMode && index == _selectedIndex;
-    final decoration = isSelected
-        ? BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .primaryContainer
-                .withValues(alpha: 0.5))
-        : null;
+    final isRowSelected = !widget.editMode &&
+        index == _selectedIndex &&
+        _selectedCol == null;
+    final decoration =
+        isRowSelected ? BoxDecoration(color: _selectionColor(context)) : null;
 
     final cells = buildDataCells(index, item);
 
@@ -208,6 +211,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
       ],
     );
   }
+
+  Color _selectionColor(BuildContext context) =>
+      Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5);
 
   TableCell _wrapCell(
     BuildContext context,
@@ -238,15 +244,31 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
       );
     }
 
-    // Normal mode: tap to select/deselect, long-tap for context menu
+    // Normal mode: tap to select/deselect, long-tap for context menu. A cell
+    // showing a station selects just that cell, any other cell the row.
+    final station = stationAt(item, col);
+    final selectionCol = station != null ? col : null;
+    final isCellSelected = row == _selectedIndex &&
+        selectionCol != null &&
+        _selectedCol == selectionCol;
+    if (isCellSelected) {
+      child = ColoredBox(color: _selectionColor(context), child: child);
+    }
+
     return TableCell(
+      // Stretch the highlight over the full row height
+      verticalAlignment: isCellSelected
+          ? TableCellVerticalAlignment.fill
+          : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) {
-          // Remember if row was already selected, then select it
-          _wasSelectedBeforeTouch = _selectedIndex == row;
+          // Remember if this was already selected, then select it
+          _wasSelectedBeforeTouch =
+              _selectedIndex == row && _selectedCol == selectionCol;
           setState(() {
             _selectedIndex = row;
+            _selectedCol = selectionCol;
           });
         },
         onTap: () {
@@ -254,12 +276,12 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           if (_wasSelectedBeforeTouch) {
             setState(() {
               _selectedIndex = null;
+              _selectedCol = null;
             });
           }
         },
         onLongPressStart: (details) {
-          // Show context menu (row already selected from onTapDown)
-          final station = stationAt(item, col);
+          // Show context menu (selection already made in onTapDown)
           showMenu(
             context: context,
             position: RelativeRect.fromLTRB(
