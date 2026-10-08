@@ -8,6 +8,7 @@ import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
+import 'models/cave.dart';
 import 'services/bluetooth_adapter.dart';
 import 'services/bluetooth_adapter_android.dart';
 import 'services/bluetooth_adapter_macos.dart';
@@ -20,6 +21,7 @@ import 'views/map_view.dart';
 import 'views/sketch_view.dart';
 import 'views/explorer_view.dart';
 import 'views/options_view.dart';
+import 'views/widgets/trip_bar.dart';
 
 /// Create the appropriate BluetoothAdapter for the current platform
 BluetoothAdapter createBluetoothAdapter() {
@@ -113,15 +115,52 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  static const _explorerIndex = 3;
+
   int _selectedIndex = 0;
 
-  static final List<Widget> _views = [
+  final _explorerKey = GlobalKey<ExplorerViewState>();
+
+  late final List<Widget> _views = [
     const DataView(),
     const MapView(),
     const SketchView(),
-    const ExplorerView(),
+    ExplorerView(key: _explorerKey),
     const OptionsView(),
   ];
+
+  late final SelectionState _selectionState;
+  late final DistoXService _distoXService;
+  bool _wasConnected = false;
+
+  /// Set when the DistoX connects, until the trip of the selected cave has
+  /// been checked; the selection may still be loading at that point
+  bool _tripCheckPending = false;
+
+  /// Trips confirmed with "Keep trip" (or caves confirmed with "Continue" to
+  /// go on without a trip), see [_tripKey]. Kept until the app restarts.
+  final Set<String> _keptTrips = {};
+
+  /// Whether the trip check dialog is showing, so reconnects don't stack it
+  bool _tripCheckOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectionState = context.read<SelectionState>()
+      ..addListener(_runPendingTripCheck);
+    _distoXService = context.read<DistoXService>()
+      ..addListener(_onConnectionChanged);
+    // Auto-connect starts before the app is shown and may already be done
+    _onConnectionChanged();
+  }
+
+  @override
+  void dispose() {
+    _selectionState.removeListener(_runPendingTripCheck);
+    _distoXService.removeListener(_onConnectionChanged);
+    super.dispose();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -129,13 +168,94 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  /// Identifies the active trip of a cave, or its lack of one
+  String _tripKey(Cave cave) => '${cave.id}/${cave.activeTrip?.id ?? ''}';
+
+  /// Whether the active trip of [cave] is likely wrong, being from an
+  /// earlier day or missing, and that has not been accepted
+  bool _needsTripCheck(Cave cave) {
+    final trip = cave.activeTrip;
+    final suspicious = trip == null || trip.isFromDayBefore(DateTime.now());
+    return suspicious && !_keptTrips.contains(_tripKey(cave));
+  }
+
+  /// Checks the trip each time the DistoX connects, as that is when a
+  /// survey starts
+  void _onConnectionChanged() {
+    final connected = _distoXService.isConnected;
+    if (connected && !_wasConnected) {
+      _tripCheckPending = true;
+      _runPendingTripCheck();
+    }
+    _wasConnected = connected;
+  }
+
+  void _runPendingTripCheck() {
+    final cave = _selectionState.selectedCave;    if (!_tripCheckPending || cave == null) return;
+    _tripCheckPending = false;
+    if (_needsTripCheck(cave)) _checkTrip(cave);
+  }
+
+  Future<void> _checkTrip(Cave cave) async {
+    if (_tripCheckOpen) return;
+    _tripCheckOpen = true;
+    // The check may be triggered while building, e.g. from initState, where
+    // no dialog can be opened yet
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final choice = await showTripCheckDialog(context, cave);
+    _tripCheckOpen = false;
+    if (!mounted) return;
+    switch (choice) {
+      case TripCheckChoice.keep:
+        setState(() => _keptTrips.add(_tripKey(cave)));
+      case TripCheckChoice.newTrip:
+        await _newTrip(cave);
+      case null:
+        break;
+    }
+  }
+
+  /// Creates a trip in the explorer and opens it there
+  Future<void> _newTrip(Cave cave) async {
+    setState(() => _selectedIndex = _explorerIndex);
+    await _explorerKey.currentState?.createTrip(cave.id);
+  }
+
+  void _onTripBarTapped(Cave cave) {
+    final trip = cave.activeTrip;
+    if (trip == null) {
+      _newTrip(cave);
+    } else if (_needsTripCheck(cave)) {
+      _checkTrip(cave);
+    } else {
+      _explorerKey.currentState?.openTrip(trip);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final cave = context.watch<SelectionState>().selectedCave;
+
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _views,
+      body: Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: _views,
+            ),
+          ),
+          // Shown wherever measurements may come in, so a wrong trip is
+          // noticed before measuring
+          if (cave != null)
+            TripBar(
+              cave: cave,
+              warning: _needsTripCheck(cave),
+              onTap: () => _onTripBarTapped(cave),
+            ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

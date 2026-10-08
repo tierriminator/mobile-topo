@@ -358,9 +358,7 @@ class _DataViewState extends State<DataView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final selectionState = context.watch<SelectionState>();
-    final selectionSection = selectionState.selectedSection;
-    final activeTrip = selectionState.selectedCave?.activeTrip;
+    final selectionSection = context.watch<SelectionState>().selectedSection;
 
     // Clear history when section changes
     _checkSectionChange(selectionSection);
@@ -475,14 +473,6 @@ class _DataViewState extends State<DataView> {
               Text(
                 '${l10n.currentStation}: ${_currentStation()}',
                 style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  '${l10n.trip}: ${activeTrip != null ? tripLabel(context, activeTrip) : l10n.noTrip}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ),
             ],
           ),

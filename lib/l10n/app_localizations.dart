@@ -447,17 +447,65 @@ abstract class AppLocalizations {
   /// **'Surveyors, conditions, …'**
   String get tripCommentHint;
 
-  /// Label for the active trip in the data view status bar, and context menu item showing a row's trip
+  /// Label for the active trip in the trip bar, and context menu item showing a row's trip
   ///
   /// In en, this message translates to:
   /// **'Trip'**
   String get trip;
 
-  /// Shown in the status bar when no trip is active
+  /// Trip bar text when the cave has no trip and that was accepted
   ///
   /// In en, this message translates to:
-  /// **'none'**
-  String get noTrip;
+  /// **'No trip'**
+  String get tripBarNoTrip;
+
+  /// Trip bar warning when the cave has no trip
+  ///
+  /// In en, this message translates to:
+  /// **'No trip – tap to start one'**
+  String get tripBarNoTripWarning;
+
+  /// Trip bar warning when the active trip is from an earlier day
+  ///
+  /// In en, this message translates to:
+  /// **'Old trip: {trip}'**
+  String tripBarOldTrip(String trip);
+
+  /// Title of the dialog asking whether to keep the active trip
+  ///
+  /// In en, this message translates to:
+  /// **'Check the trip'**
+  String get tripCheckTitle;
+
+  /// Asks whether to keep a trip from an earlier day
+  ///
+  /// In en, this message translates to:
+  /// **'New measurements go to the trip {trip}, which is from an earlier day. A trip usually covers a single day.'**
+  String tripCheckOldTrip(String trip);
+
+  /// Asks whether to continue without a trip
+  ///
+  /// In en, this message translates to:
+  /// **'This cave has no trip yet, so new measurements are not assigned to one.'**
+  String get tripCheckNoTrip;
+
+  /// Keeps the active trip despite it being from an earlier day
+  ///
+  /// In en, this message translates to:
+  /// **'Keep trip'**
+  String get tripKeepUsing;
+
+  /// Continues measuring without a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get tripContinueWithout;
+
+  /// Starts a new trip
+  ///
+  /// In en, this message translates to:
+  /// **'New trip'**
+  String get tripNew;
 
   /// Placeholder text for options view
   ///

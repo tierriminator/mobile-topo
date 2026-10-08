@@ -248,11 +248,49 @@
   },
   "trip": "Trip",
   "@trip": {
-    "description": "Label for the active trip in the data view status bar, and context menu item showing a row's trip"
+    "description": "Label for the active trip in the trip bar, and context menu item showing a row's trip"
   },
-  "noTrip": "none",
-  "@noTrip": {
-    "description": "Shown in the status bar when no trip is active"
+  "tripBarNoTrip": "No trip",
+  "@tripBarNoTrip": {
+    "description": "Trip bar text when the cave has no trip and that was accepted"
+  },
+  "tripBarNoTripWarning": "No trip – tap to start one",
+  "@tripBarNoTripWarning": {
+    "description": "Trip bar warning when the cave has no trip"
+  },
+  "tripBarOldTrip": "Old trip: {trip}",
+  "@tripBarOldTrip": {
+    "description": "Trip bar warning when the active trip is from an earlier day",
+    "placeholders": {
+      "trip": {"type": "String"}
+    }
+  },
+  "tripCheckTitle": "Check the trip",
+  "@tripCheckTitle": {
+    "description": "Title of the dialog asking whether to keep the active trip"
+  },
+  "tripCheckOldTrip": "New measurements go to the trip {trip}, which is from an earlier day. A trip usually covers a single day.",
+  "@tripCheckOldTrip": {
+    "description": "Asks whether to keep a trip from an earlier day",
+    "placeholders": {
+      "trip": {"type": "String"}
+    }
+  },
+  "tripCheckNoTrip": "This cave has no trip yet, so new measurements are not assigned to one.",
+  "@tripCheckNoTrip": {
+    "description": "Asks whether to continue without a trip"
+  },
+  "tripKeepUsing": "Keep trip",
+  "@tripKeepUsing": {
+    "description": "Keeps the active trip despite it being from an earlier day"
+  },
+  "tripContinueWithout": "Continue",
+  "@tripContinueWithout": {
+    "description": "Continues measuring without a trip"
+  },
+  "tripNew": "New trip",
+  "@tripNew": {
+    "description": "Starts a new trip"
   },
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {

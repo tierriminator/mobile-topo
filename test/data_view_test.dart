@@ -123,7 +123,6 @@ void main() {
 
     final stretches = selectionState.selectedSection!.survey.stretches;
     expect(stretches.single.tripId, 'trip');
-    expect(find.textContaining('Trip: '), findsOneWidget);
   });
 
   group('whole cave table', () {

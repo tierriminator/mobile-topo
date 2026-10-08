@@ -24,6 +24,12 @@ class Trip {
     required this.createdAt,
   });
 
+  /// Whether the trip took place on a day before the day of [now]. A trip
+  /// usually covers a single day, so such a trip is likely outdated.
+  bool isFromDayBefore(DateTime now) =>
+      DateTime(date.year, date.month, date.day)
+          .isBefore(DateTime(now.year, now.month, now.day));
+
   Trip copyWith({
     DateTime? date,
     num? declination,

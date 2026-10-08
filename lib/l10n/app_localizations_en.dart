@@ -200,7 +200,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trip => 'Trip';
 
   @override
-  String get noTrip => 'none';
+  String get tripBarNoTrip => 'No trip';
+
+  @override
+  String get tripBarNoTripWarning => 'No trip – tap to start one';
+
+  @override
+  String tripBarOldTrip(String trip) {
+    return 'Old trip: $trip';
+  }
+
+  @override
+  String get tripCheckTitle => 'Check the trip';
+
+  @override
+  String tripCheckOldTrip(String trip) {
+    return 'New measurements go to the trip $trip, which is from an earlier day. A trip usually covers a single day.';
+  }
+
+  @override
+  String get tripCheckNoTrip =>
+      'This cave has no trip yet, so new measurements are not assigned to one.';
+
+  @override
+  String get tripKeepUsing => 'Keep trip';
+
+  @override
+  String get tripContinueWithout => 'Continue';
+
+  @override
+  String get tripNew => 'New trip';
 
   @override
   String get optionsViewPlaceholder => 'Options';
