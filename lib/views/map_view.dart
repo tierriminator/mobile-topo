@@ -110,14 +110,53 @@ class _MapViewState extends State<MapView> {
     }
   }
 
+  Point? _stationAt(Offset localPosition) => stationAt(
+        _positions.map((k, v) => MapEntry(k, v.plan)),
+        localPosition,
+        _transform,
+        _canvasSize,
+      );
+
   void _handleTapUp(TapUpDetails details) {
-    final tapped = stationAt(
-      _positions.map((k, v) => MapEntry(k, v.plan)),
-      details.localPosition,
-      _transform,
-      _canvasSize,
+    setState(() => _selectedStation = _stationAt(details.localPosition));
+  }
+
+  /// Opens the context menu of the station at [localPosition], if any, to
+  /// show it in the other views. The sketch only shows the selected
+  /// section's stations, so only those can be shown there.
+  Future<void> _openStationMenu(
+      Offset localPosition, Offset globalPosition) async {
+    final station = _stationAt(localPosition);
+    final section = context.read<SelectionState>().selectedSection;
+    if (station == null || section == null) return;
+    setState(() => _selectedStation = station);
+
+    final l10n = AppLocalizations.of(context)!;
+    final inSection = section.survey.stations.contains(station);
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final target = await showMenu<NavigationTarget>(
+      context: context,
+      position: RelativeRect.fromRect(
+          globalPosition & Size.zero, Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+          value: NavigationTarget.data,
+          child: Text(l10n.navigateToData),
+        ),
+        PopupMenuItem(
+          value: NavigationTarget.outline,
+          enabled: inSection,
+          child: Text(l10n.navigateToOutline),
+        ),
+        PopupMenuItem(
+          value: NavigationTarget.sideView,
+          enabled: inSection,
+          child: Text(l10n.navigateToSideView),
+        ),
+      ],
     );
-    setState(() => _selectedStation = tapped);
+    if (target != null) _viewNavigation.show(station, target);
   }
 
   @override
@@ -205,6 +244,10 @@ class _MapViewState extends State<MapView> {
                         onScaleStart: _onScaleStart,
                         onScaleUpdate: _onScaleUpdate,
                         onTapUp: _handleTapUp,
+                        onLongPressStart: (d) =>
+                            _openStationMenu(d.localPosition, d.globalPosition),
+                        onSecondaryTapUp: (d) =>
+                            _openStationMenu(d.localPosition, d.globalPosition),
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _MapPainter(

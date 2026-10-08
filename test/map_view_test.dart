@@ -11,9 +11,11 @@ import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/map_view.dart';
 
-/// Shows the map of a cave with a single shot from 1.0 to 1.1, 5 m east
+/// Shows the map of a cave whose selected section has a single shot from
+/// 1.0 to 1.1, 5 m east, followed by [otherSections]
 Future<void> _pumpMapView(WidgetTester tester,
-    {ViewNavigation? navigation}) async {
+    {ViewNavigation? navigation,
+    List<Section> otherSections = const []}) async {
   final now = DateTime(2026);
   final section = Section(
     id: 'section',
@@ -28,7 +30,7 @@ Future<void> _pumpMapView(WidgetTester tester,
   final cave = Cave(
     id: 'cave',
     name: 'Cave',
-    sections: [section],
+    sections: [section, ...otherSections],
     createdAt: now,
     modifiedAt: now,
   );
@@ -84,6 +86,50 @@ void main() {
     await tester.tapAt(center);
     await tester.pump();
     expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
+  });
+
+  testWidgets('the station menu shows the station in other views',
+      (tester) async {
+    final navigation = ViewNavigation();
+    await _pumpMapView(tester, navigation: navigation);
+    // Centred between the stations at 0 m and 5 m east, at 20 px per metre
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+
+    await tester.longPressAt(center + const Offset(50, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(
+        PopupMenuItem<NavigationTarget>, 'View in Side View'));
+    await tester.pumpAndSettle();
+
+    expect(navigation.take({NavigationTarget.sideView})?.station,
+        const Point(1, 1));
+  });
+
+  testWidgets('stations of other sections cannot be shown in the sketch',
+      (tester) async {
+    final now = DateTime(2026);
+    final continuation = Section(
+      id: 'continuation',
+      name: 'Continuation',
+      survey: const Survey(
+        stretches: [MeasuredDistance(Point(1, 1), Point(1, 2), 5, 90, 0)],
+        referencePoints: [],
+      ),
+      createdAt: now,
+      modifiedAt: now,
+    );
+    await _pumpMapView(tester, otherSections: [continuation]);
+    // Still centred on the selected section, so 1.2 is 150 px right
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+
+    await tester.longPressAt(center + const Offset(150, 0));
+    await tester.pumpAndSettle();
+
+    PopupMenuItem<NavigationTarget> item(String label) => tester.widget(
+        find.widgetWithText(PopupMenuItem<NavigationTarget>, label));
+    expect(item('View in Data').enabled, isTrue);
+    expect(item('View in Outline').enabled, isFalse);
+    expect(item('View in Side View').enabled, isFalse);
   });
 
   testWidgets('requests for other views are left alone', (tester) async {
