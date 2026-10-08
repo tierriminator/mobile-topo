@@ -151,15 +151,9 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('in edit mode, the comment field is not editable',
-        (tester) async {
+    testWidgets('edit mode hides the comment column', (tester) async {
       await pumpCommentTable(tester, comment: 'Big hall', editMode: true);
-
-      await tester.tap(find.text('*'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(find.byType(TextField), findsNothing);
+      expect(find.text('*'), findsNothing);
     });
 
     testWidgets('a read-only row without a comment opens no menu',

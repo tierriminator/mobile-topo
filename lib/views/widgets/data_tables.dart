@@ -199,16 +199,17 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Edit mode replaces the comment column, where comments cannot be
+    // edited, with a column checking rows
     final headerCells = [
       if (widget.editMode) _buildCheckAllCell(),
       ...buildHeaderCells(l10n),
       // The comment column has no header, as in PocketTopo
-      const SizedBox.shrink(),
+      if (!widget.editMode) const SizedBox.shrink(),
     ];
-    final columnWidths = {
-      if (widget.editMode) 0: _checkColumnWidth,
-      headerCells.length - 1: _commentColumnWidth,
-    };
+    final columnWidths = widget.editMode
+        ? {0: _checkColumnWidth}
+        : {headerCells.length - 1: _commentColumnWidth};
 
     return Column(
       children: [
@@ -356,7 +357,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
 
     final cells = [
       ...buildDataCells(index, item),
-      _CommentCell(hasComment: commentOf(item) != null),
+      if (!widget.editMode) _CommentCell(hasComment: commentOf(item) != null),
     ];
 
     return TableRow(
@@ -376,7 +377,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           ),
         for (var col = 0; col < cells.length; col++)
           _wrapCell(context, l10n, index, col, item, cells[col],
-              isCommentColumn: col == cells.length - 1),
+              isCommentColumn: !widget.editMode && col == cells.length - 1),
       ],
     );
   }
@@ -418,10 +419,8 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     }
 
     if (widget.editMode) {
-      // Edit mode: tap to edit cell, no selection or context menu. The
-      // comment column only shows the star, as the scroll bar may cover it;
-      // comments are edited from the context menu.
-      if (isReadOnly(row) || isCommentColumn) return TableCell(child: child);
+      // Edit mode: tap to edit cell, no selection or context menu
+      if (isReadOnly(row)) return TableCell(child: child);
       return TableCell(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
