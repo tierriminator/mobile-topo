@@ -8,6 +8,7 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/settings.dart';
+import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
@@ -123,6 +124,38 @@ void main() {
 
     final stretches = selectionState.selectedSection!.survey.stretches;
     expect(stretches.single.tripId, 'trip');
+  });
+
+  testWidgets('measurements keep changes made to the section in other views',
+      (tester) async {
+    final s = section('s');
+    final c = cave([s]);
+    final selectionState = SelectionState()..selectSection(c, s);
+    final measurementService = MeasurementService(SettingsController());
+    await pumpDataView(tester, selectionState, measurementService);
+
+    void measure() => measurementService.addMeasurement(
+          distance: 3.0,
+          azimuth: 45.0,
+          inclination: 0.0,
+          isStretch: false,
+        );
+
+    measure();
+    await tester.pumpAndSettle();
+    // A stroke drawn in the sketch view between two measurements
+    const stroke = Stroke(
+        points: [Offset.zero, Offset(1, 1)], color: SketchColors.black);
+    selectionState.changeSection(
+        's',
+        (section) => section.copyWith(
+            outlineSketch: section.outlineSketch.addStroke(stroke)));
+    measure();
+    await tester.pumpAndSettle();
+
+    final latest = selectionState.selectedSection!;
+    expect(latest.survey.stretches, hasLength(2));
+    expect(latest.outlineSketch.strokes, [stroke]);
   });
 
   group('whole cave table', () {

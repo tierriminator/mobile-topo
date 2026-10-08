@@ -58,9 +58,6 @@ class _SketchViewState extends State<SketchView> {
   ViewTransform _gestureStart = const ViewTransform();
   Offset _gestureFocalPoint = Offset.zero;
 
-  // Save lock to prevent concurrent writes
-  Future<void>? _pendingSave;
-
   Size _canvasSize = Size.zero;
 
   // Station tapped in move mode, shown in the status bar
@@ -243,27 +240,25 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
+  /// Puts both sketches into the latest state of the selected section and
+  /// saves it
   void _saveSketch() {
-    // Chain saves to prevent concurrent writes that can corrupt files
-    _pendingSave = _pendingSave?.then((_) => _doSave()) ?? _doSave();
-  }
-
-  Future<void> _doSave() async {
     final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final section = selectionState.selectedSection;
+    final sectionId = _currentSectionId;
     final caveId = selectionState.selectedCaveId;
+    if (sectionId == null || caveId == null) return;
 
-    if (section == null || caveId == null) return;
-
-    final updatedSection = section.copyWith(
-      outlineSketch: _outlineSketch,
-      sideViewSketch: _sideViewSketch,
-      modifiedAt: DateTime.now(),
+    final changed = selectionState.changeSection(
+      sectionId,
+      (section) => section.copyWith(
+        outlineSketch: _outlineSketch,
+        sideViewSketch: _sideViewSketch,
+        modifiedAt: DateTime.now(),
+      ),
     );
-
-    await repository.saveSection(caveId, updatedSection);
-    selectionState.updateSection(updatedSection);
+    if (changed != null) {
+      context.read<CaveRepository>().saveSection(caveId, changed);
+    }
   }
 
   void _undo() {

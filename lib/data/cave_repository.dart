@@ -40,6 +40,7 @@ abstract class CaveRepository {
 
   /// Save a single section.
   /// The section must already be referenced in the cave hierarchy.
+  /// Saves of the same section are written in the order they were called.
   Future<void> saveSection(String caveId, Section section);
 
   /// Delete a section.

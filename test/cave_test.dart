@@ -112,23 +112,55 @@ void main() {
   });
 
   group('SelectionState', () {
-    test('updateSection updates the section within the selected cave', () {
+    test('changeSection updates the section within the selected cave', () {
       final c = cave();
       final state = SelectionState()
         ..selectSection(c, c.allSections.firstWhere((s) => s.id == 'a1'));
 
-      state.updateSection(section('a1', [stretch]));
+      final changed = state.changeSection(
+          'a1', (s) => s.copyWith(survey: s.survey.addStretch(stretch)));
 
       final a1 =
           state.selectedCave!.allSections.firstWhere((s) => s.id == 'a1');
       expect(a1.survey.stretches, [stretch]);
       expect(identical(a1, state.selectedSection), isTrue);
+      expect(identical(changed, a1), isTrue);
+    });
+
+    test('changeSection builds on the changes made before', () {
+      final c = cave();
+      final state = SelectionState()..selectSection(c, c.sections.first);
+      const other = MeasuredDistance(Point(1, 1), Point(1, 2), 3, 0, 0);
+
+      state.changeSection(
+          'root', (s) => s.copyWith(survey: s.survey.addStretch(stretch)));
+      state.changeSection(
+          'root', (s) => s.copyWith(survey: s.survey.addStretch(other)));
+
+      expect(state.selectedSection!.survey.stretches, [stretch, other]);
+    });
+
+    test('changeSection leaves other sections alone', () {
+      final c = cave();
+      final state = SelectionState()..selectSection(c, c.sections.first);
+
+      final changed = state.changeSection(
+          'a1', (s) => s.copyWith(survey: s.survey.addStretch(stretch)));
+
+      expect(changed, isNull);
+      expect(
+          state.selectedCave!.allSections
+              .firstWhere((s) => s.id == 'a1')
+              .survey
+              .stretches,
+          isEmpty);
     });
 
     test('updateTrips takes over trips but keeps the selected sections', () {
       final c = cave();
       final state = SelectionState()..selectSection(c, c.sections.first);
-      state.updateSection(section('root', [stretch]));
+      state.changeSection(
+          'root', (s) => s.copyWith(survey: s.survey.addStretch(stretch)));
 
       // A stale copy of the cave, as the explorer may hold it
       final withTrip = c.addTrip(Trip(id: 'trip', date: now, createdAt: now));

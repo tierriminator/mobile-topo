@@ -23,13 +23,19 @@ class SelectionState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Update the section data (e.g., after editing survey)
-  void updateSection(Section section) {
-    if (_selectedSection?.id == section.id) {
-      _selectedSection = section;
-      _selectedCave = _selectedCave?.replaceSection(section);
-      notifyListeners();
-    }
+  /// Applies [change] to the selected section, if it is the one with
+  /// [sectionId], and returns the changed section; returns null if another
+  /// section or none is selected. The change is made to the latest state of
+  /// the section, so changes made from different views all keep each other.
+  Section? changeSection(
+      String sectionId, Section Function(Section section) change) {
+    final section = _selectedSection;
+    if (section == null || section.id != sectionId) return null;
+    final changed = change(section);
+    _selectedSection = changed;
+    _selectedCave = _selectedCave?.replaceSection(changed);
+    notifyListeners();
+    return changed;
   }
 
   /// Take over the trips of [cave] if it is the selected one

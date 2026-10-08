@@ -26,35 +26,11 @@ class _DataViewState extends State<DataView> {
   bool _measurementServiceBound = false;
   bool _cellEditMode = false;
 
-  // Save lock to prevent concurrent writes that can corrupt files
-  Future<void>? _pendingSave;
-
-  // Local section state that gets updated synchronously when measurements
-  // come in. This prevents race conditions where multiple measurements arrive
-  // before the async save completes and SelectionState gets updated.
-  Section? _localSection;
-
   void _checkSectionChange(Section? section) {
     if (section?.id != _currentSectionId) {
       _history.clear();
-      _localSection = null; // Clear local state when section changes
       _currentSectionId = section?.id;
     }
-  }
-
-  /// Get the current effective section, preferring local state over SelectionState.
-  /// This ensures we see our own pending changes that haven't been saved yet.
-  Section? _getEffectiveSection(String expectedSectionId) {
-    // If we have local state for this section, use it
-    if (_localSection != null && _localSection!.id == expectedSectionId) {
-      return _localSection;
-    }
-    // Otherwise fall back to SelectionState
-    final selectionSection = context.read<SelectionState>().selectedSection;
-    if (selectionSection?.id == expectedSectionId) {
-      return selectionSection;
-    }
-    return null;
   }
 
   /// Routes measurements to whichever section is selected when they arrive.
@@ -87,146 +63,83 @@ class _DataViewState extends State<DataView> {
 
   Future<void> _addMeasuredStretch(
       String sectionId, MeasuredDistance stretch) async {
-    // Get effective section (local state if available, otherwise SelectionState)
-    final currentSection = _getEffectiveSection(sectionId);
-    if (currentSection == null) return;
-
-    final newSurvey = currentSection.survey
-        .addStretch(stretch.copyWith(tripId: _activeTripId));
-    await _applySurveyChangeWithLocalState(currentSection, newSurvey);
+    await _changeSurvey(sectionId,
+        (survey) => survey.addStretch(stretch.copyWith(tripId: _activeTripId)));
   }
 
+  /// Replaces the last [removeCount] splays with the survey shot smart mode
+  /// detected in them
   Future<void> _replaceWithSurveyShot(
       String sectionId, int removeCount, MeasuredDistance stretch) async {
-    debugPrint('DataView._replaceWithSurveyShot: removeCount=$removeCount, stretch=$stretch');
-
-    // Get effective section (local state if available, otherwise SelectionState)
-    final currentSection = _getEffectiveSection(sectionId);
-    if (currentSection == null) {
-      debugPrint('DataView._replaceWithSurveyShot: section not found, aborting');
-      return;
-    }
-
-    debugPrint('DataView._replaceWithSurveyShot: current stretches count=${currentSection.survey.stretches.length}');
-
-    // Replace last N splays with the survey shot
-    final newSurvey = currentSection.survey.replaceLastNWithStretch(
-        removeCount, stretch.copyWith(tripId: _activeTripId));
-    debugPrint('DataView._replaceWithSurveyShot: new stretches count=${newSurvey.stretches.length}');
-
-    await _applySurveyChangeWithLocalState(currentSection, newSurvey);
+    await _changeSurvey(
+        sectionId,
+        (survey) => survey.replaceLastNWithStretch(
+            removeCount, stretch.copyWith(tripId: _activeTripId)));
   }
 
-  /// Apply survey change with local state tracking for measurements.
-  /// Updates _localSection synchronously so subsequent measurements see our changes.
-  Future<void> _applySurveyChangeWithLocalState(
-    Section section,
-    Survey newSurvey,
-  ) async {
-    final selectionState = context.read<SelectionState>();
-    final repository = context.read<CaveRepository>();
-    final caveId = selectionState.selectedCaveId;
-
-    if (caveId == null) return;
-
-    _history.record(section.survey);
-
-    final updatedSection = section.copyWith(
-      survey: newSurvey,
-      modifiedAt: DateTime.now(),
-    );
-
-    // Update local state SYNCHRONOUSLY so subsequent measurements see our changes
-    _localSection = updatedSection;
-    // Update SelectionState immediately so other views (map, sketch) see changes
-    selectionState.updateSection(updatedSection);
-    if (mounted) setState(() {}); // Update UI immediately
-
-    // Chain saves to prevent concurrent writes that can corrupt files
-    Future<void> doSave() async {
-      await repository.saveSection(caveId, updatedSection);
-    }
-    _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
-    await _pendingSave;
-  }
-
-  Future<void> _applySurveyChange(
-    Section section,
-    Survey newSurvey, {
+  /// Applies [change] to the latest survey of the section with [sectionId],
+  /// if it is still selected, and saves it. Measurements arriving in quick
+  /// succession and changes made in other views build on each other this
+  /// way, as SelectionState is updated synchronously.
+  Future<void> _changeSurvey(
+    String sectionId,
+    Survey Function(Survey survey) change, {
     bool recordHistory = true,
   }) async {
     final selectionState = context.read<SelectionState>();
     final repository = context.read<CaveRepository>();
     final caveId = selectionState.selectedCaveId;
-
     if (caveId == null) return;
 
-    if (recordHistory) {
-      _history.record(section.survey);
-    }
-
-    final updatedSection = section.copyWith(
-      survey: newSurvey,
-      modifiedAt: DateTime.now(),
-    );
-
-    // Update state immediately so all views see changes
-    _localSection = null;
-    selectionState.updateSection(updatedSection);
-    if (mounted) setState(() {});
-
-    // Chain saves to prevent concurrent writes that can corrupt files
-    Future<void> doSave() async {
-      await repository.saveSection(caveId, updatedSection);
-    }
-    _pendingSave = _pendingSave?.then((_) => doSave()) ?? doSave();
-    await _pendingSave;
+    final changed = selectionState.changeSection(sectionId, (section) {
+      if (recordHistory) _history.record(section.survey);
+      return section.copyWith(
+        survey: change(section.survey),
+        modifiedAt: DateTime.now(),
+      );
+    });
+    if (changed != null) await repository.saveSection(caveId, changed);
   }
 
   Future<void> _undo(Section section) async {
-    final previousSurvey = _history.undo(section.survey);
-    if (previousSurvey != null) {
-      await _applySurveyChange(section, previousSurvey, recordHistory: false);
-    }
+    await _changeSurvey(section.id, (survey) => _history.undo(survey) ?? survey,
+        recordHistory: false);
   }
 
   Future<void> _redo(Section section) async {
-    final nextSurvey = _history.redo(section.survey);
-    if (nextSurvey != null) {
-      await _applySurveyChange(section, nextSurvey, recordHistory: false);
-    }
+    await _changeSurvey(section.id, (survey) => _history.redo(survey) ?? survey,
+        recordHistory: false);
   }
 
   Future<void> _addStretch(Section section) async {
-    final from = _caveSurvey(section).lastStation ?? _defaultStation;
-    final to = Point(from.corridorId, from.pointId.toInt() + 1);
-
-    final stretch = MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId);
-    await _applySurveyChange(section, section.survey.addStretch(stretch));
+    await _changeSurvey(section.id, (survey) {
+      final from = _caveSurvey(survey).lastStation ?? _defaultStation;
+      final to = Point(from.corridorId, from.pointId.toInt() + 1);
+      return survey.addStretch(
+          MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId));
+    });
   }
 
   Future<void> _insertStretchAt(Section section, int index) async {
-    final stretches = section.survey.stretches;
-    Point from;
-    Point? to;
-    if (stretches.isEmpty) {
-      from = const Point(1, 0);
-      to = const Point(1, 1);
-    } else if (index < stretches.length) {
-      final refStretch = stretches[index];
-      from = refStretch.from;
-      to = refStretch.from;
-    } else {
-      final lastStretch = stretches.last;
-      from = lastStretch.to ?? lastStretch.from;
-      to = Point(from.corridorId, from.pointId.toInt() + 1);
-    }
-
-    final stretch = MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId);
-    await _applySurveyChange(
-      section,
-      section.survey.insertStretchAt(index, stretch),
-    );
+    await _changeSurvey(section.id, (survey) {
+      final stretches = survey.stretches;
+      Point from;
+      Point? to;
+      if (stretches.isEmpty) {
+        from = const Point(1, 0);
+        to = const Point(1, 1);
+      } else if (index < stretches.length) {
+        final refStretch = stretches[index];
+        from = refStretch.from;
+        to = refStretch.from;
+      } else {
+        final lastStretch = stretches.last;
+        from = lastStretch.to ?? lastStretch.from;
+        to = Point(from.corridorId, from.pointId.toInt() + 1);
+      }
+      return survey.insertStretchAt(
+          index, MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId));
+    });
   }
 
   Future<void> _updateStretch(
@@ -234,27 +147,24 @@ class _DataViewState extends State<DataView> {
     int index,
     MeasuredDistance stretch,
   ) async {
-    await _applySurveyChange(
-      section,
-      section.survey.updateStretchAt(index, stretch),
-    );
+    await _changeSurvey(
+        section.id, (survey) => survey.updateStretchAt(index, stretch));
   }
 
   Future<void> _deleteStretch(Section section, int index) async {
-    await _applySurveyChange(section, section.survey.removeStretchAt(index));
+    await _changeSurvey(section.id, (survey) => survey.removeStretchAt(index));
   }
 
   Future<void> _addReferencePoint(Section section) async {
     const point = ReferencePoint(Point(1, 0), 0, 0, 0);
-    await _applySurveyChange(section, section.survey.addReferencePoint(point));
+    await _changeSurvey(
+        section.id, (survey) => survey.addReferencePoint(point));
   }
 
   Future<void> _insertReferencePointAt(Section section, int index) async {
     const point = ReferencePoint(Point(1, 0), 0, 0, 0);
-    await _applySurveyChange(
-      section,
-      section.survey.insertReferencePointAt(index, point),
-    );
+    await _changeSurvey(
+        section.id, (survey) => survey.insertReferencePointAt(index, point));
   }
 
   Future<void> _updateReferencePoint(
@@ -262,29 +172,26 @@ class _DataViewState extends State<DataView> {
     int index,
     ReferencePoint point,
   ) async {
-    await _applySurveyChange(
-      section,
-      section.survey.updateReferencePointAt(index, point),
-    );
+    await _changeSurvey(
+        section.id, (survey) => survey.updateReferencePointAt(index, point));
   }
 
   Future<void> _deleteReferencePoint(Section section, int index) async {
-    await _applySurveyChange(
-      section,
-      section.survey.removeReferencePointAt(index),
-    );
+    await _changeSurvey(
+        section.id, (survey) => survey.removeReferencePointAt(index));
   }
 
   /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
   /// first station of a new series, so measuring continues from there.
   Future<void> _startNewSeries(Section section, Point fromStation) async {
-    // Station IDs must be unique in the whole cave, so the new series number
-    // is taken from all sections, not just this one
-    final newStation = _caveSurvey(section).nextSeriesStart;
-
-    final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0,
-        tripId: _activeTripId);
-    await _applySurveyChange(section, section.survey.addStretch(emptyStretch));
+    await _changeSurvey(section.id, (survey) {
+      // Station IDs must be unique in the whole cave, so the new series
+      // number is taken from all sections, not just this one
+      final newStation = _caveSurvey(survey).nextSeriesStart;
+      return survey.addStretch(MeasuredDistance(
+          fromStation, newStation, 0, 0, 0,
+          tripId: _activeTripId));
+    });
   }
 
   /// PocketTopo's "Continue Here", offered only at the last station of a
@@ -293,7 +200,7 @@ class _DataViewState extends State<DataView> {
   Future<void> _continueHere(Section section, Point station) async {
     final dummy =
         MeasuredDistance(station, null, 0, 0, 0, tripId: _activeTripId);
-    await _applySurveyChange(section, section.survey.addStretch(dummy));
+    await _changeSurvey(section.id, (survey) => survey.addStretch(dummy));
   }
 
   /// The trip new rows are assigned to: the cave's newest trip
@@ -323,19 +230,20 @@ class _DataViewState extends State<DataView> {
   /// The station new measurements start from: as in PocketTopo, it follows
   /// from the last row of the table
   Point _currentStation() {
-    final sectionId = _currentSectionId;
     final section =
-        mounted && sectionId != null ? _getEffectiveSection(sectionId) : null;
+        mounted ? context.read<SelectionState>().selectedSection : null;
     if (section == null) return _defaultStation;
-    return _caveSurvey(section).lastStation ?? _defaultStation;
+    return _caveSurvey(section.survey).lastStation ?? _defaultStation;
   }
 
-  /// The data of all other sections of the cave, shown read-only above the
-  /// selected section's own rows
-  Survey _otherSectionsSurvey(Section section) {
-    final cave = context.read<SelectionState>().selectedCave;
+  /// The data of all sections of the cave but the selected one, shown
+  /// read-only above the selected section's own rows
+  Survey _otherSectionsSurvey() {
+    final selectionState = context.read<SelectionState>();
+    final sectionId = selectionState.selectedSection?.id;
     final others = [
-      ...?cave?.allSections.where((s) => s.id != section.id),
+      ...?selectionState.selectedCave?.allSections
+          .where((s) => s.id != sectionId),
     ];
     return Survey(
       stretches: [for (final s in others) ...s.survey.stretches],
@@ -344,14 +252,14 @@ class _DataViewState extends State<DataView> {
   }
 
   /// The whole cave as the table lists it: the other sections first, then
-  /// this section with its latest changes
-  Survey _caveSurvey(Section section) {
-    final others = _otherSectionsSurvey(section);
+  /// the selected section's [sectionSurvey]
+  Survey _caveSurvey(Survey sectionSurvey) {
+    final others = _otherSectionsSurvey();
     return Survey(
-      stretches: [...others.stretches, ...section.survey.stretches],
+      stretches: [...others.stretches, ...sectionSurvey.stretches],
       referencePoints: [
         ...others.referencePoints,
-        ...section.survey.referencePoints,
+        ...sectionSurvey.referencePoints,
       ],
     );
   }
@@ -386,10 +294,7 @@ class _DataViewState extends State<DataView> {
       );
     }
 
-    // Use local section for display if available (shows pending changes immediately)
-    final section = _localSection?.id == selectionSection.id
-        ? _localSection!
-        : selectionSection;
+    final section = selectionSection;
 
     // Bind measurement service callbacks
     _bindMeasurementService();
@@ -488,7 +393,7 @@ class _DataViewState extends State<DataView> {
     // Like PocketTopo, the table lists the whole cave: the other sections'
     // rows come first and are read-only, this section's rows follow. Table
     // indices are converted back to this section's indices for editing.
-    final caveSurvey = _caveSurvey(section);
+    final caveSurvey = _caveSurvey(section.survey);
     final stretches = caveSurvey.stretches;
     final referencePoints = caveSurvey.referencePoints;
     final stretchOffset =

@@ -30,6 +30,21 @@ import 'sketch_serialization.dart';
 class LocalCaveRepository implements CaveRepository {
   Directory? _baseDir;
 
+  // The latest queued write of each section, by cave and section ID. Writes
+  // to a section run one after the other in the order they were requested,
+  // so they never overlap and the last requested state ends up on disk.
+  final Map<String, Future<void>> _sectionWrites = {};
+
+  Future<void> _queueSectionWrite(
+      String caveId, String sectionId, Future<void> Function() write) {
+    final key = '$caveId/$sectionId';
+    final previous = _sectionWrites[key] ?? Future<void>.value();
+    // A failed write must not block the ones after it
+    final next = previous.catchError((_) {}).then((_) => write());
+    _sectionWrites[key] = next;
+    return next;
+  }
+
   Future<Directory> get _cavesDir async {
     if (_baseDir == null) {
       final appDir = await getApplicationDocumentsDirectory();
@@ -281,7 +296,8 @@ class LocalCaveRepository implements CaveRepository {
     // Write all sections
     final sectionsDir = _sectionsDir(caveDir);
     for (final section in allSections) {
-      await _saveSection(sectionsDir, section);
+      await _queueSectionWrite(
+          cave.id, section.id, () => _saveSection(sectionsDir, section));
     }
 
     // Write all trips
@@ -390,13 +406,12 @@ class LocalCaveRepository implements CaveRepository {
   }
 
   @override
-  Future<void> saveSection(String caveId, Section section) async {
-    final cavesDir = await _cavesDir;
-    final caveDir = _caveDir(cavesDir, caveId);
-    final sectionsDir = _sectionsDir(caveDir);
-
-    await _saveSection(sectionsDir, section);
-  }
+  Future<void> saveSection(String caveId, Section section) =>
+      // Queued before anything is awaited, so the order of calls is kept
+      _queueSectionWrite(caveId, section.id, () async {
+        final cavesDir = await _cavesDir;
+        await _saveSection(_sectionsDir(_caveDir(cavesDir, caveId)), section);
+      });
 
   @override
   Future<void> deleteSection(String caveId, String sectionId) async {
