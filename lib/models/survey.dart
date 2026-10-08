@@ -1,8 +1,15 @@
 import 'dart:math' as math;
 
-class Point {
+class Point implements Comparable<Point> {
   final num corridorId, pointId;
   const Point(this.corridorId, this.pointId);
+
+  /// Orders stations by series, then by point within the series
+  @override
+  int compareTo(Point other) {
+    final bySeries = corridorId.compareTo(other.corridorId);
+    return bySeries != 0 ? bySeries : pointId.compareTo(other.pointId);
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -33,6 +40,16 @@ class MeasuredDistance {
   final num distance, azimut, inclination;
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination);
+
+  /// The station this row stands for: the station a survey shot leads to,
+  /// or the station of a cross section. A shot whose From station is numbered
+  /// higher than its To station counts as a backward shot, measured from the
+  /// new station back to the previous one.
+  Point get station {
+    final to = this.to;
+    if (to == null) return from;
+    return from.compareTo(to) > 0 ? from : to;
+  }
 
   Map<String, dynamic> toJson() => {
         'from': from.toJson(),
@@ -218,28 +235,12 @@ class Survey {
   }
 
   /// The station new measurements continue from, as in PocketTopo where the
-  /// last row of the data table determines the numbering:
-  /// - a final cross section continues from its From station
-  /// - a final survey shot continues from the station it newly reached, which
-  ///   is its To station for forward shots and its From station for backward
-  ///   ones; if both or neither are new, its To station
-  /// - without stretches, the last reference point's station
+  /// last row of the data table determines the numbering: the station of the
+  /// last stretch, or without stretches the last reference point's station.
   ///
   /// Returns null for an empty survey.
-  Point? get lastStation {
-    if (stretches.isEmpty) return referencePoints.lastOrNull?.id;
-
-    final last = stretches.last;
-    final to = last.to;
-    if (to == null) return last.from;
-
-    final earlier = Survey(
-      stretches: stretches.sublist(0, stretches.length - 1),
-      referencePoints: referencePoints,
-    ).stations;
-    if (earlier.contains(to) && !earlier.contains(last.from)) return last.from;
-    return to;
-  }
+  Point? get lastStation =>
+      stretches.lastOrNull?.station ?? referencePoints.lastOrNull?.id;
 
   /// First station of a new series: the series after the highest one in use
   Point get nextSeriesStart {

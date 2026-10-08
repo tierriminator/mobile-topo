@@ -462,14 +462,13 @@ class _DataViewState extends State<DataView> {
     // Like PocketTopo, the table lists the whole cave: the other sections'
     // rows come first and are read-only, this section's rows follow. Table
     // indices are converted back to this section's indices for editing.
-    final others = _otherSectionsSurvey(section);
-    final stretches = [...others.stretches, ...section.survey.stretches];
-    final referencePoints = [
-      ...others.referencePoints,
-      ...section.survey.referencePoints,
-    ];
-    final stretchOffset = others.stretches.length;
-    final pointOffset = others.referencePoints.length;
+    final caveSurvey = _caveSurvey(section);
+    final stretches = caveSurvey.stretches;
+    final referencePoints = caveSurvey.referencePoints;
+    final stretchOffset =
+        stretches.length - section.survey.stretches.length;
+    final pointOffset =
+        referencePoints.length - section.survey.referencePoints.length;
 
     return IndexedStack(
       index: _mode == DataViewMode.stretches ? 0 : 1,
@@ -512,7 +511,7 @@ class _DataViewState extends State<DataView> {
                 onContinueHere: (station) => _continueHere(section, station),
                 // Series can span sections, so their ends are taken from the
                 // whole cave
-                seriesEnds: _caveSurvey(section).seriesEnds,
+                seriesEnds: caveSurvey.seriesEnds,
                 onAdd: () => _addStretch(section),
               ),
         // Reference points view

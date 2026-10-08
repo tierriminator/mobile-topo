@@ -211,6 +211,30 @@ void main() {
       expect(measurementService.currentStation, const Point(3, 0));
     });
 
+    testWidgets('on a backward shot starts a new series at its From station',
+        (tester) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [
+            MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+            MeasuredDistance(Point(1, 2), Point(1, 1), 6, 270, 0),
+          ],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([other, current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await startHereOn(tester, '6.00');
+
+      final dummy = selectionState.selectedSection!.survey.stretches.last;
+      expect(dummy.from, const Point(1, 2));
+      expect(dummy.to, const Point(3, 0));
+    });
+
     testWidgets('on a reference point starts a new series at its station',
         (tester) async {
       final current = section(
@@ -272,6 +296,32 @@ void main() {
       expect(dummy.distance, 0);
       expect(measurementService.currentStation, const Point(1, 2));
       expect(measurementService.nextStation, const Point(1, 3));
+    });
+
+    testWidgets('is offered on a backward shot ending a series',
+        (tester) async {
+      final backward = section(
+        'backward',
+        const Survey(
+          stretches: [
+            MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+            MeasuredDistance(Point(1, 2), Point(1, 1), 6, 270, 0),
+          ],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([backward]), backward);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '6.00');
+      await tester.tap(find.text('Continue here'));
+      await tester.pumpAndSettle();
+
+      final dummy = selectionState.selectedSection!.survey.stretches.last;
+      expect(dummy.from, const Point(1, 2));
+      expect(dummy.to, isNull);
     });
 
     testWidgets('is not offered in the middle of a series', (tester) async {

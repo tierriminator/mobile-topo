@@ -305,10 +305,6 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
 
 class StretchesTableState
     extends EditableDataTableState<MeasuredDistance, StretchesTable> {
-  /// The station a row stands for: a survey shot defines its To station,
-  /// a cross section its From station
-  Point _station(MeasuredDistance stretch) => stretch.to ?? stretch.from;
-
   void _updateStretch(
     int index,
     MeasuredDistance current, {
@@ -384,7 +380,7 @@ class StretchesTableState
       AppLocalizations l10n, int index, MeasuredDistance item) {
     return [
       PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
-      if (widget.seriesEnds.contains(_station(item)))
+      if (widget.seriesEnds.contains(item.station))
         PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
       if (!isReadOnly(index)) ...[
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
@@ -399,9 +395,9 @@ class StretchesTableState
       String? value, int index, MeasuredDistance item) {
     switch (value) {
       case 'startHere':
-        widget.onStartHere?.call(_station(item));
+        widget.onStartHere?.call(item.station);
       case 'continueHere':
-        widget.onContinueHere?.call(_station(item));
+        widget.onContinueHere?.call(item.station);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':
