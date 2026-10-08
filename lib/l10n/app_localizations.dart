@@ -663,6 +663,24 @@ abstract class AppLocalizations {
   /// **'Insert below'**
   String get insertBelow;
 
+  /// Context menu option to switch a survey shot between forward and backward
+  ///
+  /// In en, this message translates to:
+  /// **'Flip'**
+  String get flipShot;
+
+  /// Context menu option to turn a cross section into a survey shot to the next station
+  ///
+  /// In en, this message translates to:
+  /// **'To survey shot'**
+  String get toSurveyShot;
+
+  /// Context menu option to reassign the stations of the following rows
+  ///
+  /// In en, this message translates to:
+  /// **'Renumber'**
+  String get renumber;
+
   /// Context menu option to start a new series from this station
   ///
   /// In en, this message translates to:

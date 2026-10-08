@@ -20,6 +20,9 @@ class Point implements Comparable<Point> {
   @override
   int get hashCode => Object.hash(corridorId, pointId);
 
+  /// The following point in the same series
+  Point get next => Point(corridorId, pointId.toInt() + 1);
+
   @override
   String toString() => '$corridorId.$pointId';
 
@@ -96,6 +99,31 @@ class MeasuredDistance {
     final to = this.to;
     if (to == null) return from;
     return from.compareTo(to) > 0 ? from : to;
+  }
+
+  /// Whether this is a survey shot measured from the new station back to
+  /// the previous one
+  bool get isBackward {
+    final to = this.to;
+    return to != null && from.compareTo(to) > 0;
+  }
+
+  /// A survey shot switched between forward and backward by exchanging From
+  /// and To. A cross section is returned unchanged.
+  MeasuredDistance reversed() {
+    final to = this.to;
+    return to == null ? this : copyWith(from: to, to: from);
+  }
+
+  /// A cross section turned into a survey shot to the next station, a
+  /// backward one if [backward] is set. A survey shot is returned unchanged.
+  MeasuredDistance toSurveyShot({bool backward = false}) {
+    if (to != null) return this;
+    final next = from.next;
+    return copyWith(
+      from: backward ? next : from,
+      to: backward ? from : next,
+    );
   }
 
   Map<String, dynamic> toJson() => {
@@ -435,6 +463,53 @@ class Survey {
     final newStretches = List<MeasuredDistance>.from(stretches);
     newStretches.removeAt(index);
     return copyWith(stretches: newStretches);
+  }
+
+  /// PocketTopo's "Renumber": reassigns the stations of all stretches
+  /// following the one at [index], continuing from the station that one
+  /// stands for. Rows continuing where the previous row ended are numbered
+  /// in sequence: cross sections move to the current station, survey shots
+  /// lead on to the next station and keep their direction. Rows continuing
+  /// elsewhere, like the dummy rows of Start Here and Continue Here, only
+  /// take over the new numbers of stations renumbered before them, and the
+  /// numbering goes on from where they lead.
+  Survey renumberFrom(int index) {
+    final renumbered = List<MeasuredDistance>.from(stretches);
+    // New numbers of the stations survey shots lead to, by old number
+    final moved = <Point, Point>{};
+    Point newNumber(Point old) => moved[old] ?? old;
+
+    var current = renumbered[index].station;
+    // The station the previous row stood for before renumbering; unknown
+    // for the row the renumbering starts at, which may have been edited
+    Point? previous;
+    for (var i = index + 1; i < renumbered.length; i++) {
+      final stretch = renumbered[i];
+      final to = stretch.to;
+      final start = stretch.isBackward ? to! : stretch.from;
+      final startsSeries =
+          to != null && to.corridorId != stretch.from.corridorId;
+      final continues = previous == null || start == previous;
+      previous = stretch.station;
+
+      if (startsSeries || !continues) {
+        renumbered[i] = stretch.copyWith(
+          from: newNumber(stretch.from),
+          to: to == null ? null : newNumber(to),
+        );
+        current = renumbered[i].station;
+      } else if (to == null) {
+        renumbered[i] = stretch.copyWith(from: current);
+      } else {
+        final next = current.next;
+        moved[stretch.station] = next;
+        renumbered[i] = stretch.isBackward
+            ? stretch.copyWith(from: next, to: current)
+            : stretch.copyWith(from: current, to: next);
+        current = next;
+      }
+    }
+    return copyWith(stretches: renumbered);
   }
 
   /// The cross section measurements and splays taken at [station]

@@ -83,10 +83,7 @@ class MeasurementService extends ChangeNotifier {
   Point get currentStation => stationProvider?.call() ?? const Point(1, 0);
 
   /// Station a new survey shot leads to: the next point in the series
-  Point get nextStation {
-    final current = currentStation;
-    return Point(current.corridorId, current.pointId.toInt() + 1);
-  }
+  Point get nextStation => currentStation.next;
 
   /// Add an incoming measurement.
   ///

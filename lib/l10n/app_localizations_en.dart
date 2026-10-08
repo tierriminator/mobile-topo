@@ -315,6 +315,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get insertBelow => 'Insert below';
 
   @override
+  String get flipShot => 'Flip';
+
+  @override
+  String get toSurveyShot => 'To survey shot';
+
+  @override
+  String get renumber => 'Renumber';
+
+  @override
   String get startHere => 'Start here';
 
   @override

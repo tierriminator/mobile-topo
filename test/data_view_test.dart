@@ -48,6 +48,7 @@ void main() {
     SelectionState selectionState,
     MeasurementService measurementService, {
     ViewNavigation? navigation,
+    SettingsController? settings,
   }) {
     return tester.pumpWidget(
       MultiProvider(
@@ -55,7 +56,7 @@ void main() {
           ChangeNotifierProvider.value(value: selectionState),
           ChangeNotifierProvider.value(value: measurementService),
           ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
-          ChangeNotifierProvider(create: (_) => SettingsController()),
+          ChangeNotifierProvider.value(value: settings ?? SettingsController()),
           Provider<CaveRepository>.value(value: _InMemoryCaveRepository()),
         ],
         child: const MaterialApp(
@@ -473,6 +474,129 @@ void main() {
       expect(stretches.single.from, const Point(1, 0));
       expect(stretches.single.to, const Point(3, 0));
       expect(measurementService.currentStation, const Point(3, 0));
+    });
+  });
+
+  group('Flip, To survey shot and Renumber', () {
+    final current = section(
+      'current',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), null, 7, 0, 0),
+          MeasuredDistance(Point(1, 1), Point(1, 2), 6, 90, 0),
+        ],
+        referencePoints: [],
+      ),
+    );
+
+    Future<void> choose(WidgetTester tester, String cellText, String item) async {
+      await openMenuOn(tester, cellText);
+      await tester.tap(find.text(item));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('turn a cross section into a shot and renumber after it',
+        (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await choose(tester, '7.00', 'To survey shot');
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches[1].from, const Point(1, 1));
+      expect(stretches[1].to, const Point(1, 2));
+      expect(stretches[2].from, const Point(1, 2));
+      expect(stretches[2].to, const Point(1, 3));
+    });
+
+    testWidgets('renumber the rows after an edited station', (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+      selectionState.changeSection(
+          'current',
+          (s) => s.copyWith(
+              survey: s.survey.updateStretchAt(
+                  0, s.survey.stretches[0].copyWith(to: const Point(1, 5)))));
+      await tester.pumpAndSettle();
+
+      await choose(tester, '5.00', 'Renumber');
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches[1].from, const Point(1, 5));
+      expect(stretches[2].from, const Point(1, 5));
+      expect(stretches[2].to, const Point(1, 6));
+    });
+
+    testWidgets('flip a survey shot between forward and backward',
+        (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      await choose(tester, '5.00', 'Flip');
+
+      final flipped = selectionState.selectedSection!.survey.stretches[0];
+      expect(flipped.from, const Point(1, 1));
+      expect(flipped.to, const Point(1, 0));
+    });
+
+    testWidgets('offer only the action matching the row', (tester) async {
+      await pumpDataView(
+          tester,
+          SelectionState()..selectSection(cave([current]), current),
+          MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '5.00');
+      expect(find.text('Flip'), findsOneWidget);
+      expect(find.text('To survey shot'), findsNothing);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      await openMenuOn(tester, '7.00');
+      expect(find.text('Flip'), findsNothing);
+      expect(find.text('To survey shot'), findsOneWidget);
+    });
+
+    testWidgets('turn a cross section into a backward shot if set',
+        (tester) async {
+      final selectionState = SelectionState()
+        ..selectSection(cave([current]), current);
+      await pumpDataView(
+        tester,
+        selectionState,
+        MeasurementService(SettingsController()),
+        settings: SettingsController(
+            const Settings(shotDirection: ShotDirection.backward)),
+      );
+
+      await choose(tester, '7.00', 'To survey shot');
+
+      final shot = selectionState.selectedSection!.survey.stretches[1];
+      expect(shot.from, const Point(1, 2));
+      expect(shot.to, const Point(1, 1));
+    });
+
+    testWidgets('are not offered on rows of other sections', (tester) async {
+      final later = section('later');
+      await pumpDataView(
+          tester,
+          SelectionState()..selectSection(cave([current, later]), later),
+          MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '5.00');
+      expect(find.text('Flip'), findsNothing);
+      expect(find.text('Renumber'), findsNothing);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      await openMenuOn(tester, '7.00');
+      expect(find.text('To survey shot'), findsNothing);
     });
   });
 

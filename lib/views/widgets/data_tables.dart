@@ -442,6 +442,15 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
   final void Function(Point station)? onStartHere;
   final void Function(Point station)? onContinueHere;
 
+  /// Switches the survey shot at an index between forward and backward
+  final void Function(int index)? onFlipShot;
+
+  /// Turns the cross section at an index into a survey shot
+  final void Function(int index)? onToSurveyShot;
+
+  /// PocketTopo's "Renumber" from the stretch at an index
+  final void Function(int index)? onRenumber;
+
   /// Opens the trip of a stretch; offered for stretches that have one
   final void Function(MeasuredDistance stretch)? onShowTrip;
 
@@ -465,6 +474,9 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
+    this.onFlipShot,
+    this.onToSurveyShot,
+    this.onRenumber,
     this.onShowTrip,
     this.seriesEnds = const {},
   });
@@ -574,6 +586,12 @@ class StretchesTableState
       if (item.tripId != null && widget.onShowTrip != null)
         PopupMenuItem(value: 'trip', child: Text('${l10n.trip}…')),
       if (!isReadOnly(index)) ...[
+        if (item.to != null && widget.onFlipShot != null)
+          PopupMenuItem(value: 'flipShot', child: Text(l10n.flipShot)),
+        if (item.to == null && widget.onToSurveyShot != null)
+          PopupMenuItem(value: 'toSurveyShot', child: Text(l10n.toSurveyShot)),
+        if (widget.onRenumber != null)
+          PopupMenuItem(value: 'renumber', child: Text(l10n.renumber)),
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
         PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
         PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
@@ -589,6 +607,12 @@ class StretchesTableState
         widget.onStartHere?.call(station!);
       case 'continueHere':
         widget.onContinueHere?.call(station!);
+      case 'flipShot':
+        widget.onFlipShot?.call(index);
+      case 'toSurveyShot':
+        widget.onToSurveyShot?.call(index);
+      case 'renumber':
+        widget.onRenumber?.call(index);
       case 'trip':
         widget.onShowTrip?.call(item);
       case 'insertAbove':

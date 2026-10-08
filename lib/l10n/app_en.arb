@@ -397,6 +397,18 @@
   "@insertBelow": {
     "description": "Context menu option to insert row below"
   },
+  "flipShot": "Flip",
+  "@flipShot": {
+    "description": "Context menu option to switch a survey shot between forward and backward"
+  },
+  "toSurveyShot": "To survey shot",
+  "@toSurveyShot": {
+    "description": "Context menu option to turn a cross section into a survey shot to the next station"
+  },
+  "renumber": "Renumber",
+  "@renumber": {
+    "description": "Context menu option to reassign the stations of the following rows"
+  },
   "startHere": "Start here",
   "@startHere": {
     "description": "Context menu option to start a new series from this station"

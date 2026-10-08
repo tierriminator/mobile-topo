@@ -7,6 +7,7 @@ import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/settings.dart';
 import '../models/survey.dart';
 import '../services/measurement_service.dart';
 import 'trip_page.dart';
@@ -169,9 +170,8 @@ class _DataViewState extends State<DataView> {
   Future<void> _addStretch(Section section) async {
     await _changeSurvey(section.id, (survey) {
       final from = _caveSurvey(survey).lastStation ?? _defaultStation;
-      final to = Point(from.corridorId, from.pointId.toInt() + 1);
       return survey.addStretch(
-          MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId));
+          MeasuredDistance(from, from.next, 0, 0, 0, tripId: _activeTripId));
     });
   }
 
@@ -190,7 +190,7 @@ class _DataViewState extends State<DataView> {
       } else {
         final lastStretch = stretches.last;
         from = lastStretch.to ?? lastStretch.from;
-        to = Point(from.corridorId, from.pointId.toInt() + 1);
+        to = from.next;
       }
       return survey.insertStretchAt(
           index, MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId));
@@ -208,6 +208,31 @@ class _DataViewState extends State<DataView> {
 
   Future<void> _deleteStretch(Section section, int index) async {
     await _changeSurvey(section.id, (survey) => survey.removeStretchAt(index));
+  }
+
+  /// Switches a survey shot between forward and backward, as PocketTopo's
+  /// "Shot -> / <-" does on survey shots
+  Future<void> _flipShot(Section section, int index) async {
+    await _changeSurvey(
+        section.id,
+        (survey) =>
+            survey.updateStretchAt(index, survey.stretches[index].reversed()));
+  }
+
+  /// Turns a cross section into a survey shot in the direction the options
+  /// set, as PocketTopo's "Shot -> / <-" does on cross sections, and
+  /// renumbers the following rows to continue from the new station
+  Future<void> _toSurveyShot(Section section, int index) async {
+    final backward = context.read<SettingsController>().shotDirection ==
+        ShotDirection.backward;
+    await _changeSurvey(section.id, (survey) {
+      final shot = survey.stretches[index].toSurveyShot(backward: backward);
+      return survey.updateStretchAt(index, shot).renumberFrom(index);
+    });
+  }
+
+  Future<void> _renumber(Section section, int index) async {
+    await _changeSurvey(section.id, (survey) => survey.renumberFrom(index));
   }
 
   Future<void> _addReferencePoint(Section section) async {
@@ -505,6 +530,12 @@ class _DataViewState extends State<DataView> {
                     stretches[index].withComment(comment)),
                 onStartHere: (station) => _startNewSeries(section, station),
                 onContinueHere: (station) => _continueHere(section, station),
+                onFlipShot: (index) =>
+                    _flipShot(section, index - stretchOffset),
+                onToSurveyShot: (index) =>
+                    _toSurveyShot(section, index - stretchOffset),
+                onRenumber: (index) =>
+                    _renumber(section, index - stretchOffset),
                 onShowTrip: _showTrip,
                 // Series can span sections, so their ends are taken from the
                 // whole cave

@@ -209,4 +209,101 @@ void main() {
           isFalse);
     });
   });
+
+  group('reversing shots', () {
+    test('switches a survey shot between forward and backward', () {
+      const forward = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0);
+      final backward = forward.reversed();
+      expect(backward.from, const Point(1, 1));
+      expect(backward.to, const Point(1, 0));
+      expect(backward.isBackward, isTrue);
+      expect(backward.reversed().isBackward, isFalse);
+    });
+
+    test('leaves a cross section unchanged', () {
+      const crossSection = MeasuredDistance(Point(1, 2), null, 4, 90, 0);
+      expect(crossSection.reversed(), same(crossSection));
+    });
+  });
+
+  group('turning cross sections into survey shots', () {
+    const crossSection =
+        MeasuredDistance(Point(1, 2), null, 4, 90, 0, comment: 'Hall');
+
+    test('leads to the next station', () {
+      final shot = crossSection.toSurveyShot();
+      expect(shot.from, const Point(1, 2));
+      expect(shot.to, const Point(1, 3));
+      expect(shot.distance, 4);
+      expect(shot.comment, 'Hall');
+    });
+
+    test('makes a backward shot if asked', () {
+      final shot = crossSection.toSurveyShot(backward: true);
+      expect(shot.from, const Point(1, 3));
+      expect(shot.to, const Point(1, 2));
+      expect(shot.isBackward, isTrue);
+    });
+
+    test('leaves a survey shot unchanged', () {
+      const shot = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0);
+      expect(shot.toSurveyShot(), same(shot));
+    });
+  });
+
+  group('renumbering', () {
+    List<String> ids(Survey survey) =>
+        [for (final s in survey.stretches) '${s.from} ${s.to ?? '-'}'];
+
+    test('continues the following rows from the station of the row', () {
+      // A cross section at 1.1 was switched into the shot to 1.2, so the
+      // following rows still use the old numbers
+      const survey = Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), Point(1, 2), 3, 0, 0),
+          MeasuredDistance(Point(1, 1), null, 2, 0, 0),
+          MeasuredDistance(Point(1, 1), Point(1, 2), 5, 90, 0),
+          // Backward shot
+          MeasuredDistance(Point(1, 3), Point(1, 2), 5, 270, 0),
+        ],
+        referencePoints: [],
+      );
+
+      expect(ids(survey.renumberFrom(1)), [
+        '1.0 1.1',
+        '1.1 1.2',
+        '1.2 -',
+        '1.2 1.3',
+        '1.4 1.3',
+      ]);
+    });
+
+    test('keeps branches and moves their start along', () {
+      // The first shot was edited to lead to 1.2, the rows after it still
+      // continue from 1.1
+      const survey = Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 0), Point(1, 2), 5, 90, 0),
+          MeasuredDistance(Point(1, 1), Point(1, 2), 5, 90, 0),
+          // Start Here: branch 2 starts at 1.2
+          MeasuredDistance(Point(1, 2), Point(2, 0), 0, 0, 0),
+          MeasuredDistance(Point(2, 0), Point(2, 1), 4, 0, 0),
+          // Continue Here: series 1 goes on from 1.2
+          MeasuredDistance(Point(1, 2), null, 0, 0, 0),
+          MeasuredDistance(Point(1, 2), Point(1, 3), 6, 90, 0),
+        ],
+        referencePoints: [],
+      );
+
+      expect(ids(survey.renumberFrom(0)), [
+        '1.0 1.2',
+        '1.2 1.3',
+        '1.3 2.0',
+        '2.0 2.1',
+        '1.3 -',
+        '1.3 1.4',
+      ]);
+    });
+  });
 }
