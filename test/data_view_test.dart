@@ -161,6 +161,67 @@ void main() {
     expect(latest.outlineSketch.strokes, [stroke]);
   });
 
+  group('showing a station in another view', () {
+    Future<void> choose(WidgetTester tester, String cellText, String item) async {
+      await openMenuOn(tester, cellText);
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, item));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows the pressed station, or else the row\'s',
+        (tester) async {
+      final s = section(
+        's',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 3, 0, 0)],
+          referencePoints: [],
+        ),
+      );
+      final navigation = ViewNavigation();
+      await pumpDataView(tester, SelectionState()..selectSection(cave([s]), s),
+          MeasurementService(SettingsController()),
+          navigation: navigation);
+
+      await choose(tester, '1.0', 'View in Map');
+      expect(navigation.take({NavigationTarget.map})?.station,
+          const Point(1, 0));
+
+      // The distance holds no station, so the row's station is shown
+      await choose(tester, '3.00', 'View in Side View');
+      expect(navigation.take({NavigationTarget.sideView})?.station,
+          const Point(1, 1));
+    });
+
+    testWidgets('stations of other sections cannot be shown in the sketch',
+        (tester) async {
+      final first = section(
+        'first',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 3, 0, 0)],
+          referencePoints: [],
+        ),
+      );
+      final second = section(
+        'second',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 1), Point(1, 2), 4, 0, 0)],
+          referencePoints: [],
+        ),
+      );
+      final c = cave([first, second]);
+      await pumpDataView(tester, SelectionState()..selectSection(c, second),
+          MeasurementService(SettingsController()));
+
+      await openMenuOn(tester, '1.0');
+
+      PopupMenuItem<String> item(String label) => tester
+          .widget(find.widgetWithText(PopupMenuItem<String>, label));
+      expect(item('View in Map').enabled, isTrue);
+      expect(item('View in Outline').enabled, isFalse);
+      expect(item('View in Side View').enabled, isFalse);
+    });
+  });
+
   group('showing a station from another view', () {
     testWidgets('scrolls to the shot leading to it', (tester) async {
       // A long series, so the start is out of view at first

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../controllers/view_navigation.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/survey.dart';
 
@@ -19,6 +20,13 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   /// rows of other files in PocketTopo
   final int readOnlyRows;
 
+  /// Shows a station in another view, offered in every row's menu
+  final void Function(Point station, NavigationTarget target)? onShowStation;
+
+  /// Stations the sketch shows, the only ones that can be shown in the
+  /// outline and side view
+  final Set<Point> sketchStations;
+
   const EditableDataTable({
     super.key,
     required this.data,
@@ -29,6 +37,8 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.onCommentChanged,
     this.editMode = false,
     this.readOnlyRows = 0,
+    this.onShowStation,
+    this.sketchStations = const {},
   });
 }
 
@@ -37,6 +47,13 @@ const _commentColumnWidth = FixedColumnWidth(20);
 
 /// Context menu value of the comment entry every table offers
 const _commentMenuValue = 'comment';
+
+/// Context menu values of the entries showing a station in another view
+const _viewMenuValues = {
+  'viewMap': NavigationTarget.map,
+  'viewOutline': NavigationTarget.outline,
+  'viewSideView': NavigationTarget.sideView,
+};
 
 /// Base state class for editable data tables.
 abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
@@ -139,6 +156,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   /// The station shown in the given column of a row, or null if the column
   /// holds no station or is empty.
   Point? stationAt(T item, int col);
+
+  /// The station a row stands for
+  Point rowStation(T item);
 
   /// Build context menu items for the given row. [station] is the station in
   /// the pressed cell, if any; station actions are only offered for it.
@@ -351,11 +371,30 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           // Show context menu (selection already made in onTapDown)
           final canOpenComment = commentOf(item) != null ||
               (!isReadOnly(row) && widget.onCommentChanged != null);
-          final items = [
+          // The pressed station cell's station, or else the row's
+          final shownStation = station ?? rowStation(item);
+          final inSketch = widget.sketchStations.contains(shownStation);
+          final rowItems = [
             if (canOpenComment)
               PopupMenuItem(
                   value: _commentMenuValue, child: Text('${l10n.comment}…')),
             ...buildContextMenuItems(l10n, row, item, station),
+          ];
+          final items = <PopupMenuEntry<String>>[
+            ...rowItems,
+            if (widget.onShowStation != null) ...[
+              if (rowItems.isNotEmpty) const PopupMenuDivider(),
+              PopupMenuItem(
+                  value: 'viewMap', child: Text(l10n.navigateToMap)),
+              PopupMenuItem(
+                  value: 'viewOutline',
+                  enabled: inSketch,
+                  child: Text(l10n.navigateToOutline)),
+              PopupMenuItem(
+                  value: 'viewSideView',
+                  enabled: inSketch,
+                  child: Text(l10n.navigateToSideView)),
+            ],
           ];
           // A read-only row without a comment or trip has nothing to offer
           if (items.isEmpty) return;
@@ -371,6 +410,8 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           ).then((value) {
             if (value == _commentMenuValue) {
               _openComment(row, item);
+            } else if (_viewMenuValues[value] case final target?) {
+              widget.onShowStation!(shownStation, target);
             } else {
               handleContextMenuSelection(value, row, item, station);
             }
@@ -409,6 +450,8 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onCommentChanged,
     super.editMode,
     super.readOnlyRows,
+    super.onShowStation,
+    super.sketchStations,
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
@@ -503,6 +546,9 @@ class StretchesTableState
       };
 
   @override
+  Point rowStation(MeasuredDistance item) => item.station;
+
+  @override
   List<PopupMenuEntry<String>> buildContextMenuItems(AppLocalizations l10n,
       int index, MeasuredDistance item, Point? station) {
     return [
@@ -558,6 +604,8 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onCommentChanged,
     super.editMode,
     super.readOnlyRows,
+    super.onShowStation,
+    super.sketchStations,
     this.onUpdate,
     this.onStartHere,
   });
@@ -633,6 +681,9 @@ class ReferencePointsTableState
 
   @override
   Point? stationAt(ReferencePoint item, int col) => col == 0 ? item.id : null;
+
+  @override
+  Point rowStation(ReferencePoint item) => item.id;
 
   @override
   List<PopupMenuEntry<String>> buildContextMenuItems(

@@ -484,6 +484,8 @@ class _DataViewState extends State<DataView> {
                 key: _stretchesTableKey,
                 data: stretches,
                 readOnlyRows: stretchOffset,
+                onShowStation: _viewNavigation.show,
+                sketchStations: section.survey.stations,
                 editMode: _cellEditMode,
                 onInsertAbove: (index) =>
                     _insertStretchAt(section, index - stretchOffset),
@@ -531,6 +533,8 @@ class _DataViewState extends State<DataView> {
                 key: _referencePointsTableKey,
                 data: referencePoints,
                 readOnlyRows: pointOffset,
+                onShowStation: _viewNavigation.show,
+                sketchStations: section.survey.stations,
                 editMode: _cellEditMode,
                 onInsertAbove: (index) =>
                     _insertReferencePointAt(section, index - pointOffset),
