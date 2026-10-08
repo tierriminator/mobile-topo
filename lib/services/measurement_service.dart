@@ -14,6 +14,10 @@ import 'smart_mode_detector.dart';
 /// - Three identical stretch measurements are averaged into a single survey shot
 ///
 /// When smart mode is disabled, each measurement is added individually.
+///
+/// The service keeps no station of its own: as in PocketTopo, the station new
+/// measurements start from is determined by the last row of the data table,
+/// which [stationProvider] supplies.
 class MeasurementService extends ChangeNotifier {
   final SettingsController _settings;
   DistoXService? _distoXService;
@@ -24,11 +28,8 @@ class MeasurementService extends ChangeNotifier {
   /// Detector for stretch measurements
   SmartModeDetector? _stretchDetector;
 
-  /// Current "From" station for new measurements
-  Point _currentStation = const Point(1, 0);
-
-  /// Next "To" station ID (incremented after each survey shot)
-  Point _nextStation = const Point(1, 1);
+  /// Supplies the station new measurements start from
+  Point Function()? stationProvider;
 
   /// Callback when a cross-section measurement is ready to be added
   void Function(MeasuredDistance crossSection)? onCrossSectionReady;
@@ -78,26 +79,13 @@ class MeasurementService extends ChangeNotifier {
     _stretchDetector!.onTripleDetected = _onTripleDetected;
   }
 
-  /// Current station where measurements originate
-  Point get currentStation => _currentStation;
+  /// Station where new measurements originate
+  Point get currentStation => stationProvider?.call() ?? const Point(1, 0);
 
-  /// Set the current station (e.g., when user selects "Start Here")
-  set currentStation(Point station) {
-    if (_currentStation != station) {
-      // Flush pending measurements when station changes
-      flush();
-      _currentStation = station;
-      notifyListeners();
-    }
-  }
-
-  /// Next station ID for survey shots
-  Point get nextStation => _nextStation;
-
-  /// Set the next station ID
-  set nextStation(Point station) {
-    _nextStation = station;
-    notifyListeners();
+  /// Station a new survey shot leads to: the next point in the series
+  Point get nextStation {
+    final current = currentStation;
+    return Point(current.corridorId, current.pointId.toInt() + 1);
   }
 
   /// Add an incoming measurement.
@@ -160,7 +148,7 @@ class MeasurementService extends ChangeNotifier {
     debugPrint('MeasurementService: _emitCrossSection called');
     // Cross-section/splay: From station with null To
     final crossSection = MeasuredDistance(
-      _currentStation,
+      currentStation,
       null, // null "To" indicates splay shot
       distance,
       azimuth,
@@ -170,68 +158,34 @@ class MeasurementService extends ChangeNotifier {
     onCrossSectionReady?.call(crossSection);
   }
 
-  void _emitStretch(double distance, double azimuth, double inclination) {
-    debugPrint('MeasurementService: _emitStretch called');
-    Point from = _currentStation;
-    Point to = _nextStation;
-
-    // Handle shot direction (backward shots swap from/to)
-    if (_settings.shotDirection == ShotDirection.backward) {
-      final temp = from;
-      from = to;
-      to = temp;
-    }
-
-    final stretch = MeasuredDistance(
-      from,
-      to,
+  /// A survey shot from the current to the next station, swapped for
+  /// backward shots
+  MeasuredDistance _surveyShot(
+      double distance, double azimuth, double inclination) {
+    final backward = _settings.shotDirection == ShotDirection.backward;
+    final current = currentStation;
+    final next = nextStation;
+    return MeasuredDistance(
+      backward ? next : current,
+      backward ? current : next,
       distance,
       azimuth,
       inclination,
     );
+  }
 
+  void _emitStretch(double distance, double azimuth, double inclination) {
+    debugPrint('MeasurementService: _emitStretch called');
+    final stretch = _surveyShot(distance, azimuth, inclination);
     debugPrint('MeasurementService: calling onStretchReady (${onStretchReady != null}), stretch=$stretch');
     onStretchReady?.call(stretch);
-
-    // Advance to next station
-    _currentStation = to;
-    _nextStation = Point(to.corridorId, to.pointId.toInt() + 1);
-    notifyListeners();
   }
 
   void _emitTripleReplacement(double distance, double azimuth, double inclination) {
     debugPrint('MeasurementService: _emitTripleReplacement called');
-    Point from = _currentStation;
-    Point to = _nextStation;
-
-    // Handle shot direction (backward shots swap from/to)
-    if (_settings.shotDirection == ShotDirection.backward) {
-      final temp = from;
-      from = to;
-      to = temp;
-    }
-
-    final stretch = MeasuredDistance(
-      from,
-      to,
-      distance,
-      azimuth,
-      inclination,
-    );
-
+    final stretch = _surveyShot(distance, azimuth, inclination);
     debugPrint('MeasurementService: calling onTripleReplace (${onTripleReplace != null}), remove 3, add $stretch');
     onTripleReplace?.call(3, stretch);
-
-    // Advance to next station
-    _currentStation = to;
-    _nextStation = Point(to.corridorId, to.pointId.toInt() + 1);
-    notifyListeners();
-  }
-
-  /// Flush any pending measurements as individual shots
-  void flush() {
-    _crossSectionDetector?.flush();
-    _stretchDetector?.flush();
   }
 
   /// Clear pending measurements without emitting them
@@ -245,20 +199,4 @@ class MeasurementService extends ChangeNotifier {
 
   /// Number of pending stretch measurements
   int get pendingStretches => _stretchDetector?.pendingCount ?? 0;
-
-  /// Start a new series at a given station
-  void startNewSeries(Point station, {int nextCorridorId = 1}) {
-    flush();
-    _currentStation = station;
-    _nextStation = Point(nextCorridorId, 1);
-    notifyListeners();
-  }
-
-  /// Continue from an existing station
-  void continueFrom(Point station) {
-    flush();
-    _currentStation = station;
-    _nextStation = Point(station.corridorId, station.pointId.toInt() + 1);
-    notifyListeners();
-  }
 }

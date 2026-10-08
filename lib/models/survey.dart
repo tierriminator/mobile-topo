@@ -217,6 +217,30 @@ class Survey {
     return last.values.toSet();
   }
 
+  /// The station new measurements continue from, as in PocketTopo where the
+  /// last row of the data table determines the numbering:
+  /// - a final cross section continues from its From station
+  /// - a final survey shot continues from the station it newly reached, which
+  ///   is its To station for forward shots and its From station for backward
+  ///   ones; if both or neither are new, its To station
+  /// - without stretches, the last reference point's station
+  ///
+  /// Returns null for an empty survey.
+  Point? get lastStation {
+    if (stretches.isEmpty) return referencePoints.lastOrNull?.id;
+
+    final last = stretches.last;
+    final to = last.to;
+    if (to == null) return last.from;
+
+    final earlier = Survey(
+      stretches: stretches.sublist(0, stretches.length - 1),
+      referencePoints: referencePoints,
+    ).stations;
+    if (earlier.contains(to) && !earlier.contains(last.from)) return last.from;
+    return to;
+  }
+
   /// First station of a new series: the series after the highest one in use
   Point get nextSeriesStart {
     var maxSeries = 0;

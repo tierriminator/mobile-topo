@@ -7,6 +7,7 @@ import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 import 'package:mobile_topo/views/data_view.dart';
@@ -96,6 +97,85 @@ void main() {
     expect(selectionState.selectedSection!.survey.stretches, hasLength(1));
   });
 
+  group('whole cave table', () {
+    final previous = section(
+      'previous',
+      const Survey(
+        stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
+        referencePoints: [],
+      ),
+    );
+
+    testWidgets('a new section continues from the last row of the cave',
+        (tester) async {
+      final current = section('current');
+      final selectionState = SelectionState()
+        ..selectSection(cave([previous, current]), current);
+      final measurementService = MeasurementService(
+          SettingsController(const Settings(smartModeEnabled: false)));
+      await pumpDataView(tester, selectionState, measurementService);
+
+      expect(find.text('Current: 1.1'), findsOneWidget);
+
+      measurementService.addMeasurement(
+          distance: 2, azimuth: 0, inclination: 0, isStretch: false);
+      await tester.pumpAndSettle();
+      measurementService.addMeasurement(
+          distance: 3, azimuth: 0, inclination: 0, isStretch: true);
+      await tester.pumpAndSettle();
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches[0].from, const Point(1, 1));
+      expect(stretches[0].to, isNull);
+      expect(stretches[1].from, const Point(1, 1));
+      expect(stretches[1].to, const Point(1, 2));
+      expect(find.text('Current: 1.2'), findsOneWidget);
+    });
+
+    testWidgets('a smart mode triple becomes a shot to the next station',
+        (tester) async {
+      final current = section('current');
+      final selectionState = SelectionState()
+        ..selectSection(cave([previous, current]), current);
+      final measurementService = MeasurementService(SettingsController());
+      await pumpDataView(tester, selectionState, measurementService);
+
+      for (var i = 0; i < 3; i++) {
+        measurementService.addMeasurement(
+            distance: 4, azimuth: 30, inclination: 5, isStretch: true);
+        await tester.pumpAndSettle();
+      }
+
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches, hasLength(1));
+      expect(stretches.single.from, const Point(1, 1));
+      expect(stretches.single.to, const Point(1, 2));
+      expect(measurementService.currentStation, const Point(1, 2));
+    });
+
+    testWidgets('rows of other sections are shown but cannot be edited',
+        (tester) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 1), Point(1, 2), 6, 90, 0)],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(cave([previous, current]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      expect(find.text('5.00'), findsOneWidget);
+
+      await openMenuOn(tester, '5.00');
+      expect(find.text('Start here'), findsOneWidget);
+      expect(find.text('Delete'), findsNothing);
+      expect(find.text('Insert above'), findsNothing);
+    });
+  });
+
   group('Start Here', () {
     // Another section of the cave already uses series 2
     final other = section(
@@ -172,7 +252,8 @@ void main() {
       ),
     );
 
-    testWidgets('at the last station of a series continues from it',
+    testWidgets(
+        'at the last station of a series appends a dummy cross section there',
         (tester) async {
       final selectionState = SelectionState()
         ..selectSection(cave([current]), current);
@@ -183,9 +264,14 @@ void main() {
       await tester.tap(find.text('Continue here'));
       await tester.pumpAndSettle();
 
+      final stretches = selectionState.selectedSection!.survey.stretches;
+      expect(stretches, hasLength(5));
+      final dummy = stretches.last;
+      expect(dummy.from, const Point(1, 2));
+      expect(dummy.to, isNull);
+      expect(dummy.distance, 0);
       expect(measurementService.currentStation, const Point(1, 2));
       expect(measurementService.nextStation, const Point(1, 3));
-      expect(selectionState.selectedSection!.survey.stretches, hasLength(4));
     });
 
     testWidgets('is not offered in the middle of a series', (tester) async {

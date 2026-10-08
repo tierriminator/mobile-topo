@@ -12,6 +12,10 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   final VoidCallback? onAdd;
   final bool editMode;
 
+  /// Number of leading rows that are shown but cannot be edited, like the
+  /// rows of other files in PocketTopo
+  final int readOnlyRows;
+
   const EditableDataTable({
     super.key,
     required this.data,
@@ -20,6 +24,7 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.onDelete,
     this.onAdd,
     this.editMode = false,
+    this.readOnlyRows = 0,
   });
 }
 
@@ -30,10 +35,37 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   int? _editingRow;
   int? _editingCol;
   bool _wasSelectedBeforeTouch = false;
+  final ScrollController _scrollController = ScrollController();
+
+  bool isReadOnly(int index) => index < widget.readOnlyRows;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollToEnd();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Keeps the end of the table, where new rows are added, in view
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    });
+  }
 
   @override
   void didUpdateWidget(W oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.data.length > oldWidget.data.length ||
+        widget.readOnlyRows != oldWidget.readOnlyRows) {
+      _scrollToEnd();
+    }
     // Clear editing state when switching out of edit mode
     if (oldWidget.editMode && !widget.editMode) {
       _editingRow = null;
@@ -97,6 +129,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
         // Scrollable data rows
         Expanded(
           child: SingleChildScrollView(
+            controller: _scrollController,
             child: Column(
               children: [
                 Table(
@@ -178,7 +211,12 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     T item,
     Widget child,
   ) {
+    if (isReadOnly(row)) {
+      child = Opacity(opacity: 0.5, child: child);
+    }
+
     if (widget.editMode) {
+      if (isReadOnly(row)) return TableCell(child: child);
       // Edit mode: tap to edit cell, no selection or context menu
       return TableCell(
         child: GestureDetector(
@@ -254,6 +292,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onDelete,
     super.onAdd,
     super.editMode,
+    super.readOnlyRows,
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
@@ -347,9 +386,11 @@ class StretchesTableState
       PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       if (widget.seriesEnds.contains(_station(item)))
         PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
-      PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
-      PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
-      PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+      if (!isReadOnly(index)) ...[
+        PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
+        PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
+        PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+      ],
     ];
   }
 
@@ -387,6 +428,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onDelete,
     super.onAdd,
     super.editMode,
+    super.readOnlyRows,
     this.onUpdate,
     this.onStartHere,
   });
@@ -462,9 +504,11 @@ class ReferencePointsTableState
       AppLocalizations l10n, int index, ReferencePoint item) {
     return [
       PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
-      PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
-      PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
-      PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+      if (!isReadOnly(index)) ...[
+        PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
+        PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
+        PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
+      ],
     ];
   }
 

@@ -38,25 +38,6 @@ class _DataViewState extends State<DataView> {
       _history.clear();
       _localSection = null; // Clear local state when section changes
       _currentSectionId = section?.id;
-
-      // Update measurement service with current station from survey
-      // Use addPostFrameCallback to avoid calling setState during build
-      if (section != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          final measurementService = context.read<MeasurementService>();
-          final stretches = section.survey.stretches;
-          if (stretches.isNotEmpty) {
-            final lastStretch = stretches.last;
-            // If last stretch has a "To" station, continue from there
-            if (lastStretch.to != null) {
-              measurementService.continueFrom(lastStretch.to!);
-            } else {
-              measurementService.continueFrom(lastStretch.from);
-            }
-          }
-        });
-      }
     }
   }
 
@@ -80,6 +61,8 @@ class _DataViewState extends State<DataView> {
     if (_measurementServiceBound) return;
 
     final measurementService = context.read<MeasurementService>();
+
+    measurementService.stationProvider = _currentStation;
 
     measurementService.onStretchReady = (stretch) {
       final sectionId = _currentSectionId;
@@ -212,17 +195,8 @@ class _DataViewState extends State<DataView> {
   }
 
   Future<void> _addStretch(Section section) async {
-    final stretches = section.survey.stretches;
-    Point from;
-    Point? to;
-    if (stretches.isEmpty) {
-      from = const Point(1, 0);
-      to = const Point(1, 1);
-    } else {
-      final lastStretch = stretches.last;
-      from = lastStretch.to ?? lastStretch.from;
-      to = Point(from.corridorId, from.pointId.toInt() + 1);
-    }
+    final from = _caveSurvey(section).lastStation ?? _defaultStation;
+    final to = Point(from.corridorId, from.pointId.toInt() + 1);
 
     final stretch = MeasuredDistance(from, to, 0, 0, 0);
     await _applySurveyChange(section, section.survey.addStretch(stretch));
@@ -299,38 +273,67 @@ class _DataViewState extends State<DataView> {
   }
 
   /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
-  /// first station of a new series and continues measuring from there.
+  /// first station of a new series, so measuring continues from there.
   Future<void> _startNewSeries(Section section, Point fromStation) async {
-    final measurementService = context.read<MeasurementService>();
-
     // Station IDs must be unique in the whole cave, so the new series number
     // is taken from all sections, not just this one
     final newStation = _caveSurvey(section).nextSeriesStart;
 
     final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0);
     await _applySurveyChange(section, section.survey.addStretch(emptyStretch));
-
-    // Update measurement service to continue from the new station
-    measurementService.continueFrom(newStation);
   }
 
   /// PocketTopo's "Continue Here", offered only at the last station of a
-  /// series: continues measuring from that station.
-  void _continueHere(Point station) {
-    context.read<MeasurementService>().continueFrom(station);
+  /// series: appends a dummy cross section at [station], so measuring
+  /// continues from there.
+  Future<void> _continueHere(Section section, Point station) async {
+    final dummy = MeasuredDistance(station, null, 0, 0, 0);
+    await _applySurveyChange(section, section.survey.addStretch(dummy));
   }
 
-  /// The survey of the whole cave, including this section's latest changes
-  Survey _caveSurvey(Section section) {
+  /// Station used when the whole cave has no data yet
+  static const _defaultStation = Point(1, 0);
+
+  /// The station new measurements start from: as in PocketTopo, it follows
+  /// from the last row of the table
+  Point _currentStation() {
+    final sectionId = _currentSectionId;
+    final section =
+        mounted && sectionId != null ? _getEffectiveSection(sectionId) : null;
+    if (section == null) return _defaultStation;
+    return _caveSurvey(section).lastStation ?? _defaultStation;
+  }
+
+  /// The data of all other sections of the cave, shown read-only above the
+  /// selected section's own rows
+  Survey _otherSectionsSurvey(Section section) {
     final cave = context.read<SelectionState>().selectedCave;
-    return cave?.replaceSection(section).combinedSurvey ?? section.survey;
+    final others = [
+      ...?cave?.allSections.where((s) => s.id != section.id),
+    ];
+    return Survey(
+      stretches: [for (final s in others) ...s.survey.stretches],
+      referencePoints: [for (final s in others) ...s.survey.referencePoints],
+    );
+  }
+
+  /// The whole cave as the table lists it: the other sections first, then
+  /// this section with its latest changes
+  Survey _caveSurvey(Section section) {
+    final others = _otherSectionsSurvey(section);
+    return Survey(
+      stretches: [...others.stretches, ...section.survey.stretches],
+      referencePoints: [
+        ...others.referencePoints,
+        ...section.survey.referencePoints,
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final selectionSection = context.watch<SelectionState>().selectedSection;
-    final measurementService = context.watch<MeasurementService>();
 
     // Clear history when section changes
     _checkSectionChange(selectionSection);
@@ -443,7 +446,7 @@ class _DataViewState extends State<DataView> {
           child: Row(
             children: [
               Text(
-                '${l10n.currentStation}: ${measurementService.currentStation}',
+                '${l10n.currentStation}: ${_currentStation()}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -455,8 +458,18 @@ class _DataViewState extends State<DataView> {
 
   Widget _buildDataContent(Section section) {
     final l10n = AppLocalizations.of(context)!;
-    final stretches = section.survey.stretches;
-    final referencePoints = section.survey.referencePoints;
+
+    // Like PocketTopo, the table lists the whole cave: the other sections'
+    // rows come first and are read-only, this section's rows follow. Table
+    // indices are converted back to this section's indices for editing.
+    final others = _otherSectionsSurvey(section);
+    final stretches = [...others.stretches, ...section.survey.stretches];
+    final referencePoints = [
+      ...others.referencePoints,
+      ...section.survey.referencePoints,
+    ];
+    final stretchOffset = others.stretches.length;
+    final pointOffset = others.referencePoints.length;
 
     return IndexedStack(
       index: _mode == DataViewMode.stretches ? 0 : 1,
@@ -485,15 +498,18 @@ class _DataViewState extends State<DataView> {
               )
             : StretchesTable(
                 data: stretches,
+                readOnlyRows: stretchOffset,
                 editMode: _cellEditMode,
-                onInsertAbove: (index) => _insertStretchAt(section, index),
+                onInsertAbove: (index) =>
+                    _insertStretchAt(section, index - stretchOffset),
                 onInsertBelow: (index) =>
-                    _insertStretchAt(section, index + 1),
+                    _insertStretchAt(section, index - stretchOffset + 1),
                 onUpdate: (index, stretch) =>
-                    _updateStretch(section, index, stretch),
-                onDelete: (index) => _deleteStretch(section, index),
+                    _updateStretch(section, index - stretchOffset, stretch),
+                onDelete: (index) =>
+                    _deleteStretch(section, index - stretchOffset),
                 onStartHere: (station) => _startNewSeries(section, station),
-                onContinueHere: _continueHere,
+                onContinueHere: (station) => _continueHere(section, station),
                 // Series can span sections, so their ends are taken from the
                 // whole cave
                 seriesEnds: _caveSurvey(section).seriesEnds,
@@ -523,14 +539,16 @@ class _DataViewState extends State<DataView> {
               )
             : ReferencePointsTable(
                 data: referencePoints,
+                readOnlyRows: pointOffset,
                 editMode: _cellEditMode,
                 onInsertAbove: (index) =>
-                    _insertReferencePointAt(section, index),
+                    _insertReferencePointAt(section, index - pointOffset),
                 onInsertBelow: (index) =>
-                    _insertReferencePointAt(section, index + 1),
+                    _insertReferencePointAt(section, index - pointOffset + 1),
                 onUpdate: (index, point) =>
-                    _updateReferencePoint(section, index, point),
-                onDelete: (index) => _deleteReferencePoint(section, index),
+                    _updateReferencePoint(section, index - pointOffset, point),
+                onDelete: (index) =>
+                    _deleteReferencePoint(section, index - pointOffset),
                 onStartHere: (station) => _startNewSeries(section, station),
                 onAdd: () => _addReferencePoint(section),
               ),
