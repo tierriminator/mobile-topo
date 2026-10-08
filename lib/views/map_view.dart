@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/view_navigation.dart';
 import '../l10n/app_localizations.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
@@ -32,6 +33,32 @@ class _MapViewState extends State<MapView> {
 
   // Track current section to detect changes
   String? _currentSectionId;
+
+  late final ViewNavigation _viewNavigation;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewNavigation = context.read<ViewNavigation>()
+      ..addListener(_onNavigation);
+  }
+
+  @override
+  void dispose() {
+    _viewNavigation.removeListener(_onNavigation);
+    super.dispose();
+  }
+
+  /// Centres on and selects a station another view asked to show here
+  void _onNavigation() {
+    final request = _viewNavigation.take({NavigationTarget.map});
+    final position = _positions[request?.station];
+    if (request == null || position == null) return;
+    setState(() {
+      _selectedStation = request.station;
+      _transform = _transform.centeredOn([position.plan]);
+    });
+  }
 
   void _updateFromSection(String? sectionId, Survey? caveSurvey,
       Set<Point> sectionStations) {

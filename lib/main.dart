@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/selection_state.dart';
 import 'controllers/settings_controller.dart';
+import 'controllers/view_navigation.dart';
 import 'data/cave_repository.dart';
 import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
@@ -75,6 +76,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
+        ChangeNotifierProvider(create: (_) => ViewNavigation()),
         ChangeNotifierProvider.value(value: settingsController),
         ChangeNotifierProvider.value(value: distoXService),
         ChangeNotifierProvider.value(value: measurementService),
@@ -115,6 +117,9 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  static const _dataIndex = 0;
+  static const _mapIndex = 1;
+  static const _sketchIndex = 2;
   static const _explorerIndex = 3;
 
   int _selectedIndex = 0;
@@ -131,6 +136,7 @@ class _MainScreenState extends State<MainScreen> {
 
   late final SelectionState _selectionState;
   late final DistoXService _distoXService;
+  late final ViewNavigation _viewNavigation;
   bool _wasConnected = false;
 
   /// Set when the DistoX connects, until the trip of the selected cave has
@@ -151,6 +157,8 @@ class _MainScreenState extends State<MainScreen> {
       ..addListener(_runPendingTripCheck);
     _distoXService = context.read<DistoXService>()
       ..addListener(_onConnectionChanged);
+    _viewNavigation = context.read<ViewNavigation>()
+      ..addListener(_onNavigation);
     // Auto-connect starts before the app is shown and may already be done
     _onConnectionChanged();
   }
@@ -159,7 +167,22 @@ class _MainScreenState extends State<MainScreen> {
   void dispose() {
     _selectionState.removeListener(_runPendingTripCheck);
     _distoXService.removeListener(_onConnectionChanged);
+    _viewNavigation.removeListener(_onNavigation);
     super.dispose();
+  }
+
+  /// Switches to the tab a station is to be shown in; the view there takes
+  /// the request
+  void _onNavigation() {
+    final index = switch (_viewNavigation.pendingTarget) {
+      NavigationTarget.data => _dataIndex,
+      NavigationTarget.map => _mapIndex,
+      NavigationTarget.outline || NavigationTarget.sideView => _sketchIndex,
+      null => null,
+    };
+    if (index != null && index != _selectedIndex) {
+      setState(() => _selectedIndex = index);
+    }
   }
 
   void _onItemTapped(int index) {

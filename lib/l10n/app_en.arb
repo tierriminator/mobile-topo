@@ -142,6 +142,22 @@
   "@sketchModeErase": {
     "description": "Tooltip for eraser mode"
   },
+  "navigateToData": "View in Data",
+  "@navigateToData": {
+    "description": "Station menu: show the station's row in the data view (PocketTopo's '-> Data')"
+  },
+  "navigateToMap": "View in Map",
+  "@navigateToMap": {
+    "description": "Station menu: show the station in the map view (PocketTopo's '-> Map')"
+  },
+  "navigateToOutline": "View in Outline",
+  "@navigateToOutline": {
+    "description": "Station menu: show the station in the outline sketch (PocketTopo's '-> Outline')"
+  },
+  "navigateToSideView": "View in Side View",
+  "@navigateToSideView": {
+    "description": "Station menu: show the station in the side view sketch (PocketTopo's '-> Side View')"
+  },
   "sketchShowAll": "Show All",
   "@sketchShowAll": {
     "description": "Outline menu option to also show the survey data of the rest of the cave"

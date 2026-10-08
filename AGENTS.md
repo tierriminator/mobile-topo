@@ -151,6 +151,9 @@ State management classes using `ChangeNotifier`:
 - **`explorer_state.dart`**: Holds all caves and current navigation path
 - **`settings_controller.dart`**: App settings state with change notification
 - **`history.dart`**: Generic undo/redo stack for any type (max 50 items)
+- **`view_navigation.dart`**: Requests to show a station in another view
+  (PocketTopo's "-> Map" etc.); `MainScreen` switches the tab and the target
+  view takes the request
 
 ### Services (`lib/services/`)
 
@@ -249,6 +252,7 @@ Uses the `provider` package for dependency injection:
 MultiProvider(
   providers: [
     ChangeNotifierProvider(create: (_) => SelectionState()),
+    ChangeNotifierProvider(create: (_) => ViewNavigation()),
     ChangeNotifierProvider.value(value: settingsController),
     ChangeNotifierProvider.value(value: distoXService),
     ChangeNotifierProvider.value(value: measurementService),

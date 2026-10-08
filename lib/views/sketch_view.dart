@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
 import '../controllers/settings_controller.dart';
+import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
@@ -79,6 +80,40 @@ class _SketchViewState extends State<SketchView> {
 
   // Track current section to detect changes
   String? _currentSectionId;
+
+  late final ViewNavigation _viewNavigation;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewNavigation = context.read<ViewNavigation>()
+      ..addListener(_onNavigation);
+  }
+
+  @override
+  void dispose() {
+    _viewNavigation.removeListener(_onNavigation);
+    super.dispose();
+  }
+
+  /// Switches to the outline or side view another view asked for, and
+  /// centres on and selects the station if it belongs to the section
+  void _onNavigation() {
+    final request = _viewNavigation
+        .take({NavigationTarget.outline, NavigationTarget.sideView});
+    if (request == null) return;
+    setState(() {
+      _viewMode = request.target == NavigationTarget.outline
+          ? SketchViewMode.outline
+          : SketchViewMode.sideView;
+      _pendingCrossSection = null;
+      final position = _stationPositions[request.station];
+      if (position != null) {
+        _selectedStation = request.station;
+        _transform = _transform.centeredOn([position]);
+      }
+    });
+  }
 
   ViewTransform get _transform => _viewMode == SketchViewMode.outline
       ? _outlineTransform
@@ -276,6 +311,26 @@ class _SketchViewState extends State<SketchView> {
       if (_viewMode == SketchViewMode.sideView)
         crossSectionItem(
             CrossSectionKind.horizontal, l10n.sketchCrossSectionHorizontal),
+      const PopupMenuDivider(),
+      PopupMenuItem(
+        value: () => _viewNavigation.show(station, NavigationTarget.data),
+        child: Text(l10n.navigateToData),
+      ),
+      PopupMenuItem(
+        value: () => _viewNavigation.show(station, NavigationTarget.map),
+        child: Text(l10n.navigateToMap),
+      ),
+      if (_viewMode == SketchViewMode.outline)
+        PopupMenuItem(
+          value: () =>
+              _viewNavigation.show(station, NavigationTarget.sideView),
+          child: Text(l10n.navigateToSideView),
+        )
+      else
+        PopupMenuItem(
+          value: () => _viewNavigation.show(station, NavigationTarget.outline),
+          child: Text(l10n.navigateToOutline),
+        ),
     ];
   }
 

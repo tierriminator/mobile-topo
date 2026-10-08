@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
+import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/local_cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
 import 'package:mobile_topo/models/settings.dart';
+import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/bluetooth_adapter.dart';
 import 'package:mobile_topo/services/distox_service.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
@@ -73,7 +75,7 @@ class MockBluetoothAdapter implements BluetoothAdapter {
 }
 
 void main() {
-  Widget createTestApp() {
+  Widget createTestApp({ViewNavigation? navigation}) {
     final settingsController = SettingsController();
     final bluetoothAdapter = MockBluetoothAdapter();
     final distoXService = DistoXService(settingsController, bluetoothAdapter);
@@ -84,6 +86,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => SelectionState()),
         ChangeNotifierProvider.value(value: settingsController),
+        ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
         ChangeNotifierProvider.value(value: distoXService),
         ChangeNotifierProvider.value(value: measurementService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
@@ -123,5 +126,24 @@ void main() {
 
     // Verify Sketch view is shown (shows empty state when no section selected)
     expect(find.text('Select a section in Explorer'), findsOneWidget);
+  });
+
+  testWidgets('showing a station in another view switches to its tab',
+      (WidgetTester tester) async {
+    final navigation = ViewNavigation();
+    await tester.pumpWidget(createTestApp(navigation: navigation));
+    expect(find.byIcon(Icons.table_chart), findsOneWidget);
+
+    navigation.show(const Point(1, 1), NavigationTarget.sideView);
+    await tester.pump();
+    expect(find.byIcon(Icons.draw), findsOneWidget);
+
+    navigation.show(const Point(1, 1), NavigationTarget.map);
+    await tester.pump();
+    expect(find.byIcon(Icons.map), findsOneWidget);
+
+    navigation.show(const Point(1, 1), NavigationTarget.data);
+    await tester.pump();
+    expect(find.byIcon(Icons.table_chart), findsOneWidget);
   });
 }

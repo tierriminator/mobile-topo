@@ -286,6 +286,30 @@ abstract class AppLocalizations {
   /// **'Erase'**
   String get sketchModeErase;
 
+  /// Station menu: show the station's row in the data view (PocketTopo's '-> Data')
+  ///
+  /// In en, this message translates to:
+  /// **'View in Data'**
+  String get navigateToData;
+
+  /// Station menu: show the station in the map view (PocketTopo's '-> Map')
+  ///
+  /// In en, this message translates to:
+  /// **'View in Map'**
+  String get navigateToMap;
+
+  /// Station menu: show the station in the outline sketch (PocketTopo's '-> Outline')
+  ///
+  /// In en, this message translates to:
+  /// **'View in Outline'**
+  String get navigateToOutline;
+
+  /// Station menu: show the station in the side view sketch (PocketTopo's '-> Side View')
+  ///
+  /// In en, this message translates to:
+  /// **'View in Side View'**
+  String get navigateToSideView;
+
   /// Outline menu option to also show the survey data of the rest of the cave
   ///
   /// In en, this message translates to:

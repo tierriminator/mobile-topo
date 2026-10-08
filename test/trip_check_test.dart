@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
+import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
@@ -114,6 +115,7 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: selection),
         ChangeNotifierProvider.value(value: settings),
+        ChangeNotifierProvider(create: (_) => ViewNavigation()),
         ChangeNotifierProvider.value(value: distoX),
         ChangeNotifierProvider.value(value: MeasurementService(settings)),
         Provider<CaveRepository>.value(value: _SingleCaveRepository(cave)),

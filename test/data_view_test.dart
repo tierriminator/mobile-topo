@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
+import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
@@ -45,13 +46,15 @@ void main() {
   Future<void> pumpDataView(
     WidgetTester tester,
     SelectionState selectionState,
-    MeasurementService measurementService,
-  ) {
+    MeasurementService measurementService, {
+    ViewNavigation? navigation,
+  }) {
     return tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: selectionState),
           ChangeNotifierProvider.value(value: measurementService),
+          ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
           Provider<CaveRepository>.value(value: _InMemoryCaveRepository()),
         ],
         child: const MaterialApp(
@@ -156,6 +159,56 @@ void main() {
     final latest = selectionState.selectedSection!;
     expect(latest.survey.stretches, hasLength(2));
     expect(latest.outlineSketch.strokes, [stroke]);
+  });
+
+  group('showing a station from another view', () {
+    testWidgets('scrolls to the shot leading to it', (tester) async {
+      // A long series, so the start is out of view at first
+      final s = section(
+        's',
+        Survey(
+          stretches: [
+            for (var i = 0; i < 60; i++)
+              MeasuredDistance(Point(1, i), Point(1, i + 1), 3, 0, 0),
+          ],
+          referencePoints: const [],
+        ),
+      );
+      final navigation = ViewNavigation();
+      await pumpDataView(tester, SelectionState()..selectSection(cave([s]), s),
+          MeasurementService(SettingsController()),
+          navigation: navigation);
+      await tester.pumpAndSettle();
+      expect(find.text('1.0').hitTestable(), findsNothing);
+
+      navigation.show(const Point(1, 1), NavigationTarget.data);
+      await tester.pumpAndSettle();
+
+      expect(find.text('1.0').hitTestable(), findsOneWidget);
+      expect(navigation.pendingTarget, isNull);
+    });
+
+    testWidgets('selects its reference point if no shot leads to it',
+        (tester) async {
+      final s = section(
+        's',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 3, 0, 0)],
+          referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+        ),
+      );
+      final navigation = ViewNavigation();
+      await pumpDataView(tester, SelectionState()..selectSection(cave([s]), s),
+          MeasurementService(SettingsController()),
+          navigation: navigation);
+
+      navigation.show(const Point(1, 0), NavigationTarget.data);
+      await tester.pumpAndSettle();
+
+      expect(
+          tester.widget<ToggleButtons>(find.byType(ToggleButtons)).isSelected,
+          [false, true]);
+    });
   });
 
   group('whole cave table', () {

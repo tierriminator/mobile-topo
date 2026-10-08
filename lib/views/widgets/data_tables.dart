@@ -51,6 +51,10 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   bool _wasSelectedBeforeTouch = false;
   final ScrollController _scrollController = ScrollController();
 
+  /// Marks the first cell of the row [selectRow] scrolls to
+  final _scrollTargetKey = GlobalKey();
+  int? _scrollTargetRow;
+
   bool isReadOnly(int index) => index < widget.readOnlyRows;
 
   @override
@@ -90,6 +94,21 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
       _selectedIndex = null;
       _selectedCol = null;
     }
+  }
+
+  /// Selects the whole row at [index] and scrolls it into view
+  void selectRow(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _selectedCol = null;
+      _editingRow = null;
+      _editingCol = null;
+      _scrollTargetRow = index;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _scrollTargetKey.currentContext;
+      if (target != null) Scrollable.ensureVisible(target, alignment: 0.5);
+    });
   }
 
   void clearSelection() {
@@ -267,6 +286,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   }) {
     if (isReadOnly(row)) {
       child = Opacity(opacity: 0.5, child: child);
+    }
+    if (row == _scrollTargetRow && col == 0) {
+      child = KeyedSubtree(key: _scrollTargetKey, child: child);
     }
 
     if (widget.editMode) {

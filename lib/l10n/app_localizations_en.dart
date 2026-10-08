@@ -112,6 +112,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sketchModeErase => 'Erase';
 
   @override
+  String get navigateToData => 'View in Data';
+
+  @override
+  String get navigateToMap => 'View in Map';
+
+  @override
+  String get navigateToOutline => 'View in Outline';
+
+  @override
+  String get navigateToSideView => 'View in Side View';
+
+  @override
   String get sketchShowAll => 'Show All';
 
   @override

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
+import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
@@ -53,6 +54,7 @@ Future<void> _pumpSketchView(
   Section section, {
   SettingsController? settings,
   CaveRepository? repository,
+  ViewNavigation? navigation,
 }) async {
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
@@ -61,6 +63,7 @@ Future<void> _pumpSketchView(
         ChangeNotifierProvider(
             create: (_) => SelectionState()..selectSection(cave, section)),
         ChangeNotifierProvider.value(value: settings ?? SettingsController()),
+        ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
         Provider<CaveRepository>.value(
             value: repository ?? _RecordingCaveRepository()),
         Provider.value(value: SettingsRepository()),
@@ -247,6 +250,56 @@ void main() {
     await tester.longPressAt(center + const Offset(50, 0));
     await tester.pumpAndSettle();
     expect(find.text('Horizontal Cross Section'), findsOneWidget);
+  });
+
+  testWidgets('the station menu shows the station in other views',
+      (tester) async {
+    final section = _section('section', _singleShot);
+    final navigation = ViewNavigation();
+    await _pumpSketchView(tester, _cave([section]), section,
+        navigation: navigation);
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+
+    Future<void> choose(String item) async {
+      await tester.longPressAt(center + const Offset(50, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<VoidCallback>, item));
+      await tester.pumpAndSettle();
+    }
+
+    await choose('View in Map');
+    expect(navigation.take({NavigationTarget.map})?.station,
+        const Point(1, 1));
+    await choose('View in Data');
+    expect(navigation.take({NavigationTarget.data})?.station,
+        const Point(1, 1));
+    // The outline offers the side view, which this view handles itself
+    expect(find.text('View in Outline'), findsNothing);
+    await choose('View in Side View');
+    expect(navigation.pendingTarget, isNull);
+    expect(
+        tester.widget<ToggleButtons>(find.byType(ToggleButtons)).isSelected,
+        [false, true]);
+  });
+
+  testWidgets('a station shown from another view is centred and selected',
+      (tester) async {
+    final section = _section('section', _singleShot);
+    final navigation = ViewNavigation();
+    await _pumpSketchView(tester, _cave([section]), section,
+        navigation: navigation);
+
+    navigation.show(const Point(1, 1), NavigationTarget.sideView);
+    await tester.pump();
+
+    expect(
+        tester.widget<ToggleButtons>(find.byType(ToggleButtons)).isSelected,
+        [false, true]);
+    expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
+    // Now in the centre, where tapping keeps it selected
+    await tester.tapAt(tester.getCenter(find.byType(CustomPaint).last));
+    await tester.pump(kDoubleTapTimeout);
+    expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
   });
 
   testWidgets('Show All adds the rest of the cave to the outline',

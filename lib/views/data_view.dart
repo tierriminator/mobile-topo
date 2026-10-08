@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/history.dart';
 import '../controllers/selection_state.dart';
+import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
@@ -25,6 +26,59 @@ class _DataViewState extends State<DataView> {
   String? _currentSectionId;
   bool _measurementServiceBound = false;
   bool _cellEditMode = false;
+
+  final _stretchesTableKey = GlobalKey<StretchesTableState>();
+  final _referencePointsTableKey = GlobalKey<ReferencePointsTableState>();
+  late final ViewNavigation _viewNavigation;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewNavigation = context.read<ViewNavigation>()
+      ..addListener(_onNavigation);
+  }
+
+  @override
+  void dispose() {
+    _viewNavigation.removeListener(_onNavigation);
+    super.dispose();
+  }
+
+  /// Selects the row standing for a station another view asked to show
+  /// here, as in PocketTopo: the shot leading to the station, or else its
+  /// reference point, or else the first row measured from it
+  void _onNavigation() {
+    final request = _viewNavigation.take({NavigationTarget.data});
+    final section = context.read<SelectionState>().selectedSection;
+    if (request == null || section == null) return;
+    final station = request.station;
+    final survey = _caveSurvey(section.survey);
+
+    var mode = DataViewMode.stretches;
+    var index = survey.stretches
+        .indexWhere((s) => s.to != null && s.station == station);
+    if (index < 0) {
+      index = survey.referencePoints.indexWhere((p) => p.id == station);
+      if (index >= 0) mode = DataViewMode.referencePoints;
+    }
+    if (index < 0) {
+      index = survey.stretches.indexWhere((s) => s.from == station);
+    }
+    if (index < 0) return;
+
+    // Selections are not shown while editing cells
+    setState(() {
+      _mode = mode;
+      _cellEditMode = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mode == DataViewMode.stretches) {
+        _stretchesTableKey.currentState?.selectRow(index);
+      } else {
+        _referencePointsTableKey.currentState?.selectRow(index);
+      }
+    });
+  }
 
   void _checkSectionChange(Section? section) {
     if (section?.id != _currentSectionId) {
@@ -427,6 +481,7 @@ class _DataViewState extends State<DataView> {
                 ),
               )
             : StretchesTable(
+                key: _stretchesTableKey,
                 data: stretches,
                 readOnlyRows: stretchOffset,
                 editMode: _cellEditMode,
@@ -473,6 +528,7 @@ class _DataViewState extends State<DataView> {
                 ),
               )
             : ReferencePointsTable(
+                key: _referencePointsTableKey,
                 data: referencePoints,
                 readOnlyRows: pointOffset,
                 editMode: _cellEditMode,
