@@ -31,4 +31,12 @@ class SelectionState extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Take over the trips of [cave] if it is the selected one
+  void updateTrips(Cave cave) {
+    final selected = _selectedCave;
+    if (selected?.id != cave.id) return;
+    _selectedCave = selected!.copyWith(trips: cave.trips);
+    notifyListeners();
+  }
 }

@@ -1,4 +1,5 @@
 import '../models/cave.dart';
+import '../models/trip.dart';
 
 /// Metadata for a cave (without loading full section data).
 class CaveSummary {
@@ -28,7 +29,7 @@ abstract class CaveRepository {
   Future<Cave?> getCave(String caveId);
 
   /// Save a cave (creates or updates).
-  /// Also saves all sections that are part of the cave.
+  /// Also saves all sections and trips that are part of the cave.
   Future<void> saveCave(Cave cave);
 
   /// Delete a cave and all its sections.
@@ -45,6 +46,12 @@ abstract class CaveRepository {
   /// Note: This only deletes the section files, not the reference in cave.json.
   /// Call saveCave after removing the section from the hierarchy.
   Future<void> deleteSection(String caveId, String sectionId);
+
+  /// Save a single trip (creates or updates).
+  Future<void> saveTrip(String caveId, Trip trip);
+
+  /// Delete a trip. Stretches referring to it are left unchanged.
+  Future<void> deleteTrip(String caveId, String tripId);
 
   /// Import a section from external source (e.g., shared file).
   /// Returns the imported section with its original ID preserved.

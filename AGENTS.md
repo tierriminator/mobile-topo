@@ -30,7 +30,11 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
     "Platform support" in `README.md`.
 - **Station IDs**: Format `a.b` where `a` is typically the series/corridor number and `b` is the point number
 - **Cross-sections**: Multiple measurements at arbitrary angles per station for passage dimensions
-- **Trip settings**: Metadata per survey session (date, declination correction, surveyors)
+- **Trips**: Metadata per survey session (date, declination correction, comment).
+  Unlike PocketTopo, trip data is not copied into every measurement and the
+  active trip is not a setting: each trip is its own file with an ID, stretches
+  store only the trip ID, and new measurements always go to the cave's most
+  recently created trip. Trips are created and edited from the explorer
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -105,8 +109,13 @@ Pure domain objects without serialization logic:
   - `StationPosition`: Calculated 3D position of a station
   - `Survey`: Collection of stretches and reference points with position computation
 
+- **`trip.dart`**: `Trip` with ID, date, declination correction, comment and
+  creation time
+
 - **`cave.dart`**: Explorer hierarchy
-  - `Cave`: Top-level container with areas and sections
+  - `Cave`: Top-level container with areas, sections and trips; the newest
+    trip is the active one. `combinedSurvey` applies each stretch's trip
+    declination to its azimuth
   - `Area`: Organizational container (can nest)
   - `Section`: Leaf node containing survey data and sketches
 
@@ -187,6 +196,8 @@ Persistence and serialization:
 caves/
 └── {cave-id}/
     ├── cave.json
+    ├── trips/
+    │   └── {trip-id}.json
     └── sections/
         └── {section-id}/
             ├── section.json
@@ -204,6 +215,7 @@ UI widgets:
 - **`explorer_view.dart`**: Cave/section browser
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
+- **`trip_page.dart`**: Trip edit page opened from the explorer and data view
 
 ### Localization (`lib/l10n/`)
 

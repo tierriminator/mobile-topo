@@ -202,6 +202,58 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
+  "explorerTrips": "Trips",
+  "@explorerTrips": {
+    "description": "Explorer node listing the trips of a cave"
+  },
+  "explorerNoTrips": "No trips yet",
+  "@explorerNoTrips": {
+    "description": "Shown under the trips node when a cave has no trips"
+  },
+  "explorerAddTrip": "Add Trip",
+  "@explorerAddTrip": {
+    "description": "Menu item to add a new trip to a cave"
+  },
+  "tripActive": "(active)",
+  "@tripActive": {
+    "description": "Shown next to the newest trip, which new measurements are assigned to"
+  },
+  "tripInUse": "This trip cannot be deleted because measurements refer to it.",
+  "@tripInUse": {
+    "description": "Message shown when deleting a trip that measurements refer to"
+  },
+  "tripTitle": "Trip",
+  "@tripTitle": {
+    "description": "Title of the page editing a trip"
+  },
+  "tripDate": "Date",
+  "@tripDate": {
+    "description": "Label for the date of a trip"
+  },
+  "tripDeclination": "Declination correction",
+  "@tripDeclination": {
+    "description": "Label for the declination correction of a trip"
+  },
+  "tripDeclinationHelp": "Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip's stretches.",
+  "@tripDeclinationHelp": {
+    "description": "Explanation of the declination correction"
+  },
+  "tripComment": "Comment",
+  "@tripComment": {
+    "description": "Label for the comment of a trip"
+  },
+  "tripCommentHint": "Surveyors, conditions, …",
+  "@tripCommentHint": {
+    "description": "Hint for the comment of a trip"
+  },
+  "trip": "Trip",
+  "@trip": {
+    "description": "Label for the active trip in the data view status bar, and context menu item showing a row's trip"
+  },
+  "noTrip": "none",
+  "@noTrip": {
+    "description": "Shown in the status bar when no trip is active"
+  },
   "optionsViewPlaceholder": "Options",
   "@optionsViewPlaceholder": {
     "description": "Placeholder text for options view"

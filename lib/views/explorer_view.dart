@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../controllers/explorer_state.dart';
@@ -10,6 +11,8 @@ import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/explorer_path.dart';
 import '../models/survey.dart';
+import '../models/trip.dart';
+import 'trip_page.dart';
 
 class ExplorerView extends StatefulWidget {
   const ExplorerView({super.key});
@@ -52,20 +55,24 @@ class _ExplorerViewState extends State<ExplorerView> {
   }
 
   /// Keep the loaded caves in sync with edits made to the selected section
-  /// in other views.
+  /// and the cave's trips in other views.
   void _onSelectionChanged() {
-    final caveId = _selectionState.selectedCaveId;
+    final selectedCave = _selectionState.selectedCave;
     final section = _selectionState.selectedSection;
-    if (caveId == null || section == null) return;
+    if (selectedCave == null || section == null) return;
 
-    final cave = _explorerState.findCave(caveId);
+    final cave = _explorerState.findCave(selectedCave.id);
     if (cave == null) return;
-    if (cave.allSections.any((s) => identical(s, section))) return;
+    final sectionSynced = cave.allSections.any((s) => identical(s, section));
+    final tripsSynced = identical(cave.trips, selectedCave.trips);
+    if (sectionSynced && tripsSynced) return;
 
     setState(() {
       _explorerState = _explorerState.copyWith(caves: [
         for (final c in _explorerState.caves)
-          c.id == caveId ? c.replaceSection(section) : c,
+          c.id == cave.id
+              ? c.replaceSection(section).copyWith(trips: selectedCave.trips)
+              : c,
       ]);
     });
   }
@@ -248,6 +255,89 @@ class _ExplorerViewState extends State<ExplorerView> {
     });
   }
 
+  /// Expansion key of a cave's trips node
+  String _tripsNodeId(Cave cave) => '${cave.id}/trips';
+
+  /// Shows the trip changes of [cave] here and in the other views
+  void _applyTrips(Cave cave) {
+    setState(() {
+      _explorerState = _explorerState.copyWith(caves: [
+        for (final c in _explorerState.caves)
+          c.id == cave.id ? c.copyWith(trips: cave.trips) : c,
+      ]);
+    });
+    context.read<SelectionState>().updateTrips(cave);
+  }
+
+  /// Creates a trip, which new measurements are assigned to from now on,
+  /// and opens it for editing
+  Future<void> _createTrip(Cave cave) async {
+    final repository = context.read<CaveRepository>();
+    final now = DateTime.now();
+
+    // The declination changes slowly, so the latest trip's value is a good
+    // starting point
+    final trip = Trip(
+      id: _uuid.v4(),
+      date: DateUtils.dateOnly(now),
+      declination: cave.activeTrip?.declination ?? 0,
+      createdAt: now,
+    );
+
+    _applyTrips(cave.addTrip(trip));
+    setState(() {
+      _expandedIds.addAll({cave.id, _tripsNodeId(cave)});
+    });
+    await repository.saveTrip(cave.id, trip);
+
+    if (!mounted) return;
+    await _editTrip(trip);
+  }
+
+  /// The loaded cave a trip belongs to. Looked up by the trip rather than
+  /// kept, as the cave may change while a trip page is open.
+  Cave? _caveOfTrip(Trip trip) => _explorerState.caves
+      .where((c) => c.findTrip(trip.id) != null)
+      .firstOrNull;
+
+  /// Opens a trip for editing and saves the changes
+  Future<void> _editTrip(Trip trip) async {
+    final repository = context.read<CaveRepository>();
+    final edited =
+        await editTrip(context, trip, onDelete: () => _deleteTrip(trip));
+    if (edited == null || !mounted) return;
+
+    final cave = _caveOfTrip(trip);
+    if (cave == null) return;
+    _applyTrips(cave.replaceTrip(edited));
+    await repository.saveTrip(cave.id, edited);
+  }
+
+  /// Whether a trip may be deleted: only if no measurement refers to it.
+  /// Explains why not otherwise.
+  bool _canDeleteTrip(Trip trip) {
+    final cave = _caveOfTrip(trip);
+    if (cave == null) return false;
+    if (cave.isTripUsed(trip.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.tripInUse)),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /// Deletes a trip no measurement refers to; returns whether it was deleted
+  Future<bool> _deleteTrip(Trip trip) async {
+    if (!_canDeleteTrip(trip)) return false;
+    final cave = _caveOfTrip(trip)!;
+    final repository = context.read<CaveRepository>();
+
+    _applyTrips(cave.removeTrip(trip.id));
+    await repository.deleteTrip(cave.id, trip.id);
+    return true;
+  }
+
   void _toggleExpanded(String id) {
     setState(() {
       if (_expandedIds.contains(id)) {
@@ -334,11 +424,13 @@ class _ExplorerViewState extends State<ExplorerView> {
           isExpanded: isExpanded,
           hasChildren: true, // Always show expand arrow for caves
           onTap: () => _toggleExpanded(cave.id),
-          trailing: PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, size: 20),
+          trailing: _trailingMenu(
             onSelected: (value) {
-              if (value == 'add_section') {
-                _createNewSection(cave);
+              switch (value) {
+                case 'add_section':
+                  _createNewSection(cave);
+                case 'add_trip':
+                  _createTrip(cave);
               }
             },
             itemBuilder: (context) => [
@@ -352,6 +444,16 @@ class _ExplorerViewState extends State<ExplorerView> {
                   ],
                 ),
               ),
+              PopupMenuItem(
+                value: 'add_trip',
+                child: Row(
+                  children: [
+                    const Icon(Icons.event, size: 20),
+                    const SizedBox(width: 8),
+                    Text(l10n.explorerAddTrip),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -360,19 +462,101 @@ class _ExplorerViewState extends State<ExplorerView> {
             _buildAreaNode(area, ExplorerPath.cave(cave.id), 1),
           for (final section in cave.sections)
             _buildSectionNode(section, ExplorerPath.cave(cave.id), 1),
-          if (!hasChildren)
-            Padding(
-              padding: const EdgeInsets.only(left: 64, top: 4, bottom: 8),
-              child: Text(
-                l10n.explorerEmpty,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
-              ),
-            ),
+          if (!hasChildren) _buildPlaceholder(l10n.explorerEmpty, 1),
+          _buildTripsNode(cave),
         ],
       ],
+    );
+  }
+
+  /// Italic hint shown in place of the children of an empty node, aligned
+  /// with the labels of rows at [depth]
+  Widget _buildPlaceholder(String text, int depth) {
+    return Container(
+      decoration: _rowDecoration(),
+      constraints: const BoxConstraints(minHeight: _rowHeight),
+      alignment: Alignment.centerLeft,
+      padding: EdgeInsets.only(left: 68.0 + depth * 24.0, right: 16),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildTripsNode(Cave cave) {
+    final l10n = AppLocalizations.of(context)!;
+    final nodeId = _tripsNodeId(cave);
+    final isExpanded = _expandedIds.contains(nodeId);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildTreeTile(
+          icon: Icons.event_note,
+          iconColor: Colors.teal,
+          label: l10n.explorerTrips,
+          depth: 1,
+          isExpanded: isExpanded,
+          hasChildren: true,
+          onTap: () => _toggleExpanded(nodeId),
+          trailing: IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            style: _trailingButtonStyle,
+            onPressed: () => _createTrip(cave),
+            tooltip: l10n.explorerAddTrip,
+          ),
+        ),
+        if (isExpanded) ...[
+          // Newest first, so the active trip leads the list
+          for (final trip in cave.trips.reversed) _buildTripNode(cave, trip),
+          if (cave.trips.isEmpty) _buildPlaceholder(l10n.explorerNoTrips, 2),
+        ],
+      ],
+    );
+  }
+
+  /// A trip; tapping it opens it for editing. The newest trip, which new
+  /// measurements are assigned to, is marked as active. Swiping it left
+  /// reveals a delete button, swiping it far deletes it right away.
+  Widget _buildTripNode(Cave cave, Trip trip) {
+    final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
+    final label = tripLabel(context, trip);
+
+    return Slidable(
+      key: ValueKey(trip.id),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.2,
+        dismissible: DismissiblePane(
+          confirmDismiss: () async => _canDeleteTrip(trip),
+          closeOnCancel: true,
+          onDismissed: () => _deleteTrip(trip),
+        ),
+        children: [
+          SlidableAction(
+            onPressed: (_) => _deleteTrip(trip),
+            backgroundColor: colors.error,
+            foregroundColor: colors.onError,
+            icon: Icons.delete,
+          ),
+        ],
+      ),
+      child: _buildTreeTile(
+        icon: Icons.event,
+        iconColor: Colors.teal,
+        label: identical(cave.activeTrip, trip)
+            ? '$label ${l10n.tripActive}'
+            : label,
+        depth: 2,
+        isExpanded: false,
+        hasChildren: false,
+        onTap: () => _editTrip(trip),
+      ),
     );
   }
 
@@ -419,6 +603,41 @@ class _ExplorerViewState extends State<ExplorerView> {
     );
   }
 
+  /// Minimum height of a tree row; rows with a subtitle grow beyond it
+  static const _rowHeight = 40.0;
+
+  /// Style for buttons at the end of a row, small enough not to make the
+  /// row taller than [_rowHeight]
+  static final _trailingButtonStyle = IconButton.styleFrom(
+    fixedSize: const Size.square(32),
+    minimumSize: const Size.square(32),
+    padding: EdgeInsets.zero,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
+
+  /// Background and bottom divider of a tree row
+  BoxDecoration _rowDecoration({bool isSelected = false}) {
+    final colors = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: isSelected ? colors.primaryContainer : null,
+      border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+    );
+  }
+
+  /// Compact menu button at the end of a row
+  Widget _trailingMenu({
+    required List<PopupMenuEntry<String>> Function(BuildContext) itemBuilder,
+    required void Function(String) onSelected,
+  }) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      padding: EdgeInsets.zero,
+      style: _trailingButtonStyle,
+      onSelected: onSelected,
+      itemBuilder: itemBuilder,
+    );
+  }
+
   Widget _buildTreeTile({
     required IconData icon,
     required Color iconColor,
@@ -434,14 +653,13 @@ class _ExplorerViewState extends State<ExplorerView> {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: isSelected
-            ? Theme.of(context).colorScheme.primaryContainer
-            : null,
+        decoration: _rowDecoration(isSelected: isSelected),
+        constraints: const BoxConstraints(minHeight: _rowHeight),
         padding: EdgeInsets.only(
           left: 16.0 + depth * 24.0,
           right: trailing != null ? 4.0 : 16.0,
-          top: 8.0,
-          bottom: 8.0,
+          top: 4.0,
+          bottom: 4.0,
         ),
         child: Row(
           children: [

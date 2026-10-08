@@ -381,6 +381,84 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
+  /// Explorer node listing the trips of a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Trips'**
+  String get explorerTrips;
+
+  /// Shown under the trips node when a cave has no trips
+  ///
+  /// In en, this message translates to:
+  /// **'No trips yet'**
+  String get explorerNoTrips;
+
+  /// Menu item to add a new trip to a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Add Trip'**
+  String get explorerAddTrip;
+
+  /// Shown next to the newest trip, which new measurements are assigned to
+  ///
+  /// In en, this message translates to:
+  /// **'(active)'**
+  String get tripActive;
+
+  /// Message shown when deleting a trip that measurements refer to
+  ///
+  /// In en, this message translates to:
+  /// **'This trip cannot be deleted because measurements refer to it.'**
+  String get tripInUse;
+
+  /// Title of the page editing a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Trip'**
+  String get tripTitle;
+
+  /// Label for the date of a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get tripDate;
+
+  /// Label for the declination correction of a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Declination correction'**
+  String get tripDeclination;
+
+  /// Explanation of the declination correction
+  ///
+  /// In en, this message translates to:
+  /// **'Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip\'s stretches.'**
+  String get tripDeclinationHelp;
+
+  /// Label for the comment of a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get tripComment;
+
+  /// Hint for the comment of a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Surveyors, conditions, …'**
+  String get tripCommentHint;
+
+  /// Label for the active trip in the data view status bar, and context menu item showing a row's trip
+  ///
+  /// In en, this message translates to:
+  /// **'Trip'**
+  String get trip;
+
+  /// Shown in the status bar when no trip is active
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get noTrip;
+
   /// Placeholder text for options view
   ///
   /// In en, this message translates to:

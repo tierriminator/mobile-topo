@@ -42,7 +42,8 @@ class AreaRef {
 }
 
 /// Cave metadata and hierarchy for JSON serialization.
-/// Contains area structure with section references (IDs only).
+/// Contains area structure with section references (IDs only). Trips are
+/// stored in files of their own.
 class CaveFile {
   final String id;
   final String name;

@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/cave.dart';
 import '../models/sketch.dart';
+import '../models/trip.dart';
 import 'cave_file.dart';
 import 'cave_repository.dart';
 import 'section_file.dart';
@@ -18,6 +19,8 @@ import 'sketch_serialization.dart';
 /// └── caves/
 ///     └── {cave-id}/
 ///         ├── cave.json
+///         ├── trips/
+///         │   └── {trip-id}.json
 ///         └── sections/
 ///             └── {section-id}/
 ///                 ├── section.json
@@ -44,6 +47,14 @@ class LocalCaveRepository implements CaveRepository {
 
   File _caveFile(Directory caveDir) {
     return File('${caveDir.path}/cave.json');
+  }
+
+  Directory _tripsDir(Directory caveDir) {
+    return Directory('${caveDir.path}/trips');
+  }
+
+  File _tripFile(Directory tripsDir, String tripId) {
+    return File('${tripsDir.path}/$tripId.json');
   }
 
   Directory _sectionsDir(Directory caveDir) {
@@ -146,7 +157,27 @@ class LocalCaveRepository implements CaveRepository {
     }
 
     // Build cave domain model
-    return _buildCave(caveData, sections);
+    return _buildCave(caveData, sections, await _loadTrips(caveDir));
+  }
+
+  /// All trips of a cave, in the order they were created
+  Future<List<Trip>> _loadTrips(Directory caveDir) async {
+    final tripsDir = _tripsDir(caveDir);
+    final trips = <Trip>[];
+    if (!await tripsDir.exists()) return trips;
+
+    await for (final entity in tripsDir.list()) {
+      if (entity is File && entity.path.endsWith('.json')) {
+        try {
+          final json = jsonDecode(await entity.readAsString());
+          trips.add(Trip.fromJson(json as Map<String, dynamic>));
+        } catch (e) {
+          // Skip invalid trip files
+        }
+      }
+    }
+    trips.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return trips;
   }
 
   Future<Section?> _loadSection(Directory sectionDir) async {
@@ -185,13 +216,15 @@ class LocalCaveRepository implements CaveRepository {
     );
   }
 
-  Cave _buildCave(CaveFile caveData, Map<String, Section> sections) {
+  Cave _buildCave(
+      CaveFile caveData, Map<String, Section> sections, List<Trip> trips) {
     return Cave(
       id: caveData.id,
       name: caveData.name,
       description: caveData.description,
       createdAt: caveData.createdAt,
       modifiedAt: caveData.modifiedAt,
+      trips: trips,
       areas: caveData.areas.map((a) => _buildArea(a, sections)).toList(),
       sections: caveData.rootSectionIds
           .map((id) => sections[id])
@@ -224,10 +257,6 @@ class LocalCaveRepository implements CaveRepository {
       await caveDir.create(recursive: true);
     }
 
-    // Collect all sections
-    final allSections = <Section>[];
-    _collectSections(cave, allSections);
-
     // Build cave file data
     final caveData = CaveFile(
       id: cave.id,
@@ -245,10 +274,45 @@ class LocalCaveRepository implements CaveRepository {
       const JsonEncoder.withIndent('  ').convert(caveData.toJson()),
     );
 
+    // Collect all sections
+    final allSections = <Section>[];
+    _collectSections(cave, allSections);
+
     // Write all sections
     final sectionsDir = _sectionsDir(caveDir);
     for (final section in allSections) {
       await _saveSection(sectionsDir, section);
+    }
+
+    // Write all trips
+    final tripsDir = _tripsDir(caveDir);
+    for (final trip in cave.trips) {
+      await _saveTrip(tripsDir, trip);
+    }
+  }
+
+  @override
+  Future<void> saveTrip(String caveId, Trip trip) async {
+    final cavesDir = await _cavesDir;
+    await _saveTrip(_tripsDir(_caveDir(cavesDir, caveId)), trip);
+  }
+
+  Future<void> _saveTrip(Directory tripsDir, Trip trip) async {
+    if (!await tripsDir.exists()) {
+      await tripsDir.create(recursive: true);
+    }
+    await _tripFile(tripsDir, trip.id).writeAsString(
+      const JsonEncoder.withIndent('  ').convert(trip.toJson()),
+    );
+  }
+
+  @override
+  Future<void> deleteTrip(String caveId, String tripId) async {
+    final cavesDir = await _cavesDir;
+    final tripFile =
+        _tripFile(_tripsDir(_caveDir(cavesDir, caveId)), tripId);
+    if (await tripFile.exists()) {
+      await tripFile.delete();
     }
   }
 

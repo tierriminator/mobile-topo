@@ -1,5 +1,6 @@
 import 'sketch.dart';
 import 'survey.dart';
+import 'trip.dart';
 
 /// A section contains survey measurement data and drawings.
 /// This is the leaf node in the explorer hierarchy (like a file).
@@ -127,6 +128,9 @@ class Cave {
   final String? description;
   final List<Area> areas;
   final List<Section> sections;
+
+  /// Trips in the order they were created
+  final List<Trip> trips;
   final DateTime createdAt;
   final DateTime modifiedAt;
 
@@ -136,6 +140,7 @@ class Cave {
     this.description,
     this.areas = const [],
     this.sections = const [],
+    this.trips = const [],
     required this.createdAt,
     required this.modifiedAt,
   });
@@ -145,6 +150,7 @@ class Cave {
     String? description,
     List<Area>? areas,
     List<Section>? sections,
+    List<Trip>? trips,
     DateTime? modifiedAt,
   }) {
     return Cave(
@@ -153,10 +159,38 @@ class Cave {
       description: description ?? this.description,
       areas: areas ?? this.areas,
       sections: sections ?? this.sections,
+      trips: trips ?? this.trips,
       createdAt: createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
     );
   }
+
+  /// The trip with the given ID, or null if there is none
+  Trip? findTrip(String? tripId) =>
+      trips.where((t) => t.id == tripId).firstOrNull;
+
+  /// The trip new measurements are assigned to: the most recently created
+  /// one, if any
+  Trip? get activeTrip => trips.lastOrNull;
+
+  /// Add a trip, which becomes the active one
+  Cave addTrip(Trip trip) {
+    return copyWith(trips: [...trips, trip]);
+  }
+
+  /// Replace the trip with the same ID
+  Cave replaceTrip(Trip trip) {
+    return copyWith(trips: [for (final t in trips) t.id == trip.id ? trip : t]);
+  }
+
+  /// Remove a trip; if it was the active one, the previous trip becomes active
+  Cave removeTrip(String tripId) {
+    return copyWith(trips: [for (final t in trips) if (t.id != tripId) t]);
+  }
+
+  /// Whether any stretch in this cave was measured on the given trip
+  bool isTripUsed(String tripId) => allSections
+      .any((s) => s.survey.stretches.any((stretch) => stretch.tripId == tripId));
 
   /// Add an area at the root level
   Cave addArea(Area area) {
@@ -189,11 +223,22 @@ class Cave {
       ];
 
   /// The surveys of all sections merged into one, so stations shared between
-  /// sections connect them into a single network.
+  /// sections connect them into a single network. Each stretch's azimuth is
+  /// corrected by the declination of its trip, so the result is ready for
+  /// computing positions.
   Survey get combinedSurvey {
     final all = allSections;
+    final declinations = {for (final t in trips) t.id: t.declination};
+    MeasuredDistance corrected(MeasuredDistance stretch) {
+      final declination = declinations[stretch.tripId] ?? 0;
+      if (declination == 0) return stretch;
+      return stretch.copyWith(azimut: stretch.azimut + declination);
+    }
+
     return Survey(
-      stretches: [for (final s in all) ...s.survey.stretches],
+      stretches: [
+        for (final s in all) ...s.survey.stretches.map(corrected),
+      ],
       referencePoints: [for (final s in all) ...s.survey.referencePoints],
     );
   }

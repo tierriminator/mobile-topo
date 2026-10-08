@@ -311,6 +311,9 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
   final void Function(Point station)? onStartHere;
   final void Function(Point station)? onContinueHere;
 
+  /// Opens the trip of a stretch; offered for stretches that have one
+  final void Function(MeasuredDistance stretch)? onShowTrip;
+
   /// Stations where "Continue Here" is offered: the last station of a series
   final Set<Point> seriesEnds;
 
@@ -326,6 +329,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     this.onUpdate,
     this.onStartHere,
     this.onContinueHere,
+    this.onShowTrip,
     this.seriesEnds = const {},
   });
 
@@ -344,12 +348,12 @@ class StretchesTableState
     num? azimut,
     num? inclination,
   }) {
-    final updated = MeasuredDistance(
-      from ?? current.from,
-      to ?? current.to,
-      distance ?? current.distance,
-      azimut ?? current.azimut,
-      inclination ?? current.inclination,
+    final updated = current.copyWith(
+      from: from,
+      to: to,
+      distance: distance,
+      azimut: azimut,
+      inclination: inclination,
     );
     widget.onUpdate?.call(index, updated);
   }
@@ -420,6 +424,8 @@ class StretchesTableState
         PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       if (station != null && widget.seriesEnds.contains(station))
         PopupMenuItem(value: 'continueHere', child: Text(l10n.continueHere)),
+      if (item.tripId != null && widget.onShowTrip != null)
+        PopupMenuItem(value: 'trip', child: Text('${l10n.trip}…')),
       if (!isReadOnly(index)) ...[
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
         PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
@@ -436,6 +442,8 @@ class StretchesTableState
         widget.onStartHere?.call(station!);
       case 'continueHere':
         widget.onContinueHere?.call(station!);
+      case 'trip':
+        widget.onShowTrip?.call(item);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

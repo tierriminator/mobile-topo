@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/survey.dart';
 import '../services/measurement_service.dart';
+import 'trip_page.dart';
 import 'widgets/data_tables.dart';
 
 class DataView extends StatefulWidget {
@@ -90,7 +91,8 @@ class _DataViewState extends State<DataView> {
     final currentSection = _getEffectiveSection(sectionId);
     if (currentSection == null) return;
 
-    final newSurvey = currentSection.survey.addStretch(stretch);
+    final newSurvey = currentSection.survey
+        .addStretch(stretch.copyWith(tripId: _activeTripId));
     await _applySurveyChangeWithLocalState(currentSection, newSurvey);
   }
 
@@ -108,7 +110,8 @@ class _DataViewState extends State<DataView> {
     debugPrint('DataView._replaceWithSurveyShot: current stretches count=${currentSection.survey.stretches.length}');
 
     // Replace last N splays with the survey shot
-    final newSurvey = currentSection.survey.replaceLastNWithStretch(removeCount, stretch);
+    final newSurvey = currentSection.survey.replaceLastNWithStretch(
+        removeCount, stretch.copyWith(tripId: _activeTripId));
     debugPrint('DataView._replaceWithSurveyShot: new stretches count=${newSurvey.stretches.length}');
 
     await _applySurveyChangeWithLocalState(currentSection, newSurvey);
@@ -198,7 +201,7 @@ class _DataViewState extends State<DataView> {
     final from = _caveSurvey(section).lastStation ?? _defaultStation;
     final to = Point(from.corridorId, from.pointId.toInt() + 1);
 
-    final stretch = MeasuredDistance(from, to, 0, 0, 0);
+    final stretch = MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId);
     await _applySurveyChange(section, section.survey.addStretch(stretch));
   }
 
@@ -219,7 +222,7 @@ class _DataViewState extends State<DataView> {
       to = Point(from.corridorId, from.pointId.toInt() + 1);
     }
 
-    final stretch = MeasuredDistance(from, to, 0, 0, 0);
+    final stretch = MeasuredDistance(from, to, 0, 0, 0, tripId: _activeTripId);
     await _applySurveyChange(
       section,
       section.survey.insertStretchAt(index, stretch),
@@ -279,7 +282,8 @@ class _DataViewState extends State<DataView> {
     // is taken from all sections, not just this one
     final newStation = _caveSurvey(section).nextSeriesStart;
 
-    final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0);
+    final emptyStretch = MeasuredDistance(fromStation, newStation, 0, 0, 0,
+        tripId: _activeTripId);
     await _applySurveyChange(section, section.survey.addStretch(emptyStretch));
   }
 
@@ -287,8 +291,29 @@ class _DataViewState extends State<DataView> {
   /// series: appends a dummy cross section at [station], so measuring
   /// continues from there.
   Future<void> _continueHere(Section section, Point station) async {
-    final dummy = MeasuredDistance(station, null, 0, 0, 0);
+    final dummy =
+        MeasuredDistance(station, null, 0, 0, 0, tripId: _activeTripId);
     await _applySurveyChange(section, section.survey.addStretch(dummy));
+  }
+
+  /// The trip new rows are assigned to: the cave's newest trip
+  String? get _activeTripId =>
+      context.read<SelectionState>().selectedCave?.activeTrip?.id;
+
+  /// Opens the trip a row was measured on for inspection and editing
+  Future<void> _showTrip(MeasuredDistance stretch) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final trip = selectionState.selectedCave?.findTrip(stretch.tripId);
+    if (trip == null) return;
+
+    final edited = await editTrip(context, trip);
+    // The cave may have changed while the page was open
+    final cave = selectionState.selectedCave;
+    if (edited == null || cave?.findTrip(trip.id) == null) return;
+
+    selectionState.updateTrips(cave!.replaceTrip(edited));
+    await repository.saveTrip(cave.id, edited);
   }
 
   /// Station used when the whole cave has no data yet
@@ -333,7 +358,9 @@ class _DataViewState extends State<DataView> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final selectionSection = context.watch<SelectionState>().selectedSection;
+    final selectionState = context.watch<SelectionState>();
+    final selectionSection = selectionState.selectedSection;
+    final activeTrip = selectionState.selectedCave?.activeTrip;
 
     // Clear history when section changes
     _checkSectionChange(selectionSection);
@@ -449,6 +476,14 @@ class _DataViewState extends State<DataView> {
                 '${l10n.currentStation}: ${_currentStation()}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  '${l10n.trip}: ${activeTrip != null ? tripLabel(context, activeTrip) : l10n.noTrip}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),
@@ -509,6 +544,7 @@ class _DataViewState extends State<DataView> {
                     _deleteStretch(section, index - stretchOffset),
                 onStartHere: (station) => _startNewSeries(section, station),
                 onContinueHere: (station) => _continueHere(section, station),
+                onShowTrip: _showTrip,
                 // Series can span sections, so their ends are taken from the
                 // whole cave
                 seriesEnds: caveSurvey.seriesEnds,

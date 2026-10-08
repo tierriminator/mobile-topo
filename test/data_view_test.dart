@@ -9,6 +9,7 @@ import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
+import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 import 'package:mobile_topo/views/data_view.dart';
 
@@ -100,6 +101,29 @@ void main() {
 
     expect(selectionState.selectedSection!.id, 'second');
     expect(selectionState.selectedSection!.survey.stretches, hasLength(1));
+  });
+
+  testWidgets('measurements are assigned to the active trip', (tester) async {
+    final s = section('s');
+    final c = cave([s])
+        .addTrip(Trip(id: 'old', date: now, createdAt: now))
+        .addTrip(Trip(id: 'trip', date: now, createdAt: now));
+
+    final selectionState = SelectionState()..selectSection(c, s);
+    final measurementService = MeasurementService(SettingsController());
+    await pumpDataView(tester, selectionState, measurementService);
+
+    measurementService.addMeasurement(
+      distance: 3.0,
+      azimuth: 45.0,
+      inclination: 0.0,
+      isStretch: false,
+    );
+    await tester.pumpAndSettle();
+
+    final stretches = selectionState.selectedSection!.survey.stretches;
+    expect(stretches.single.tripId, 'trip');
+    expect(find.textContaining('Trip: '), findsOneWidget);
   });
 
   group('whole cave table', () {

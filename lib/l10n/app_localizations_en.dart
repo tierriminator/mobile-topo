@@ -162,6 +162,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerSectionName => 'Section name';
 
   @override
+  String get explorerTrips => 'Trips';
+
+  @override
+  String get explorerNoTrips => 'No trips yet';
+
+  @override
+  String get explorerAddTrip => 'Add Trip';
+
+  @override
+  String get tripActive => '(active)';
+
+  @override
+  String get tripInUse =>
+      'This trip cannot be deleted because measurements refer to it.';
+
+  @override
+  String get tripTitle => 'Trip';
+
+  @override
+  String get tripDate => 'Date';
+
+  @override
+  String get tripDeclination => 'Declination correction';
+
+  @override
+  String get tripDeclinationHelp =>
+      'Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip\'s stretches.';
+
+  @override
+  String get tripComment => 'Comment';
+
+  @override
+  String get tripCommentHint => 'Surveyors, conditions, …';
+
+  @override
+  String get trip => 'Trip';
+
+  @override
+  String get noTrip => 'none';
+
+  @override
   String get optionsViewPlaceholder => 'Options';
 
   @override

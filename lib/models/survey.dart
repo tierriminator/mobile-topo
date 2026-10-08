@@ -38,8 +38,32 @@ class MeasuredDistance {
   final Point from;
   final Point? to; // null for splay shots
   final num distance, azimut, inclination;
+
+  /// ID of the trip this stretch was measured on, if any
+  final String? tripId;
+
   const MeasuredDistance(
-      this.from, this.to, this.distance, this.azimut, this.inclination);
+      this.from, this.to, this.distance, this.azimut, this.inclination,
+      {this.tripId});
+
+  /// A copy with the given values replaced. [to] cannot be cleared this way.
+  MeasuredDistance copyWith({
+    Point? from,
+    Point? to,
+    num? distance,
+    num? azimut,
+    num? inclination,
+    String? tripId,
+  }) {
+    return MeasuredDistance(
+      from ?? this.from,
+      to ?? this.to,
+      distance ?? this.distance,
+      azimut ?? this.azimut,
+      inclination ?? this.inclination,
+      tripId: tripId ?? this.tripId,
+    );
+  }
 
   /// The station this row stands for: the station a survey shot leads to,
   /// or the station of a cross section. A shot whose From station is numbered
@@ -57,6 +81,7 @@ class MeasuredDistance {
         'distance': distance,
         'azimut': azimut,
         'inclination': inclination,
+        if (tripId != null) 'tripId': tripId,
       };
 
   factory MeasuredDistance.fromJson(Map<String, dynamic> json) =>
@@ -68,6 +93,7 @@ class MeasuredDistance {
         json['distance'] as num,
         json['azimut'] as num,
         json['inclination'] as num,
+        tripId: json['tripId'] as String?,
       );
 }
 
