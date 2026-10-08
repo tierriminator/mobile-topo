@@ -611,6 +611,21 @@
   "@cellEditMode": {
     "description": "Tooltip for cell edit mode toggle button"
   },
+  "rowsSelected": "{count, plural, =1{1 row selected} other{{count} rows selected}}",
+  "@rowsSelected": {
+    "description": "Bulk action bar of the data view: number of checked rows",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "clearSelection": "Clear selection",
+  "@clearSelection": {
+    "description": "Tooltip for unchecking all rows in the data view's bulk action bar"
+  },
+  "setTrip": "Set trip",
+  "@setTrip": {
+    "description": "Bulk action assigning a trip to all checked rows of the data view"
+  },
   "calibrationTitle": "Device Calibration",
   "@calibrationTitle": {
     "description": "Title for calibration screen"

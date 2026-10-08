@@ -459,10 +459,11 @@ class Survey {
     return copyWith(stretches: newStretches);
   }
 
-  Survey removeStretchAt(int index) {
-    final newStretches = List<MeasuredDistance>.from(stretches);
-    newStretches.removeAt(index);
-    return copyWith(stretches: newStretches);
+  Survey removeStretchesAt(Set<int> indices) {
+    return copyWith(stretches: [
+      for (var i = 0; i < stretches.length; i++)
+        if (!indices.contains(i)) stretches[i],
+    ]);
   }
 
   /// PocketTopo's "Renumber": reassigns the stations of all stretches
@@ -608,9 +609,10 @@ class Survey {
     return copyWith(referencePoints: newPoints);
   }
 
-  Survey removeReferencePointAt(int index) {
-    final newPoints = List<ReferencePoint>.from(referencePoints);
-    newPoints.removeAt(index);
-    return copyWith(referencePoints: newPoints);
+  Survey removeReferencePointsAt(Set<int> indices) {
+    return copyWith(referencePoints: [
+      for (var i = 0; i < referencePoints.length; i++)
+        if (!indices.contains(i)) referencePoints[i],
+    ]);
   }
 }

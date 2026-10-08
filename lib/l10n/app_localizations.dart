@@ -975,6 +975,24 @@ abstract class AppLocalizations {
   /// **'Edit cells'**
   String get cellEditMode;
 
+  /// Bulk action bar of the data view: number of checked rows
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 row selected} other{{count} rows selected}}'**
+  String rowsSelected(int count);
+
+  /// Tooltip for unchecking all rows in the data view's bulk action bar
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get clearSelection;
+
+  /// Bulk action assigning a trip to all checked rows of the data view
+  ///
+  /// In en, this message translates to:
+  /// **'Set trip'**
+  String get setTrip;
+
   /// Title for calibration screen
   ///
   /// In en, this message translates to:

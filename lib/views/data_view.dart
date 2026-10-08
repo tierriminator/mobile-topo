@@ -206,8 +206,9 @@ class _DataViewState extends State<DataView> {
         section.id, (survey) => survey.updateStretchAt(index, stretch));
   }
 
-  Future<void> _deleteStretch(Section section, int index) async {
-    await _changeSurvey(section.id, (survey) => survey.removeStretchAt(index));
+  Future<void> _deleteStretches(Section section, Set<int> indices) async {
+    await _changeSurvey(
+        section.id, (survey) => survey.removeStretchesAt(indices));
   }
 
   /// Switches a survey shot between forward and backward, as PocketTopo's
@@ -256,9 +257,9 @@ class _DataViewState extends State<DataView> {
         section.id, (survey) => survey.updateReferencePointAt(index, point));
   }
 
-  Future<void> _deleteReferencePoint(Section section, int index) async {
+  Future<void> _deleteReferencePoints(Section section, Set<int> indices) async {
     await _changeSurvey(
-        section.id, (survey) => survey.removeReferencePointAt(index));
+        section.id, (survey) => survey.removeReferencePointsAt(indices));
   }
 
   /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
@@ -287,21 +288,27 @@ class _DataViewState extends State<DataView> {
   String? get _activeTripId =>
       context.read<SelectionState>().selectedCave?.activeTrip?.id;
 
-  /// Lets the user pick the trip the row at [index] was measured on
-  Future<void> _changeTrip(Section section, int index) async {
+  /// Lets the user pick the trip the rows at [indices] were measured on. The
+  /// picker starts at their trip if they all share one.
+  Future<void> _changeTrip(Section section, Set<int> indices) async {
     final cave = context.read<SelectionState>().selectedCave;
     if (cave == null) return;
-    final current = section.survey.stretches[index].tripId;
+    final tripIds = {for (final i in indices) section.survey.stretches[i].tripId};
+    final current = tripIds.length == 1 ? tripIds.single : null;
 
     final trip = await pickTrip(context, cave, currentTripId: current);
     if (trip == null || trip.id == current) return;
 
-    // The rows may have changed while the dialog was open, so the stretch is
-    // taken from the latest survey
+    // The rows may have changed while the dialog was open, so the stretches
+    // are taken from the latest survey
     await _changeSurvey(section.id, (survey) {
-      if (index >= survey.stretches.length) return survey;
-      return survey.updateStretchAt(
-          index, survey.stretches[index].copyWith(tripId: trip.id));
+      final stretches = survey.stretches;
+      return survey.copyWith(stretches: [
+        for (var i = 0; i < stretches.length; i++)
+          indices.contains(i)
+              ? stretches[i].copyWith(tripId: trip.id)
+              : stretches[i],
+      ]);
     });
   }
 
@@ -525,8 +532,8 @@ class _DataViewState extends State<DataView> {
                     _insertStretchAt(section, index - stretchOffset + 1),
                 onUpdate: (index, stretch) =>
                     _updateStretch(section, index - stretchOffset, stretch),
-                onDelete: (index) =>
-                    _deleteStretch(section, index - stretchOffset),
+                onDelete: (indices) => _deleteStretches(
+                    section, {for (final i in indices) i - stretchOffset}),
                 onCommentChanged: (index, comment) => _updateStretch(
                     section,
                     index - stretchOffset,
@@ -540,7 +547,8 @@ class _DataViewState extends State<DataView> {
                 onRenumber: (index) =>
                     _renumber(section, index - stretchOffset),
                 onChangeTrip: hasTrips
-                    ? (index) => _changeTrip(section, index - stretchOffset)
+                    ? (indices) => _changeTrip(
+                        section, {for (final i in indices) i - stretchOffset})
                     : null,
                 // Series can span sections, so their ends are taken from the
                 // whole cave
@@ -583,8 +591,8 @@ class _DataViewState extends State<DataView> {
                     _insertReferencePointAt(section, index - pointOffset + 1),
                 onUpdate: (index, point) =>
                     _updateReferencePoint(section, index - pointOffset, point),
-                onDelete: (index) =>
-                    _deleteReferencePoint(section, index - pointOffset),
+                onDelete: (indices) => _deleteReferencePoints(
+                    section, {for (final i in indices) i - pointOffset}),
                 onCommentChanged: (index, comment) => _updateReferencePoint(
                     section,
                     index - pointOffset,

@@ -11,7 +11,9 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   final List<T> data;
   final void Function(int index)? onInsertAbove;
   final void Function(int index)? onInsertBelow;
-  final void Function(int index)? onDelete;
+
+  /// Deletes the rows at the given indices
+  final void Function(Set<int> indices)? onDelete;
   final VoidCallback? onAdd;
 
   /// Sets the comment of a row; an empty comment removes it
@@ -53,6 +55,9 @@ abstract class EditableDataTable<T> extends StatefulWidget {
 /// Width of the last column, which shows a star for rows with a comment
 const _commentColumnWidth = FixedColumnWidth(20);
 
+/// Width of the first column in edit mode, which checks rows for bulk actions
+const _checkColumnWidth = FixedColumnWidth(28);
+
 /// Context menu value of the comment entry every table offers
 const _commentMenuValue = 'comment';
 
@@ -74,6 +79,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   int? _editingRow;
   int? _editingCol;
   bool _wasSelectedBeforeTouch = false;
+
+  /// Rows checked in edit mode, which bulk actions apply to
+  final Set<int> _checkedRows = {};
   final ScrollController _scrollController = ScrollController();
 
   /// Marks the first cell of the row [selectRow] scrolls to
@@ -118,6 +126,13 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     if (!oldWidget.editMode && widget.editMode) {
       _selectedIndex = null;
       _selectedCol = null;
+    }
+    // Checked rows only exist in edit mode, and their indices only keep
+    // pointing at the same rows while rows are appended
+    if (!widget.editMode ||
+        widget.readOnlyRows != oldWidget.readOnlyRows ||
+        widget.data.length < oldWidget.data.length) {
+      _checkedRows.clear();
     }
   }
 
@@ -177,15 +192,23 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   void handleContextMenuSelection(
       String? value, int index, T item, Point? station);
 
+  /// Buttons for bulk actions on the checked [rows] besides deleting them
+  List<Widget> buildBulkActions(AppLocalizations l10n, Set<int> rows) =>
+      const [];
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final headerCells = [
+      if (widget.editMode) _buildCheckAllCell(),
       ...buildHeaderCells(l10n),
       // The comment column has no header, as in PocketTopo
       const SizedBox.shrink(),
     ];
-    final columnWidths = {headerCells.length - 1: _commentColumnWidth};
+    final columnWidths = {
+      if (widget.editMode) 0: _checkColumnWidth,
+      headerCells.length - 1: _commentColumnWidth,
+    };
 
     return Column(
       children: [
@@ -197,9 +220,15 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           ),
           children: [
             TableRow(
-              children: headerCells
-                  .map((cell) => TableCell(child: cell))
-                  .toList(),
+              children: [
+                for (final cell in headerCells)
+                  TableCell(
+                    verticalAlignment: cell is _RowCheckbox
+                        ? TableCellVerticalAlignment.fill
+                        : null,
+                    child: cell,
+                  ),
+              ],
             ),
           ],
         ),
@@ -228,7 +257,64 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
             ),
           ),
         ),
+        if (widget.editMode && _checkedRows.isNotEmpty)
+          _buildBulkActionBar(context, l10n),
       ],
+    );
+  }
+
+  /// Checks all editable rows, or unchecks them if all are checked
+  Widget _buildCheckAllCell() {
+    final editableRows = widget.data.length - widget.readOnlyRows;
+    final checked = _checkedRows.isEmpty
+        ? false
+        : _checkedRows.length == editableRows
+            ? true
+            : null;
+    return _RowCheckbox(
+      value: checked,
+      onChanged: editableRows == 0
+          ? null
+          : () => setState(() {
+                if (checked == true) {
+                  _checkedRows.clear();
+                } else {
+                  _checkedRows.addAll([
+                    for (var i = widget.readOnlyRows;
+                        i < widget.data.length;
+                        i++)
+                      i,
+                  ]);
+                }
+              }),
+    );
+  }
+
+  Widget _buildBulkActionBar(BuildContext context, AppLocalizations l10n) {
+    final rows = Set.of(_checkedRows);
+    return Container(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.clearSelection,
+            onPressed: () => setState(_checkedRows.clear),
+          ),
+          Expanded(child: Text(l10n.rowsSelected(rows.length))),
+          ...buildBulkActions(l10n, rows),
+          if (widget.onDelete != null)
+            TextButton.icon(
+              icon: const Icon(Icons.delete),
+              label: Text(l10n.explorerDelete),
+              onPressed: () {
+                setState(_checkedRows.clear);
+                widget.onDelete!(rows);
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -261,10 +347,10 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     int index,
     T item,
   ) {
-    // Don't show selection highlight in edit mode
-    final isRowSelected = !widget.editMode &&
-        index == _selectedIndex &&
-        _selectedCol == null;
+    // Edit mode highlights checked rows instead of the selection
+    final isRowSelected = widget.editMode
+        ? _checkedRows.contains(index)
+        : index == _selectedIndex && _selectedCol == null;
     final decoration =
         isRowSelected ? BoxDecoration(color: _selectionColor(context)) : null;
 
@@ -276,6 +362,18 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     return TableRow(
       decoration: decoration,
       children: [
+        if (widget.editMode)
+          TableCell(
+            verticalAlignment: TableCellVerticalAlignment.fill,
+            child: isReadOnly(index)
+                ? const SizedBox.shrink()
+                : _RowCheckbox(
+                    value: _checkedRows.contains(index),
+                    onChanged: () => setState(() {
+                      if (!_checkedRows.remove(index)) _checkedRows.add(index);
+                    }),
+                  ),
+          ),
         for (var col = 0; col < cells.length; col++)
           _wrapCell(context, l10n, index, col, item, cells[col],
               isCommentColumn: col == cells.length - 1),
@@ -451,8 +549,8 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
   /// PocketTopo's "Renumber" from the stretch at an index
   final void Function(int index)? onRenumber;
 
-  /// Lets the user pick another trip for the stretch at an index
-  final void Function(int index)? onChangeTrip;
+  /// Lets the user pick another trip for the stretches at the given indices
+  final void Function(Set<int> indices)? onChangeTrip;
 
   /// Stations where "Continue Here" is offered: the last station of a series
   final Set<Point> seriesEnds;
@@ -614,15 +712,25 @@ class StretchesTableState
       case 'renumber':
         widget.onRenumber?.call(index);
       case 'trip':
-        widget.onChangeTrip?.call(index);
+        widget.onChangeTrip?.call({index});
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':
         widget.onInsertBelow?.call(index);
       case 'delete':
-        widget.onDelete?.call(index);
+        widget.onDelete?.call({index});
     }
   }
+
+  @override
+  List<Widget> buildBulkActions(AppLocalizations l10n, Set<int> rows) => [
+        if (widget.onChangeTrip != null)
+          TextButton.icon(
+            icon: const Icon(Icons.event),
+            label: Text(l10n.setTrip),
+            onPressed: () => widget.onChangeTrip!(rows),
+          ),
+      ];
 }
 
 // =============================================================================
@@ -754,7 +862,7 @@ class ReferencePointsTableState
       case 'insertBelow':
         widget.onInsertBelow?.call(index);
       case 'delete':
-        widget.onDelete?.call(index);
+        widget.onDelete?.call({index});
     }
   }
 }
@@ -777,6 +885,40 @@ class _HeaderCell extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
+      ),
+    );
+  }
+}
+
+/// The checkbox of the first column in edit mode. A null [value] shows that
+/// only some rows are checked.
+///
+/// Its cell must fill the row, so the checkbox takes the height of the text
+/// instead of adding to it. Its box is scaled down to the size of the text,
+/// and the whole cell toggles it, as the scaled box alone is hard to hit.
+class _RowCheckbox extends StatelessWidget {
+  const _RowCheckbox({required this.value, required this.onChanged});
+
+  final bool? value;
+  final VoidCallback? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onChanged,
+      child: Transform.scale(
+        scale: 0.75,
+        child: Checkbox(
+          value: value,
+          tristate: value == null,
+          visualDensity: const VisualDensity(
+            horizontal: VisualDensity.minimumDensity,
+            vertical: VisualDensity.minimumDensity,
+          ),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged: onChanged == null ? null : (_) => onChanged!(),
+        ),
       ),
     );
   }

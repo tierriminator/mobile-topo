@@ -479,6 +479,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cellEditMode => 'Edit cells';
 
   @override
+  String rowsSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rows selected',
+      one: '1 row selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get clearSelection => 'Clear selection';
+
+  @override
+  String get setTrip => 'Set trip';
+
+  @override
   String get calibrationTitle => 'Device Calibration';
 
   @override

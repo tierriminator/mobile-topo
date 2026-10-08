@@ -696,4 +696,140 @@ void main() {
       expect(find.text('Continue here'), findsNothing);
     });
   });
+
+  group('bulk edits', () {
+    final previous = section(
+      'previous',
+      const Survey(
+        stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 9, 90, 0)],
+        referencePoints: [],
+      ),
+    );
+    final current = section(
+      'current',
+      const Survey(
+        stretches: [
+          MeasuredDistance(Point(1, 1), Point(1, 2), 2, 90, 0, tripId: 'a'),
+          MeasuredDistance(Point(1, 2), Point(1, 3), 3, 90, 0, tripId: 'a'),
+          MeasuredDistance(Point(1, 3), Point(1, 4), 4, 90, 0, tripId: 'a'),
+        ],
+        referencePoints: [],
+      ),
+    );
+    final tripA = Trip(
+        id: 'a', date: DateTime(2026, 10, 1), createdAt: DateTime(2026, 10, 1));
+    final tripB = Trip(
+        id: 'b', date: DateTime(2026, 10, 7), createdAt: DateTime(2026, 10, 7));
+
+    Future<SelectionState> pump(WidgetTester tester) async {
+      final c = cave([previous, current]).addTrip(tripA).addTrip(tripB);
+      final selectionState = SelectionState()..selectSection(c, current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+      await tester.tap(find.byTooltip('Edit cells'));
+      await tester.pumpAndSettle();
+      return selectionState;
+    }
+
+    /// Taps the checkbox of the table row at [index]; the header's comes
+    /// first
+    Future<void> check(WidgetTester tester, int index) async {
+      await tester.tap(find.byType(Checkbox).at(index + 1));
+      await tester.pumpAndSettle();
+    }
+
+    List<num> distances(SelectionState selectionState) => [
+          for (final s in selectionState.selectedSection!.survey.stretches)
+            s.distance,
+        ];
+
+    testWidgets('only rows of the selected section can be checked',
+        (tester) async {
+      await pump(tester);
+      // The header's and one per row of the selected section
+      expect(find.byType(Checkbox), findsNWidgets(4));
+      expect(find.text('Delete'), findsNothing);
+    });
+
+    testWidgets('the checkboxes keep the height of the rows', (tester) async {
+      await pump(tester);
+      final inEditMode = tester.getTopLeft(find.text('4.00')).dy;
+      await tester.tap(find.byTooltip('Edit cells'));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.text('4.00')).dy, inEditMode);
+    });
+
+    testWidgets('tapping beside a checkbox checks its row', (tester) async {
+      await pump(tester);
+      final checkbox = tester.getRect(find.byType(Checkbox).at(1));
+      await tester.tapAt(checkbox.centerLeft - const Offset(2, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('1 row selected'), findsOneWidget);
+    });
+
+    testWidgets('delete removes the checked rows in one undo step',
+        (tester) async {
+      final selectionState = await pump(tester);
+      await check(tester, 0);
+      await check(tester, 2);
+      expect(find.text('2 rows selected'), findsOneWidget);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(distances(selectionState), [3]);
+      expect(find.text('Delete'), findsNothing);
+
+      await tester.tap(find.byTooltip('Undo'));
+      await tester.pumpAndSettle();
+      expect(distances(selectionState), [2, 3, 4]);
+    });
+
+    testWidgets('the header checkbox checks all rows of the selected section',
+        (tester) async {
+      final selectionState = await pump(tester);
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(find.text('3 rows selected'), findsOneWidget);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(distances(selectionState), isEmpty);
+      expect(selectionState.selectedCave!.allSections.first.survey.stretches,
+          hasLength(1));
+    });
+
+    testWidgets('set trip assigns the picked trip to the checked rows',
+        (tester) async {
+      final selectionState = await pump(tester);
+      await check(tester, 1);
+      await check(tester, 2);
+
+      await tester.tap(find.text('Set trip'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('7'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      final tripIds = [
+        for (final s in selectionState.selectedSection!.survey.stretches)
+          s.tripId,
+      ];
+      expect(tripIds, ['a', 'b', 'b']);
+    });
+
+    testWidgets('leaving edit mode unchecks all rows', (tester) async {
+      await pump(tester);
+      await check(tester, 0);
+      await tester.tap(find.byTooltip('Edit cells'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Edit cells'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('selected'), findsNothing);
+      expect(
+          tester.widgetList<Checkbox>(find.byType(Checkbox)).map((c) => c.value),
+          everyElement(false));
+    });
+  });
 }
