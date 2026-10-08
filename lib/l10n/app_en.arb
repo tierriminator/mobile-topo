@@ -283,6 +283,10 @@
   "@tripDate": {
     "description": "Label for the date of a trip"
   },
+  "tripId": "ID",
+  "@tripId": {
+    "description": "Label for the unique ID of a trip, which tells trips of the same day apart"
+  },
   "tripDeclination": "Declination correction",
   "@tripDeclination": {
     "description": "Label for the declination correction of a trip"

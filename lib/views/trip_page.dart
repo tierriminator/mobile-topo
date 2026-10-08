@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
@@ -11,9 +12,18 @@ import 'widgets/number_format.dart';
 /// Short description of a trip: its date, followed by the first line of its
 /// comment
 String tripLabel(BuildContext context, Trip trip) {
-  final date = MaterialLocalizations.of(context).formatMediumDate(trip.date);
+  final date = tripDateText(context, trip.date);
   final comment = trip.comment.split('\n').first.trim();
   return comment.isEmpty ? date : '$date – $comment';
+}
+
+/// A day as trips show it: with the year only if it is not the current one
+String tripDateText(BuildContext context, DateTime date) {
+  final locale = Localizations.localeOf(context).toString();
+  final format = date.year == DateTime.now().year
+      ? DateFormat.MMMEd(locale)
+      : DateFormat.yMMMEd(locale);
+  return format.format(date);
 }
 
 /// Opens the page for [trip] of [cave] and returns the trip as it is when
@@ -137,6 +147,13 @@ class _TripPageState extends State<TripPage> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Tells apart trips of the same day; rarely needed, so kept small
+            SelectableText(
+              '${l10n.tripId}: ${widget.trip.id}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.straighten),
@@ -155,9 +172,7 @@ class _TripPageState extends State<TripPage> {
                   labelText: l10n.tripDate,
                   suffixIcon: const Icon(Icons.calendar_today, size: 20),
                 ),
-                child: Text(
-                  MaterialLocalizations.of(context).formatMediumDate(_date),
-                ),
+                child: Text(tripDateText(context, _date)),
               ),
             ),
             const SizedBox(height: 16),

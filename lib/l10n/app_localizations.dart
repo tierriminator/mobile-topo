@@ -501,6 +501,12 @@ abstract class AppLocalizations {
   /// **'Date'**
   String get tripDate;
 
+  /// Label for the unique ID of a trip, which tells trips of the same day apart
+  ///
+  /// In en, this message translates to:
+  /// **'ID'**
+  String get tripId;
+
   /// Label for the declination correction of a trip
   ///
   /// In en, this message translates to:

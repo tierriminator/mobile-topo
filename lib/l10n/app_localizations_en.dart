@@ -228,6 +228,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tripDate => 'Date';
 
   @override
+  String get tripId => 'ID';
+
+  @override
   String get tripDeclination => 'Declination correction';
 
   @override

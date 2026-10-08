@@ -111,6 +111,60 @@ void main() {
     expect(find.text('41.0 ft'), findsOneWidget);
   });
 
+  testWidgets('the page shows the trip ID', (tester) async {
+    await open(tester);
+    expect(find.text('ID: t'), findsOneWidget);
+  });
+
+  testWidgets('the date shows the year if it is not the current one',
+      (tester) async {
+    await open(tester,
+        tripToEdit:
+            Trip(id: 't', date: DateTime(2000), createdAt: DateTime(2000)));
+    expect(find.text('Sat, Jan 1, 2000'), findsOneWidget);
+  });
+
+  group('tripLabel', () {
+    /// The label of [labelled] as the app shows it
+    Future<String> label(WidgetTester tester, Trip labelled) async {
+      late String result;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) {
+          result = tripLabel(context, labelled);
+          return const SizedBox();
+        }),
+      ));
+      return result;
+    }
+
+    final year = DateTime.now().year;
+
+    testWidgets('leaves out the current year', (tester) async {
+      final labelled = Trip(
+          id: 't', date: DateTime(year, 3, 4), createdAt: DateTime(year));
+      final text = await label(tester, labelled);
+      expect(text, contains('Mar 4'));
+      expect(text, isNot(contains('$year')));
+    });
+
+    testWidgets('shows other years', (tester) async {
+      final labelled = Trip(
+          id: 't', date: DateTime(2000, 3, 4), createdAt: DateTime(2000));
+      expect(await label(tester, labelled), 'Sat, Mar 4, 2000');
+    });
+
+    testWidgets('adds the first line of the comment', (tester) async {
+      final labelled = Trip(
+          id: 't',
+          date: DateTime(2000, 3, 4),
+          comment: 'Upper series\nwith Anna',
+          createdAt: DateTime(2000));
+      expect(await label(tester, labelled), 'Sat, Mar 4, 2000 – Upper series');
+    });
+  });
+
   group('in grad', () {
     const grad = Settings(angleUnit: AngleUnit.grad);
     final tripInGrad = trip.copyWith(declination: 0.9);
