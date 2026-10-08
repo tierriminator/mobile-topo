@@ -282,6 +282,21 @@
       "count": {"type": "int"}
     }
   },
+  "explorerExportTherion": "Export Therion Survey (.th)",
+  "@explorerExportTherion": {
+    "description": "Menu item to save a cave's or section's survey data as a Therion .th file"
+  },
+  "explorerExportTherionText": "Export Therion Text (.txt)",
+  "@explorerExportTherionText": {
+    "description": "Menu item to save a cave's or section's data and sketches as the text PocketTopo exports for Therion, which xtherion imports"
+  },
+  "exportFailed": "The file could not be saved: {error}",
+  "@exportFailed": {
+    "description": "Message shown when an exported file cannot be saved",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "tripActive": "(active)",
   "@tripActive": {
     "description": "Shown next to the active trip, which new measurements are assigned to"

@@ -213,6 +213,9 @@ Persistence and serialization:
 - **`pocket_topo_file.dart`**: Reads PocketTopo `.top` files (format in
   `docs/pocket_topo/PocketTopoFileFormat.txt`) into trips, a survey and
   sketches; repeated measurements of a survey shot are averaged
+- **`therion_file.dart`**: Writes sections for Therion, either as a `.th`
+  survey file (a centreline per trip) or as the `.txt` PocketTopo exports
+  for Therion, which xtherion imports with the sketches
 
 **File structure on disk:**
 ```
@@ -237,7 +240,8 @@ UI widgets:
 - **`sketch_view.dart`**: Drawing canvas with outline/side view toggle
 - **`explorer_view.dart`**: Cave/section browser; imports PocketTopo
   files, each as a new section of a cave, adding the trips the cave does
-  not have yet (same day, declination and comment)
+  not have yet (same day, declination and comment); exports a cave or a
+  section for Therion from its menu
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status

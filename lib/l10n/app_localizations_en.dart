@@ -231,6 +231,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get explorerExportTherion => 'Export Therion Survey (.th)';
+
+  @override
+  String get explorerExportTherionText => 'Export Therion Text (.txt)';
+
+  @override
+  String exportFailed(String error) {
+    return 'The file could not be saved: $error';
+  }
+
+  @override
   String get tripActive => '(active)';
 
   @override

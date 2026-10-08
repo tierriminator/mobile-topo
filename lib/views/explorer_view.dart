@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -9,6 +11,7 @@ import '../controllers/settings_controller.dart';
 import '../data/cave_repository.dart';
 import '../data/pocket_topo_file.dart';
 import '../data/settings_repository.dart';
+import '../data/therion_file.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/explorer_path.dart';
@@ -323,6 +326,63 @@ class ExplorerViewState extends State<ExplorerView> {
     }
   }
 
+  /// Lets the user save [sections] of [cave] for Therion under [name]:
+  /// as a survey file, or as the text PocketTopo exports for xtherion if
+  /// [pocketTopoText] is set
+  Future<void> _exportTherion(Cave cave, List<Section> sections, String name,
+      {required bool pocketTopoText}) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final contents = pocketTopoText
+        ? TherionFile.pocketTopoText(cave, sections)
+        : TherionFile.survey(cave, sections, name);
+    final baseName = name.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+
+    try {
+      await FilePicker.saveFile(
+        fileName: '${baseName.isEmpty ? 'survey' : baseName}'
+            '${pocketTopoText ? '.txt' : '.th'}',
+        bytes: utf8.encode(contents),
+        mimeType: 'text/plain',
+      );
+    } on Exception catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text(l10n.exportFailed(e.toString()))));
+    }
+  }
+
+  /// Menu entries exporting for Therion, handled by [_onExportSelected]
+  List<PopupMenuEntry<String>> _exportMenuItems() {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      for (final (value, label) in [
+        ('export_therion', l10n.explorerExportTherion),
+        ('export_therion_text', l10n.explorerExportTherionText),
+      ])
+        PopupMenuItem(
+          value: value,
+          child: Row(
+            children: [
+              const Icon(Icons.save_alt, size: 20),
+              const SizedBox(width: 8),
+              Flexible(child: Text(label)),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  /// Handles a selected entry of [_exportMenuItems]
+  void _onExportSelected(
+      String value, Cave cave, List<Section> sections, String name) {
+    switch (value) {
+      case 'export_therion':
+        _exportTherion(cave, sections, name, pocketTopoText: false);
+      case 'export_therion_text':
+        _exportTherion(cave, sections, name, pocketTopoText: true);
+    }
+  }
+
   /// Expansion key of a cave's trips node
   String _tripsNodeId(Cave cave) => '${cave.id}/trips';
 
@@ -509,6 +569,8 @@ class ExplorerViewState extends State<ExplorerView> {
                   _createTrip(cave);
                 case 'import_pocket_topo':
                   _importPocketTopo(cave);
+                default:
+                  _onExportSelected(value, cave, cave.allSections, cave.name);
               }
             },
             itemBuilder: (context) => [
@@ -542,6 +604,7 @@ class ExplorerViewState extends State<ExplorerView> {
                   ],
                 ),
               ),
+              ..._exportMenuItems(),
             ],
           ),
         ),
@@ -678,6 +741,7 @@ class ExplorerViewState extends State<ExplorerView> {
   Widget _buildSectionNode(Section section, ExplorerPath parentPath, int depth) {
     final path = parentPath.toSection(section.id);
     final isSelected = _explorerState.currentPath?.sectionId == section.id;
+    final cave = _explorerState.findCave(path.caveId);
 
     return _buildTreeTile(
       icon: Icons.description,
@@ -688,6 +752,13 @@ class ExplorerViewState extends State<ExplorerView> {
       hasChildren: false,
       isSelected: isSelected,
       onTap: () => _selectSection(path, section),
+      trailing: cave == null
+          ? null
+          : _trailingMenu(
+              onSelected: (value) =>
+                  _onExportSelected(value, cave, [section], section.name),
+              itemBuilder: (context) => _exportMenuItems(),
+            ),
     );
   }
 

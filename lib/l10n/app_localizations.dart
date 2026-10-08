@@ -489,6 +489,24 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 measurement belongs to no station and was left out.} other{{count} measurements belong to no station and were left out.}}'**
   String importPocketTopoSkipped(int count);
 
+  /// Menu item to save a cave's or section's survey data as a Therion .th file
+  ///
+  /// In en, this message translates to:
+  /// **'Export Therion Survey (.th)'**
+  String get explorerExportTherion;
+
+  /// Menu item to save a cave's or section's data and sketches as the text PocketTopo exports for Therion, which xtherion imports
+  ///
+  /// In en, this message translates to:
+  /// **'Export Therion Text (.txt)'**
+  String get explorerExportTherionText;
+
+  /// Message shown when an exported file cannot be saved
+  ///
+  /// In en, this message translates to:
+  /// **'The file could not be saved: {error}'**
+  String exportFailed(String error);
+
   /// Shown next to the active trip, which new measurements are assigned to
   ///
   /// In en, this message translates to:
