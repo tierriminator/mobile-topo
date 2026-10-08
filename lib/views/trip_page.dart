@@ -44,15 +44,16 @@ Future<Trip?> editTrip(
   if (edited == null ||
       (edited.date == trip.date &&
           edited.declination == trip.declination &&
-          edited.comment == trip.comment)) {
+          edited.comment == trip.comment &&
+          edited.activatedAt == trip.activatedAt)) {
     return null;
   }
   return edited;
 }
 
-/// Page giving an overview of what was surveyed on a trip, and to change
-/// the trip's date, declination and comment. Leaving the page pops it with
-/// the edited trip.
+/// Page giving an overview of what was surveyed on a trip, to change the
+/// trip's date, declination and comment, and to make it the active trip.
+/// Leaving the page pops it with the edited trip.
 class TripPage extends StatefulWidget {
   /// The cave the trip belongs to, whose data the overview is taken from
   final Cave cave;
@@ -78,6 +79,9 @@ class _TripPageState extends State<TripPage> {
   /// open
   late final Settings _settings;
   late DateTime _date;
+
+  /// When the trip was made active on this page, if it was
+  DateTime? _activatedAt;
 
   /// The declination as first shown, in the angle unit
   late final String _declinationText;
@@ -112,6 +116,38 @@ class _TripPageState extends State<TripPage> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  bool get _isActive =>
+      _activatedAt != null || widget.cave.activeTrip?.id == widget.trip.id;
+
+  /// Makes the trip the one new measurements are assigned to. A trip
+  /// usually covers a single day, so one from another day is only made
+  /// active after confirming.
+  Future<void> _activate() async {
+    if (!DateUtils.isSameDay(_date, DateTime.now())) {
+      final l10n = AppLocalizations.of(context)!;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          content:
+              Text(l10n.tripMakeActiveOtherDay(tripDateText(context, _date))),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                  MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.tripMakeActive),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _activatedAt = DateTime.now());
+  }
+
   Future<void> _delete() async {
     final deleted = await widget.onDelete!();
     // Closing with no result discards the edits of the deleted trip
@@ -130,6 +166,7 @@ class _TripPageState extends State<TripPage> {
         date: _date,
         declination: _declination,
         comment: _commentController.text.trim(),
+        activatedAt: _activatedAt,
       );
 
   @override
@@ -163,6 +200,13 @@ class _TripPageState extends State<TripPage> {
                 '${lengthUnit.symbol}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+            ),
+            const SizedBox(height: 8),
+            // Shows that the trip is active instead once it is
+            FilledButton.tonalIcon(
+              onPressed: _isActive ? null : _activate,
+              icon: Icon(_isActive ? Icons.check : Icons.play_arrow),
+              label: Text(_isActive ? l10n.tripIsActive : l10n.tripMakeActive),
             ),
             const Divider(height: 24),
             InkWell(

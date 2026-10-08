@@ -12,9 +12,11 @@ class Trip {
   /// Further information like the people involved or the cave's condition
   final String comment;
 
-  /// When the trip was created; the most recently created trip is the one
-  /// new measurements are assigned to
+  /// When the trip was created
   final DateTime createdAt;
+
+  /// When the trip was last made the active one, if ever
+  final DateTime? activatedAt;
 
   const Trip({
     required this.id,
@@ -22,7 +24,13 @@ class Trip {
     this.declination = 0,
     this.comment = '',
     required this.createdAt,
+    this.activatedAt,
   });
+
+  /// When the trip last became the active one, by being created or made
+  /// active; the trip with the latest is the one new measurements are
+  /// assigned to
+  DateTime get lastActivated => activatedAt ?? createdAt;
 
   /// Whether the trip took place on a day before the day of [now]. A trip
   /// usually covers a single day, so such a trip is likely outdated.
@@ -34,6 +42,7 @@ class Trip {
     DateTime? date,
     num? declination,
     String? comment,
+    DateTime? activatedAt,
   }) {
     return Trip(
       id: id,
@@ -41,6 +50,7 @@ class Trip {
       declination: declination ?? this.declination,
       comment: comment ?? this.comment,
       createdAt: createdAt,
+      activatedAt: activatedAt ?? this.activatedAt,
     );
   }
 
@@ -50,6 +60,8 @@ class Trip {
         'declination': declination,
         'comment': comment,
         'createdAt': createdAt.toIso8601String(),
+        if (activatedAt != null)
+          'activatedAt': activatedAt!.toIso8601String(),
       };
 
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
@@ -58,5 +70,9 @@ class Trip {
         declination: json['declination'] as num? ?? 0,
         comment: json['comment'] as String? ?? '',
         createdAt: DateTime.parse(json['createdAt'] as String),
+        activatedAt: switch (json['activatedAt']) {
+          final String s => DateTime.parse(s),
+          _ => null,
+        },
       );
 }

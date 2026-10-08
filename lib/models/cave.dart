@@ -169,9 +169,12 @@ class Cave {
   Trip? findTrip(String? tripId) =>
       trips.where((t) => t.id == tripId).firstOrNull;
 
-  /// The trip new measurements are assigned to: the most recently created
-  /// one, if any
-  Trip? get activeTrip => trips.lastOrNull;
+  /// The trip new measurements are assigned to: the one most recently
+  /// created or made active, if any
+  Trip? get activeTrip => trips.isEmpty
+      ? null
+      : trips.reduce(
+          (a, b) => b.lastActivated.isBefore(a.lastActivated) ? a : b);
 
   /// Add a trip, which becomes the active one
   Cave addTrip(Trip trip) {
@@ -183,7 +186,8 @@ class Cave {
     return copyWith(trips: [for (final t in trips) t.id == trip.id ? trip : t]);
   }
 
-  /// Remove a trip; if it was the active one, the previous trip becomes active
+  /// Remove a trip; if it was the active one, the trip active before becomes
+  /// active again
   Cave removeTrip(String tripId) {
     return copyWith(trips: [for (final t in trips) if (t.id != tripId) t]);
   }

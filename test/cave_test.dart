@@ -82,6 +82,22 @@ void main() {
       expect(c.removeTrip('newer').removeTrip('trip').activeTrip, isNull);
     });
 
+    test('a trip made active is the active one until another is', () {
+      final newer = Trip(
+          id: 'newer', date: now, createdAt: now.add(const Duration(hours: 1)));
+      final activated =
+          trip.copyWith(activatedAt: now.add(const Duration(hours: 2)));
+      final c = cave().addTrip(activated).addTrip(newer);
+      expect(c.activeTrip, same(activated));
+
+      // Removing it brings back the trip active before
+      expect(c.removeTrip('trip').activeTrip, same(newer));
+
+      final newest = Trip(
+          id: 'newest', date: now, createdAt: now.add(const Duration(hours: 3)));
+      expect(c.addTrip(newest).activeTrip, same(newest));
+    });
+
     test('isTripUsed looks at sections nested in areas', () {
       final c = cave().addTrip(trip);
       expect(c.isTripUsed('trip'), isFalse);
@@ -108,6 +124,13 @@ void main() {
       expect(copy.createdAt, original.createdAt);
       expect(copy.declination, -1.5);
       expect(copy.comment, 'Anna, Ben');
+      expect(copy.activatedAt, isNull);
+      expect(original.toJson().containsKey('activatedAt'), isFalse);
+
+      final activated = original.copyWith(
+          activatedAt: DateTime.utc(2026, 10, 10, 7));
+      expect(Trip.fromJson(activated.toJson()).activatedAt,
+          activated.activatedAt);
     });
   });
 

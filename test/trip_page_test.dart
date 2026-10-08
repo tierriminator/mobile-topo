@@ -116,6 +116,61 @@ void main() {
     expect(find.text('ID: t'), findsOneWidget);
   });
 
+  group('make active', () {
+    // Not the cave's active trip, which is [trip]
+    Trip inactive(DateTime date) =>
+        Trip(id: 'other', date: date, createdAt: DateTime(2000));
+
+    testWidgets('the active trip shows that it is active', (tester) async {
+      await open(tester);
+      expect(find.text('Make active'), findsNothing);
+      expect(find.text('Active trip'), findsOneWidget);
+    });
+
+    testWidgets('a trip of today is made active right away', (tester) async {
+      final result = await open(tester, tripToEdit: inactive(DateTime.now()));
+      await tester.tap(find.text('Make active'));
+      await tester.pumpAndSettle();
+      expect(find.text('Active trip'), findsOneWidget);
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect((await result)?.activatedAt, isNotNull);
+    });
+
+    testWidgets('a trip of another day is made active after confirming',
+        (tester) async {
+      final result = await open(tester, tripToEdit: inactive(DateTime(2000)));
+      await tester.tap(find.text('Make active'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Sat, Jan 1, 2000, not today'),
+          findsOneWidget);
+
+      await tester.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Make active')));
+      await tester.pumpAndSettle();
+      expect(find.text('Active trip'), findsOneWidget);
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect((await result)?.activatedAt, isNotNull);
+    });
+
+    testWidgets('cancelling the confirmation leaves the trip inactive',
+        (tester) async {
+      final result = await open(tester, tripToEdit: inactive(DateTime(2000)));
+      await tester.tap(find.text('Make active'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Make active'), findsOneWidget);
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(await result, isNull);
+    });
+  });
+
   testWidgets('the date shows the year if it is not the current one',
       (tester) async {
     await open(tester,

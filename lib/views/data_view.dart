@@ -283,7 +283,7 @@ class _DataViewState extends State<DataView> {
     await _changeSurvey(section.id, (survey) => survey.addStretch(dummy));
   }
 
-  /// The trip new rows are assigned to: the cave's newest trip
+  /// The trip new rows are assigned to: the cave's active trip
   String? get _activeTripId =>
       context.read<SelectionState>().selectedCave?.activeTrip?.id;
 

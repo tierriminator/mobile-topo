@@ -471,11 +471,29 @@ abstract class AppLocalizations {
   /// **'Add Trip'**
   String get explorerAddTrip;
 
-  /// Shown next to the newest trip, which new measurements are assigned to
+  /// Shown next to the active trip, which new measurements are assigned to
   ///
   /// In en, this message translates to:
   /// **'(active)'**
   String get tripActive;
+
+  /// Button making a trip the one new measurements are assigned to
+  ///
+  /// In en, this message translates to:
+  /// **'Make active'**
+  String get tripMakeActive;
+
+  /// Shown in place of the make active button when the trip is already the active one
+  ///
+  /// In en, this message translates to:
+  /// **'Active trip'**
+  String get tripIsActive;
+
+  /// Confirmation shown before making a trip from another day the active one
+  ///
+  /// In en, this message translates to:
+  /// **'This trip is from {date}, not today. New measurements will be assigned to it.'**
+  String tripMakeActiveOtherDay(String date);
 
   /// Message shown when deleting a trip that measurements refer to
   ///

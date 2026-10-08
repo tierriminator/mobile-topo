@@ -33,7 +33,7 @@ Future<Trip?> pickTrip(
   );
   if (day == null || !context.mounted) return null;
 
-  // Newest first, so the active trip leads the list
+  // Newest first, as in the explorer
   final onDay = [
     for (final t in trips.reversed)
       if (DateUtils.isSameDay(t.date, day)) t,

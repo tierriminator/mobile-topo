@@ -215,6 +215,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tripActive => '(active)';
 
   @override
+  String get tripMakeActive => 'Make active';
+
+  @override
+  String get tripIsActive => 'Active trip';
+
+  @override
+  String tripMakeActiveOtherDay(String date) {
+    return 'This trip is from $date, not today. New measurements will be assigned to it.';
+  }
+
+  @override
   String get tripInUse =>
       'This trip cannot be deleted because measurements refer to it.';
 

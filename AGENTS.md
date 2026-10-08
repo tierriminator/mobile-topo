@@ -33,8 +33,10 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 - **Trips**: Metadata per survey session (date, declination correction, comment).
   Unlike PocketTopo, trip data is not copied into every measurement and the
   active trip is not a setting: each trip is its own file with an ID, stretches
-  store only the trip ID, and new measurements always go to the cave's most
-  recently created trip. Trips are created and edited from the explorer.
+  store only the trip ID, and new measurements always go to the cave's
+  active trip: the one most recently created, or made active from its trip
+  page (which asks first if the trip is not from today). Trips are created
+  and edited from the explorer.
   When the active trip is from an earlier day or missing, a warning bar
   appears above the bottom navigation on every tab, and connecting the DistoX
   asks to keep it or start a new one
@@ -112,12 +114,12 @@ Pure domain objects without serialization logic:
   - `StationPosition`: Calculated 3D position of a station
   - `Survey`: Collection of stretches and reference points with position computation
 
-- **`trip.dart`**: `Trip` with ID, date, declination correction, comment and
-  creation time
+- **`trip.dart`**: `Trip` with ID, date, declination correction, comment,
+  creation time and the time it was last made active
 
 - **`cave.dart`**: Explorer hierarchy
-  - `Cave`: Top-level container with areas, sections and trips; the newest
-    trip is the active one. `combinedSurvey` applies each stretch's trip
+  - `Cave`: Top-level container with areas, sections and trips; the trip
+    most recently created or made active is the active one. `combinedSurvey` applies each stretch's trip
     declination to its azimuth
   - `Area`: Organizational container (can nest)
   - `Section`: Leaf node containing survey data and sketches

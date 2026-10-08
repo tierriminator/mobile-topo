@@ -265,7 +265,22 @@
   },
   "tripActive": "(active)",
   "@tripActive": {
-    "description": "Shown next to the newest trip, which new measurements are assigned to"
+    "description": "Shown next to the active trip, which new measurements are assigned to"
+  },
+  "tripMakeActive": "Make active",
+  "@tripMakeActive": {
+    "description": "Button making a trip the one new measurements are assigned to"
+  },
+  "tripIsActive": "Active trip",
+  "@tripIsActive": {
+    "description": "Shown in place of the make active button when the trip is already the active one"
+  },
+  "tripMakeActiveOtherDay": "This trip is from {date}, not today. New measurements will be assigned to it.",
+  "@tripMakeActiveOtherDay": {
+    "description": "Confirmation shown before making a trip from another day the active one",
+    "placeholders": {
+      "date": {"type": "String"}
+    }
   },
   "tripInUse": "This trip cannot be deleted because measurements refer to it.",
   "@tripInUse": {

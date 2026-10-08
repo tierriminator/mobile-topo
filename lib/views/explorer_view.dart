@@ -521,7 +521,7 @@ class ExplorerViewState extends State<ExplorerView> {
           ),
         ),
         if (isExpanded) ...[
-          // Newest first, so the active trip leads the list
+          // Newest first
           for (final trip in cave.trips.reversed) _buildTripNode(cave, trip),
           if (cave.trips.isEmpty) _buildPlaceholder(l10n.explorerNoTrips, 2),
         ],
@@ -529,8 +529,8 @@ class ExplorerViewState extends State<ExplorerView> {
     );
   }
 
-  /// A trip; tapping it opens it for editing. The newest trip, which new
-  /// measurements are assigned to, is marked as active. Swiping it left
+  /// A trip; tapping it opens it for editing. The active trip, which new
+  /// measurements are assigned to, is marked as such. Swiping it left
   /// reveals a delete button, swiping it far deletes it right away.
   Widget _buildTripNode(Cave cave, Trip trip) {
     final l10n = AppLocalizations.of(context)!;
