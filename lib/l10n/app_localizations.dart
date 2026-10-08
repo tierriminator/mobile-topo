@@ -286,6 +286,18 @@ abstract class AppLocalizations {
   /// **'Erase'**
   String get sketchModeErase;
 
+  /// Side view station menu: turn around the direction of the shot leading to the station
+  ///
+  /// In en, this message translates to:
+  /// **'Flip'**
+  String get sketchFlip;
+
+  /// Side view station menu: turn around the shot leading to the station and all following shots of the series
+  ///
+  /// In en, this message translates to:
+  /// **'Flip All'**
+  String get sketchFlipAll;
+
   /// Undo action
   ///
   /// In en, this message translates to:

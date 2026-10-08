@@ -6,7 +6,8 @@ import 'survey.dart';
 /// The side view of a survey: a projection on the development of the survey
 /// shots (an "extended elevation"). Each survey shot runs from left to right
 /// in the direction the survey progressed, from the previous station to the
-/// new one, keeping its horizontal length; stations keep their altitude.
+/// new one, unless it is flipped to run from right to left. Shots keep
+/// their horizontal length and stations their altitude.
 ///
 /// World coordinates are in metres with the y axis pointing down, like the
 /// plan view: x is the position along the development, y the negated
@@ -45,9 +46,11 @@ class SideView {
           final nextPos = positions[next];
           if (nextPos == null || stations.containsKey(next)) continue;
 
-          // Following the shot in survey direction moves to the right
+          // Following the shot in survey direction moves to the right, or
+          // to the left if the shot is flipped
           final previous = shot.station == shot.to ? shot.from : shot.to!;
-          final facing = station == previous ? 1.0 : -1.0;
+          final facing =
+              (station == previous ? 1.0 : -1.0) * (shot.flipped ? -1 : 1);
           // Azimuth in the direction the shot is followed
           final azimuth = shot.from == station
               ? shot.azimut.toDouble()

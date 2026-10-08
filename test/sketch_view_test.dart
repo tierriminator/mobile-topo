@@ -14,7 +14,14 @@ import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/sketch_view.dart';
 
-class _NoopCaveRepository implements CaveRepository {
+/// Records saved sections and supports nothing else
+class _RecordingCaveRepository implements CaveRepository {
+  final saved = <Section>[];
+
+  @override
+  Future<void> saveSection(String caveId, Section section) async =>
+      saved.add(section);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -42,6 +49,7 @@ Future<void> _pumpSketchView(
   Cave cave,
   Section section, {
   SettingsController? settings,
+  CaveRepository? repository,
 }) async {
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
@@ -50,7 +58,8 @@ Future<void> _pumpSketchView(
         ChangeNotifierProvider(
             create: (_) => SelectionState()..selectSection(cave, section)),
         ChangeNotifierProvider.value(value: settings ?? SettingsController()),
-        Provider<CaveRepository>.value(value: _NoopCaveRepository()),
+        Provider<CaveRepository>.value(
+            value: repository ?? _RecordingCaveRepository()),
         Provider.value(value: SettingsRepository()),
         // A typical phone: 160 dp per inch
         Provider.value(value: const ScreenDensity(6.3)),
@@ -123,6 +132,25 @@ void main() {
     await tester.pump(kDoubleTapTimeout);
 
     expect(find.textContaining('Scale: '), findsOneWidget);
+  });
+
+  testWidgets('a shot is flipped from the station menu in the side view',
+      (tester) async {
+    final section = _section('section', _singleShot);
+    final repository = _RecordingCaveRepository();
+    await _pumpSketchView(tester, _cave([section]), section,
+        repository: repository);
+    await tester.tap(find.byIcon(Icons.terrain));
+    await tester.pump();
+
+    // Stations at 0 m and 5 m along, centred at the default 20 px per metre
+    final center = tester.getCenter(find.byType(CustomPaint).last);
+    await tester.longPressAt(center + const Offset(50, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PopupMenuItem<VoidCallback>, 'Flip'));
+    await tester.pumpAndSettle();
+
+    expect(repository.saved.last.survey.stretches.single.flipped, isTrue);
   });
 
   testWidgets('the grid is toggled from the menu', (tester) async {

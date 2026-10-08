@@ -93,6 +93,20 @@ void main() {
         _near(const Offset(-2, 0)));
   });
 
+  test('a flipped shot and the splays at its station run leftwards', () {
+    final view = _sideView(const Survey(
+      stretches: [
+        MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+        MeasuredDistance(Point(1, 1), Point(1, 2), 4, 90, 0, flipped: true),
+      ],
+      referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+    ));
+
+    expect(view.stationPositions[const Point(1, 2)], _near(const Offset(1, 0)));
+    expect(view.splayEnd(const MeasuredDistance(Point(1, 2), null, 2, 90, 0)),
+        _near(const Offset(-1, 0)));
+  });
+
   test('a second reference point in the same network does not move it', () {
     final view = _sideView(const Survey(
       stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],

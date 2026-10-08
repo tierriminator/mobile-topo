@@ -119,4 +119,58 @@ void main() {
       expect(point.copyWith(east: 4).comment, 'GPS');
     });
   });
+
+  group('flipping', () {
+    const series = Survey(
+      stretches: [
+        MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+        MeasuredDistance(Point(1, 1), null, 2, 0, 0),
+        MeasuredDistance(Point(1, 1), Point(1, 2), 5, 90, 0),
+        // Backward shot leading to 1.3
+        MeasuredDistance(Point(1, 3), Point(1, 2), 5, 270, 0),
+        MeasuredDistance(Point(1, 2), Point(2, 0), 5, 0, 0),
+      ],
+      referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+    );
+
+    List<bool> flips(Survey survey) =>
+        [for (final s in survey.stretches) s.flipped];
+
+    test('flip turns around the shot leading to the station', () {
+      expect(flips(series.flip(const Point(1, 3))),
+          [false, false, false, true, false]);
+      expect(flips(series.flip(const Point(1, 3)).flip(const Point(1, 3))),
+          everyElement(isFalse));
+    });
+
+    test('only a station a shot leads to can be flipped', () {
+      expect(series.canFlip(const Point(1, 1)), isTrue);
+      expect(series.canFlip(const Point(1, 0)), isFalse);
+    });
+
+    test('flip all turns around the following shots of the series', () {
+      // 2.0 is in another series and keeps its direction
+      expect(flips(series.flipAll(const Point(1, 2))),
+          [false, false, true, true, false]);
+    });
+
+    test('flip all aligns the following shots with the first one', () {
+      final mixed = series.flip(const Point(1, 3));
+      expect(flips(mixed.flipAll(const Point(1, 2))),
+          [false, false, true, true, false]);
+      expect(flips(mixed.flipAll(const Point(1, 2)).flipAll(const Point(1, 2))),
+          everyElement(isFalse));
+    });
+
+    test('the flag survives JSON and edits and is left out when not set', () {
+      const stretch =
+          MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0, flipped: true);
+
+      expect(MeasuredDistance.fromJson(stretch.toJson()).flipped, isTrue);
+      expect(stretch.copyWith(distance: 6).flipped, isTrue);
+      expect(stretch.withComment('Hall').flipped, isTrue);
+      expect(stretch.copyWith(flipped: false).toJson().containsKey('flipped'),
+          isFalse);
+    });
+  });
 }

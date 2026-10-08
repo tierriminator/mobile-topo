@@ -149,10 +149,59 @@ class _SketchViewState extends State<SketchView> {
   /// Selects the station at a tap in move mode, or clears the selection
   /// when no station is near
   void _onTapUp(TapUpDetails details) {
-    if (_sketchMode != SketchMode.move) return;
     final tapped = stationAt(
         _stationPositions, details.localPosition, _transform, _canvasSize);
     setState(() => _selectedStation = tapped);
+  }
+
+  /// Opens the context menu of the station at [localPosition], if any
+  Future<void> _openStationMenu(
+      Offset localPosition, Offset globalPosition) async {
+    final station =
+        stationAt(_stationPositions, localPosition, _transform, _canvasSize);
+    final survey = context.read<SelectionState>().selectedSection?.survey;
+    if (station == null || survey == null) return;
+
+    final items = _stationMenuItems(station, survey);
+    if (items.isEmpty) return;
+    setState(() => _selectedStation = station);
+
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final action = await showMenu<VoidCallback>(
+      context: context,
+      position: RelativeRect.fromRect(
+          globalPosition & Size.zero, Offset.zero & overlay.size),
+      items: items,
+    );
+    action?.call();
+  }
+
+  List<PopupMenuEntry<VoidCallback>> _stationMenuItems(
+      Point station, Survey survey) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      if (_viewMode == SketchViewMode.sideView) ...[
+        // No undo for flipping, as in PocketTopo: flipping again reverts it
+        PopupMenuItem(
+          value: () => _updateSurvey((s) => s.flip(station)),
+          enabled: survey.canFlip(station),
+          child: Text(l10n.sketchFlip),
+        ),
+        PopupMenuItem(
+          value: () => _updateSurvey((s) => s.flipAll(station)),
+          child: Text(l10n.sketchFlipAll),
+        ),
+      ],
+    ];
+  }
+
+  /// Changes the selected section's survey data and saves it
+  void _updateSurvey(Survey Function(Survey survey) change) {
+    _changeSection((section) => section.copyWith(
+          survey: change(section.survey),
+          modifiedAt: DateTime.now(),
+        ));
   }
 
   void _centerViews() {
@@ -243,19 +292,22 @@ class _SketchViewState extends State<SketchView> {
   /// Puts both sketches into the latest state of the selected section and
   /// saves it
   void _saveSketch() {
+    _changeSection((section) => section.copyWith(
+          outlineSketch: _outlineSketch,
+          sideViewSketch: _sideViewSketch,
+          modifiedAt: DateTime.now(),
+        ));
+  }
+
+  /// Applies [change] to the latest state of the selected section and saves
+  /// it
+  void _changeSection(Section Function(Section section) change) {
     final selectionState = context.read<SelectionState>();
     final sectionId = _currentSectionId;
     final caveId = selectionState.selectedCaveId;
     if (sectionId == null || caveId == null) return;
 
-    final changed = selectionState.changeSection(
-      sectionId,
-      (section) => section.copyWith(
-        outlineSketch: _outlineSketch,
-        sideViewSketch: _sideViewSketch,
-        modifiedAt: DateTime.now(),
-      ),
-    );
+    final changed = selectionState.changeSection(sectionId, change);
     if (changed != null) {
       context.read<CaveRepository>().saveSection(caveId, changed);
     }
@@ -446,7 +498,17 @@ class _SketchViewState extends State<SketchView> {
                         onScaleStart: _onScaleStart,
                         onScaleUpdate: _onScaleUpdate,
                         onScaleEnd: _onScaleEnd,
-                        onTapUp: _onTapUp,
+                        // Stations are tapped and their menu opened only in
+                        // move mode, as in PocketTopo
+                        onTapUp: _sketchMode == SketchMode.move ? _onTapUp : null,
+                        onLongPressStart: _sketchMode == SketchMode.move
+                            ? (d) => _openStationMenu(
+                                d.localPosition, d.globalPosition)
+                            : null,
+                        onSecondaryTapUp: _sketchMode == SketchMode.move
+                            ? (d) => _openStationMenu(
+                                d.localPosition, d.globalPosition)
+                            : null,
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _SketchPainter(

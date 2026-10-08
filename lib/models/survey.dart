@@ -45,9 +45,12 @@ class MeasuredDistance {
   /// Free text note on this stretch, like the name of a new passage
   final String? comment;
 
+  /// Whether this survey shot runs from right to left in the side view
+  final bool flipped;
+
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination,
-      {this.tripId, this.comment});
+      {this.tripId, this.comment, this.flipped = false});
 
   /// A copy with the given values replaced. [to] and [comment] cannot be
   /// cleared this way; use [withComment] for the comment.
@@ -59,6 +62,7 @@ class MeasuredDistance {
     num? inclination,
     String? tripId,
     String? comment,
+    bool? flipped,
   }) {
     return MeasuredDistance(
       from ?? this.from,
@@ -68,6 +72,7 @@ class MeasuredDistance {
       inclination ?? this.inclination,
       tripId: tripId ?? this.tripId,
       comment: comment ?? this.comment,
+      flipped: flipped ?? this.flipped,
     );
   }
 
@@ -80,6 +85,7 @@ class MeasuredDistance {
         inclination,
         tripId: tripId,
         comment: _normalizeComment(comment),
+        flipped: flipped,
       );
 
   /// The station this row stands for: the station a survey shot leads to,
@@ -100,6 +106,7 @@ class MeasuredDistance {
         'inclination': inclination,
         if (tripId != null) 'tripId': tripId,
         if (comment != null) 'comment': comment,
+        if (flipped) 'flipped': true,
       };
 
   factory MeasuredDistance.fromJson(Map<String, dynamic> json) =>
@@ -113,6 +120,7 @@ class MeasuredDistance {
         json['inclination'] as num,
         tripId: json['tripId'] as String?,
         comment: json['comment'] as String?,
+        flipped: json['flipped'] as bool? ?? false,
       );
 }
 
@@ -390,6 +398,40 @@ class Survey {
     final newStretches = List<MeasuredDistance>.from(stretches);
     newStretches.removeAt(index);
     return copyWith(stretches: newStretches);
+  }
+
+  /// Whether a survey shot leads to [station], which [flip] would turn around
+  bool canFlip(Point station) =>
+      stretches.any((s) => s.to != null && s.station == station);
+
+  /// Turns around the side view direction of the survey shot leading to
+  /// [station]. Applying it again restores the direction.
+  Survey flip(Point station) => copyWith(stretches: [
+        for (final s in stretches)
+          s.to != null && s.station == station
+              ? s.copyWith(flipped: !s.flipped)
+              : s,
+      ]);
+
+  /// Turns around the side view direction of the survey shot leading to
+  /// [station] and of all shots following it in the same series, so they
+  /// all run opposite to where that shot ran. Applying it again turns them
+  /// all back. Starting from a station no shot leads to, the first
+  /// following shot decides the direction.
+  Survey flipAll(Point station) {
+    bool follows(MeasuredDistance s) =>
+        s.to != null &&
+        s.station.corridorId == station.corridorId &&
+        s.station.pointId >= station.pointId;
+
+    final following = stretches.where(follows).toList()
+      ..sort((a, b) => a.station.compareTo(b.station));
+    if (following.isEmpty) return this;
+    final flipped = !following.first.flipped;
+    return copyWith(stretches: [
+      for (final s in stretches)
+        follows(s) ? s.copyWith(flipped: flipped) : s,
+    ]);
   }
 
   /// Remove last N stretches and add a new stretch.
