@@ -10,6 +10,9 @@ abstract class EditableDataTable<T> extends StatefulWidget {
   final void Function(int index)? onInsertBelow;
   final void Function(int index)? onDelete;
   final VoidCallback? onAdd;
+
+  /// Sets the comment of a row; an empty comment removes it
+  final void Function(int index, String comment)? onCommentChanged;
   final bool editMode;
 
   /// Number of leading rows that are shown but cannot be edited, like the
@@ -23,10 +26,17 @@ abstract class EditableDataTable<T> extends StatefulWidget {
     this.onInsertBelow,
     this.onDelete,
     this.onAdd,
+    this.onCommentChanged,
     this.editMode = false,
     this.readOnlyRows = 0,
   });
 }
+
+/// Width of the last column, which shows a star for rows with a comment
+const _commentColumnWidth = FixedColumnWidth(20);
+
+/// Context menu value of the comment entry every table offers
+const _commentMenuValue = 'comment';
 
 /// Base state class for editable data tables.
 abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
@@ -104,6 +114,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   /// Build a data row for the given index and item.
   List<Widget> buildDataCells(int index, T item);
 
+  /// The comment of a row, shown in the last column as in PocketTopo
+  String? commentOf(T item);
+
   /// The station shown in the given column of a row, or null if the column
   /// holds no station or is empty.
   Point? stationAt(T item, int col);
@@ -120,12 +133,18 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final headerCells = buildHeaderCells(l10n);
+    final headerCells = [
+      ...buildHeaderCells(l10n),
+      // The comment column has no header, as in PocketTopo
+      const SizedBox.shrink(),
+    ];
+    final columnWidths = {headerCells.length - 1: _commentColumnWidth};
 
     return Column(
       children: [
         // Sticky header
         Table(
+          columnWidths: columnWidths,
           border: const TableBorder(
             verticalInside: BorderSide(),
           ),
@@ -145,6 +164,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
             child: Column(
               children: [
                 Table(
+                  columnWidths: columnWidths,
                   border: const TableBorder(
                     verticalInside: BorderSide(),
                     horizontalInside: BorderSide(),
@@ -201,15 +221,36 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     final decoration =
         isRowSelected ? BoxDecoration(color: _selectionColor(context)) : null;
 
-    final cells = buildDataCells(index, item);
+    final cells = [
+      ...buildDataCells(index, item),
+      _CommentCell(hasComment: commentOf(item) != null),
+    ];
 
     return TableRow(
       decoration: decoration,
       children: [
         for (var col = 0; col < cells.length; col++)
-          _wrapCell(context, l10n, index, col, item, cells[col]),
+          _wrapCell(context, l10n, index, col, item, cells[col],
+              isCommentColumn: col == cells.length - 1),
       ],
     );
+  }
+
+  /// Opens the comment of a row, editable unless the row is read-only.
+  /// Read-only rows without a comment have nothing to show.
+  Future<void> _openComment(int row, T item) async {
+    final comment = commentOf(item);
+    final readOnly = isReadOnly(row) || widget.onCommentChanged == null;
+    if (readOnly && comment == null) return;
+
+    final edited = await showDialog<String>(
+      context: context,
+      builder: (context) =>
+          _CommentDialog(comment: comment ?? '', readOnly: readOnly),
+    );
+    if (edited == null || readOnly) return;
+    if (edited.trim() == (comment ?? '')) return;
+    widget.onCommentChanged!(row, edited);
   }
 
   Color _selectionColor(BuildContext context) =>
@@ -221,15 +262,28 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     int row,
     int col,
     T item,
-    Widget child,
-  ) {
+    Widget child, {
+    required bool isCommentColumn,
+  }) {
     if (isReadOnly(row)) {
       child = Opacity(opacity: 0.5, child: child);
     }
 
     if (widget.editMode) {
+      // Edit mode: tap to edit cell, no selection or context menu. The
+      // comment is edited in a dialog, which also shows read-only comments.
+      if (isCommentColumn) {
+        return TableCell(
+          // Keep the cell tappable without a star in it
+          verticalAlignment: TableCellVerticalAlignment.fill,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openComment(row, item),
+            child: child,
+          ),
+        );
+      }
       if (isReadOnly(row)) return TableCell(child: child);
-      // Edit mode: tap to edit cell, no selection or context menu
       return TableCell(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -256,8 +310,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     }
 
     return TableCell(
-      // Stretch the highlight over the full row height
-      verticalAlignment: isCellSelected
+      // Stretch the highlight over the full row height, and keep the comment
+      // cell tappable without a star in it
+      verticalAlignment: isCellSelected || isCommentColumn
           ? TableCellVerticalAlignment.fill
           : null,
       child: GestureDetector(
@@ -272,6 +327,12 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           });
         },
         onTap: () {
+          // As in PocketTopo, tapping the comment field of the selected row
+          // opens the comment
+          if (_wasSelectedBeforeTouch && isCommentColumn) {
+            _openComment(row, item);
+            return;
+          }
           // If it was already selected before touch, deselect it
           if (_wasSelectedBeforeTouch) {
             setState(() {
@@ -282,7 +343,17 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
         },
         onLongPressStart: (details) {
           // Show context menu (selection already made in onTapDown)
-          showMenu(
+          final canOpenComment = commentOf(item) != null ||
+              (!isReadOnly(row) && widget.onCommentChanged != null);
+          final items = [
+            if (canOpenComment)
+              PopupMenuItem(
+                  value: _commentMenuValue, child: Text('${l10n.comment}…')),
+            ...buildContextMenuItems(l10n, row, item, station),
+          ];
+          // A read-only row without a comment or trip has nothing to offer
+          if (items.isEmpty) return;
+          showMenu<String>(
             context: context,
             position: RelativeRect.fromLTRB(
               details.globalPosition.dx,
@@ -290,9 +361,14 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
               details.globalPosition.dx,
               details.globalPosition.dy,
             ),
-            items: buildContextMenuItems(l10n, row, item, station),
-          ).then((value) =>
-              handleContextMenuSelection(value, row, item, station));
+            items: items,
+          ).then((value) {
+            if (value == _commentMenuValue) {
+              _openComment(row, item);
+            } else {
+              handleContextMenuSelection(value, row, item, station);
+            }
+          });
         },
         child: child,
       ),
@@ -324,6 +400,7 @@ class StretchesTable extends EditableDataTable<MeasuredDistance> {
     super.onInsertBelow,
     super.onDelete,
     super.onAdd,
+    super.onCommentChanged,
     super.editMode,
     super.readOnlyRows,
     this.onUpdate,
@@ -410,6 +487,9 @@ class StretchesTableState
   }
 
   @override
+  String? commentOf(MeasuredDistance item) => item.comment;
+
+  @override
   Point? stationAt(MeasuredDistance item, int col) => switch (col) {
         0 => item.from,
         1 => item.to,
@@ -469,6 +549,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.onInsertBelow,
     super.onDelete,
     super.onAdd,
+    super.onCommentChanged,
     super.editMode,
     super.readOnlyRows,
     this.onUpdate,
@@ -489,11 +570,11 @@ class ReferencePointsTableState
     num? north,
     num? altitude,
   }) {
-    final updated = ReferencePoint(
-      id ?? current.id,
-      east ?? current.east,
-      north ?? current.north,
-      altitude ?? current.altitude,
+    final updated = current.copyWith(
+      id: id,
+      east: east,
+      north: north,
+      altitude: altitude,
     );
     widget.onUpdate?.call(index, updated);
   }
@@ -540,6 +621,9 @@ class ReferencePointsTableState
       ),
     ];
   }
+
+  @override
+  String? commentOf(ReferencePoint item) => item.comment;
 
   @override
   Point? stationAt(ReferencePoint item, int col) => col == 0 ? item.id : null;
@@ -593,6 +677,84 @@ class _HeaderCell extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
       ),
+    );
+  }
+}
+
+/// The last cell of a row: a star if the row has a comment
+class _CommentCell extends StatelessWidget {
+  const _CommentCell({required this.hasComment});
+
+  final bool hasComment;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!hasComment) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '*',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+}
+
+/// Shows a row's comment and, unless [readOnly], lets it be edited. Pops the
+/// edited text, or null when cancelled.
+class _CommentDialog extends StatefulWidget {
+  const _CommentDialog({required this.comment, required this.readOnly});
+
+  final String comment;
+  final bool readOnly;
+
+  @override
+  State<_CommentDialog> createState() => _CommentDialogState();
+}
+
+class _CommentDialogState extends State<_CommentDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.comment);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final materialL10n = MaterialLocalizations.of(context);
+
+    return AlertDialog(
+      title: Text(l10n.comment),
+      content: TextField(
+        controller: _controller,
+        readOnly: widget.readOnly,
+        autofocus: !widget.readOnly,
+        minLines: 1,
+        maxLines: 5,
+        textCapitalization: TextCapitalization.sentences,
+      ),
+      actions: widget.readOnly
+          ? [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(materialL10n.closeButtonLabel),
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, _controller.text),
+                child: Text(materialL10n.okButtonLabel),
+              ),
+            ],
     );
   }
 }

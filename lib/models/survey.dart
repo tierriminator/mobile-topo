@@ -42,11 +42,15 @@ class MeasuredDistance {
   /// ID of the trip this stretch was measured on, if any
   final String? tripId;
 
+  /// Free text note on this stretch, like the name of a new passage
+  final String? comment;
+
   const MeasuredDistance(
       this.from, this.to, this.distance, this.azimut, this.inclination,
-      {this.tripId});
+      {this.tripId, this.comment});
 
-  /// A copy with the given values replaced. [to] cannot be cleared this way.
+  /// A copy with the given values replaced. [to] and [comment] cannot be
+  /// cleared this way; use [withComment] for the comment.
   MeasuredDistance copyWith({
     Point? from,
     Point? to,
@@ -54,6 +58,7 @@ class MeasuredDistance {
     num? azimut,
     num? inclination,
     String? tripId,
+    String? comment,
   }) {
     return MeasuredDistance(
       from ?? this.from,
@@ -62,8 +67,20 @@ class MeasuredDistance {
       azimut ?? this.azimut,
       inclination ?? this.inclination,
       tripId: tripId ?? this.tripId,
+      comment: comment ?? this.comment,
     );
   }
+
+  /// A copy with the comment replaced; null or empty removes it
+  MeasuredDistance withComment(String? comment) => MeasuredDistance(
+        from,
+        to,
+        distance,
+        azimut,
+        inclination,
+        tripId: tripId,
+        comment: _normalizeComment(comment),
+      );
 
   /// The station this row stands for: the station a survey shot leads to,
   /// or the station of a cross section. A shot whose From station is numbered
@@ -82,6 +99,7 @@ class MeasuredDistance {
         'azimut': azimut,
         'inclination': inclination,
         if (tripId != null) 'tripId': tripId,
+        if (comment != null) 'comment': comment,
       };
 
   factory MeasuredDistance.fromJson(Map<String, dynamic> json) =>
@@ -94,19 +112,54 @@ class MeasuredDistance {
         json['azimut'] as num,
         json['inclination'] as num,
         tripId: json['tripId'] as String?,
+        comment: json['comment'] as String?,
       );
 }
 
 class ReferencePoint {
   final Point id;
   final num east, north, altitude;
-  const ReferencePoint(this.id, this.east, this.north, this.altitude);
+
+  /// Free text note on this reference point, like where the coordinates
+  /// come from
+  final String? comment;
+
+  const ReferencePoint(this.id, this.east, this.north, this.altitude,
+      {this.comment});
+
+  /// A copy with the given values replaced. [comment] cannot be cleared this
+  /// way; use [withComment] for it.
+  ReferencePoint copyWith({
+    Point? id,
+    num? east,
+    num? north,
+    num? altitude,
+    String? comment,
+  }) {
+    return ReferencePoint(
+      id ?? this.id,
+      east ?? this.east,
+      north ?? this.north,
+      altitude ?? this.altitude,
+      comment: comment ?? this.comment,
+    );
+  }
+
+  /// A copy with the comment replaced; null or empty removes it
+  ReferencePoint withComment(String? comment) => ReferencePoint(
+        id,
+        east,
+        north,
+        altitude,
+        comment: _normalizeComment(comment),
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id.toJson(),
         'east': east,
         'north': north,
         'altitude': altitude,
+        if (comment != null) 'comment': comment,
       };
 
   factory ReferencePoint.fromJson(Map<String, dynamic> json) => ReferencePoint(
@@ -114,7 +167,14 @@ class ReferencePoint {
         json['east'] as num,
         json['north'] as num,
         json['altitude'] as num,
+        comment: json['comment'] as String?,
       );
+}
+
+/// A comment as stored: surrounding whitespace removed, null when empty
+String? _normalizeComment(String? comment) {
+  final trimmed = comment?.trim();
+  return trimmed == null || trimmed.isEmpty ? null : trimmed;
 }
 
 /// Calculated 3D position of a survey station

@@ -107,8 +107,8 @@ Pure domain objects without serialization logic:
 
 - **`survey.dart`**: Core survey data types
   - `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` format)
-  - `MeasuredDistance`: A "stretch" between two stations with distance, azimuth, and inclination
-  - `ReferencePoint`: Entrance coordinates with station ID, east, north, and altitude
+  - `MeasuredDistance`: A "stretch" between two stations with distance, azimuth, inclination and an optional comment
+  - `ReferencePoint`: Entrance coordinates with station ID, east, north, altitude and an optional comment
   - `StationPosition`: Calculated 3D position of a station
   - `Survey`: Collection of stretches and reference points with position computation
 

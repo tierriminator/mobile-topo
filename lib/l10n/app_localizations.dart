@@ -214,6 +214,12 @@ abstract class AppLocalizations {
   /// **'Incl.'**
   String get columnInclination;
 
+  /// Title of the dialog and context menu item for the comment of a table row
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get comment;
+
   /// Column header for station ID
   ///
   /// In en, this message translates to:

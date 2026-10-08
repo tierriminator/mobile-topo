@@ -70,6 +70,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get columnInclination => 'Incl.';
 
   @override
+  String get comment => 'Comment';
+
+  @override
   String get columnId => 'ID';
 
   @override

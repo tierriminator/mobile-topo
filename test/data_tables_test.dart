@@ -83,4 +83,115 @@ void main() {
       expect(rowHighlighted(tester), isFalse);
     });
   });
+
+  group('comments', () {
+    Future<List<(int, String)>> pumpCommentTable(
+      WidgetTester tester, {
+      String? comment,
+      int readOnlyRows = 0,
+      bool editMode = false,
+    }) async {
+      final changes = <(int, String)>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: StretchesTable(
+              data: [
+                MeasuredDistance(const Point(1, 0), const Point(1, 1), 5, 90, 0,
+                    comment: comment),
+              ],
+              readOnlyRows: readOnlyRows,
+              editMode: editMode,
+              onCommentChanged: (index, comment) =>
+                  changes.add((index, comment)),
+            ),
+          ),
+        ),
+      );
+      return changes;
+    }
+
+    testWidgets('a row with a comment shows a star', (tester) async {
+      await pumpCommentTable(tester, comment: 'Big hall');
+      expect(find.text('*'), findsOneWidget);
+    });
+
+    testWidgets('a row without a comment shows no star', (tester) async {
+      await pumpCommentTable(tester);
+      expect(find.text('*'), findsNothing);
+    });
+
+    testWidgets('the context menu edits the comment', (tester) async {
+      final changes = await pumpCommentTable(tester);
+
+      await tester.longPress(find.text('5.00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Comment…'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Big hall');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(changes, [(0, 'Big hall')]);
+    });
+
+    testWidgets('tapping the comment field of the selected row opens it',
+        (tester) async {
+      await pumpCommentTable(tester, comment: 'Big hall');
+
+      await tester.tap(find.text('*'));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await tester.tap(find.text('*'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Big hall'), findsOneWidget);
+    });
+
+    testWidgets('in edit mode, tapping an empty comment field opens it',
+        (tester) async {
+      final changes = await pumpCommentTable(tester, editMode: true);
+
+      // The comment field is the last column, at the right edge of the row
+      final row = tester.getCenter(find.text('5.00'));
+      final right = tester.getTopRight(find.byType(StretchesTable)).dx;
+      await tester.tapAt(Offset(right - 5, row.dy));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Sump');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(changes, [(0, 'Sump')]);
+    });
+
+    testWidgets('a read-only row without a comment opens no menu',
+        (tester) async {
+      await pumpCommentTable(tester, readOnlyRows: 1);
+
+      await tester.longPress(find.text('5.00'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(PopupMenuItem<String>), findsNothing);
+    });
+
+    testWidgets('a read-only row shows its comment without editing',
+        (tester) async {
+      final changes = await pumpCommentTable(tester,
+          comment: 'Big hall', readOnlyRows: 1);
+
+      await tester.longPress(find.text('5.00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Comment…'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('OK'), findsNothing);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+    });
+  });
 }

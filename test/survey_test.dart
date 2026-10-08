@@ -81,4 +81,42 @@ void main() {
       );
     });
   });
+
+  group('comments', () {
+    test('survive a JSON round trip', () {
+      const stretch = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0,
+          comment: 'Big hall');
+      const point = ReferencePoint(Point(1, 0), 1, 2, 3, comment: 'GPS');
+
+      expect(MeasuredDistance.fromJson(stretch.toJson()).comment, 'Big hall');
+      expect(ReferencePoint.fromJson(point.toJson()).comment, 'GPS');
+    });
+
+    test('are left out of the JSON when not set', () {
+      const stretch = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0);
+      const point = ReferencePoint(Point(1, 0), 1, 2, 3);
+
+      expect(stretch.toJson().containsKey('comment'), isFalse);
+      expect(point.toJson().containsKey('comment'), isFalse);
+    });
+
+    test('are trimmed and removed when empty', () {
+      const stretch = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0,
+          comment: 'Big hall');
+      const point = ReferencePoint(Point(1, 0), 1, 2, 3, comment: 'GPS');
+
+      expect(stretch.withComment('  Sump  ').comment, 'Sump');
+      expect(stretch.withComment('  ').comment, isNull);
+      expect(point.withComment('').comment, isNull);
+    });
+
+    test('are kept by copyWith', () {
+      const stretch = MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0,
+          comment: 'Big hall');
+      const point = ReferencePoint(Point(1, 0), 1, 2, 3, comment: 'GPS');
+
+      expect(stretch.copyWith(distance: 6).comment, 'Big hall');
+      expect(point.copyWith(east: 4).comment, 'GPS');
+    });
+  });
 }

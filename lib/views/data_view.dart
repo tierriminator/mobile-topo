@@ -533,6 +533,10 @@ class _DataViewState extends State<DataView> {
                     _updateStretch(section, index - stretchOffset, stretch),
                 onDelete: (index) =>
                     _deleteStretch(section, index - stretchOffset),
+                onCommentChanged: (index, comment) => _updateStretch(
+                    section,
+                    index - stretchOffset,
+                    stretches[index].withComment(comment)),
                 onStartHere: (station) => _startNewSeries(section, station),
                 onContinueHere: (station) => _continueHere(section, station),
                 onShowTrip: _showTrip,
@@ -575,6 +579,10 @@ class _DataViewState extends State<DataView> {
                     _updateReferencePoint(section, index - pointOffset, point),
                 onDelete: (index) =>
                     _deleteReferencePoint(section, index - pointOffset),
+                onCommentChanged: (index, comment) => _updateReferencePoint(
+                    section,
+                    index - pointOffset,
+                    referencePoints[index].withComment(comment)),
                 onStartHere: (station) => _startNewSeries(section, station),
                 onAdd: () => _addReferencePoint(section),
               ),

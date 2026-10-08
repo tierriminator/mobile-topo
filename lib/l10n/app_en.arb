@@ -80,6 +80,10 @@
   "@columnInclination": {
     "description": "Column header for inclination"
   },
+  "comment": "Comment",
+  "@comment": {
+    "description": "Title of the dialog and context menu item for the comment of a table row"
+  },
   "columnId": "ID",
   "@columnId": {
     "description": "Column header for station ID"
