@@ -45,6 +45,42 @@ void main() {
     expect(survey.totalLength, 12);
   });
 
+  group('equivalent stations', () {
+    // 2.0 starts a new series at 1.1 and 3.0 one at 2.0, both with zero
+    // length shots. 1.2 is measured back to where 1.0 is, but is not
+    // equivalent to it.
+    const survey = Survey(
+      stretches: [
+        MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+        MeasuredDistance(Point(1, 1), Point(1, 2), 5, 270, 0),
+        MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0),
+        MeasuredDistance(Point(2, 0), Point(2, 1), 3, 0, 0),
+        MeasuredDistance(Point(2, 0), Point(3, 0), 0, 0, 0),
+      ],
+      referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+    );
+
+    test('map to the first station linked by zero length shots', () {
+      expect(survey.equivalentStations, {
+        const Point(1, 0): const Point(1, 0),
+        const Point(1, 1): const Point(1, 1),
+        const Point(1, 2): const Point(1, 2),
+        const Point(2, 0): const Point(1, 1),
+        const Point(2, 1): const Point(2, 1),
+        const Point(3, 0): const Point(1, 1),
+      });
+    });
+
+    test('are left out of the distinct stations after the first', () {
+      expect(survey.distinctStations, {
+        const Point(1, 0),
+        const Point(1, 1),
+        const Point(1, 2),
+        const Point(2, 1),
+      });
+    });
+  });
+
   group('Survey.lastStation', () {
     Point? lastStation(List<MeasuredDistance> stretches,
             [List<ReferencePoint> referencePoints = const []]) =>

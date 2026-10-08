@@ -19,6 +19,12 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   Map<Point, StationPosition> _positions = {};
 
+  /// For each station, the first station it is equivalent to
+  Map<Point, Point> _equivalentStations = {};
+
+  /// The stations drawn: of equivalent stations, only the first
+  Set<Point> _shownStations = {};
+
   ViewTransform _transform = const ViewTransform();
 
   // Transform and focal point at the start of a pan or pinch gesture
@@ -52,10 +58,12 @@ class _MapViewState extends State<MapView> {
   /// Centres on and selects a station another view asked to show here
   void _onNavigation() {
     final request = _viewNavigation.take({NavigationTarget.map});
-    final position = _positions[request?.station];
-    if (request == null || position == null) return;
+    if (request == null) return;
+    final station = _equivalentStations[request.station] ?? request.station;
+    final position = _positions[station];
+    if (position == null) return;
     setState(() {
-      _selectedStation = request.station;
+      _selectedStation = station;
       _transform = _transform.centeredOn([position.plan]);
     });
   }
@@ -65,6 +73,8 @@ class _MapViewState extends State<MapView> {
     if (sectionId == null || caveSurvey == null) {
       if (_currentSectionId != null) {
         _positions = {};
+        _equivalentStations = {};
+        _shownStations = {};
         _currentSectionId = null;
       }
       return;
@@ -72,6 +82,11 @@ class _MapViewState extends State<MapView> {
 
     // Always recompute positions (survey data may have changed)
     _positions = caveSurvey.computeStationPositions();
+    _equivalentStations = caveSurvey.equivalentStations;
+    _shownStations = {
+      for (final station in caveSurvey.distinctStations)
+        if (_positions.containsKey(station)) station,
+    };
 
     // Only recenter when switching to a different section
     if (sectionId != _currentSectionId) {
@@ -111,7 +126,7 @@ class _MapViewState extends State<MapView> {
   }
 
   Point? _stationAt(Offset localPosition) => stationAt(
-        _positions.map((k, v) => MapEntry(k, v.plan)),
+        {for (final s in _shownStations) s: _positions[s]!.plan},
         localPosition,
         _transform,
         _canvasSize,
@@ -253,8 +268,14 @@ class _MapViewState extends State<MapView> {
                             painter: _MapPainter(
                               caveSurvey: caveSurvey,
                               sectionSurvey: section.survey,
-                              sectionStations: sectionStations,
+                              // A station drawn for an equivalent one in
+                              // the section belongs to it too
+                              sectionStations: {
+                                for (final station in sectionStations)
+                                  _equivalentStations[station] ?? station,
+                              },
                               positions: _positions,
+                              shownStations: _shownStations,
                               transform: _transform,
                               selectedStation: _selectedStation,
                             ),
@@ -291,6 +312,7 @@ class _MapPainter extends CustomPainter {
   final Survey sectionSurvey;
   final Set<Point> sectionStations;
   final Map<Point, StationPosition> positions;
+  final Set<Point> shownStations;
   final ViewTransform transform;
   final Point? selectedStation;
 
@@ -299,6 +321,7 @@ class _MapPainter extends CustomPainter {
     required this.sectionSurvey,
     required this.sectionStations,
     required this.positions,
+    required this.shownStations,
     required this.transform,
     this.selectedStation,
   });
@@ -344,19 +367,19 @@ class _MapPainter extends CustomPainter {
     _drawStretches(canvas, size, sectionSurvey.stretches, sectionLinePaint);
 
     // Draw stations, again with the section's stations on top
-    final orderedStations = positions.entries.toList()
+    final orderedStations = shownStations.toList()
       ..sort((a, b) {
-        final aInSection = sectionStations.contains(a.key) ? 1 : 0;
-        final bInSection = sectionStations.contains(b.key) ? 1 : 0;
+        final aInSection = sectionStations.contains(a) ? 1 : 0;
+        final bInSection = sectionStations.contains(b) ? 1 : 0;
         return aInSection - bInSection;
       });
-    for (final entry in orderedStations) {
+    for (final station in orderedStations) {
       paintStation(
         canvas,
-        _toScreen(entry.value, size),
-        entry.key,
-        color: sectionStations.contains(entry.key) ? Colors.red : Colors.black,
-        selected: entry.key == selectedStation,
+        _toScreen(positions[station]!, size),
+        station,
+        color: sectionStations.contains(station) ? Colors.red : Colors.black,
+        selected: station == selectedStation,
       );
     }
   }

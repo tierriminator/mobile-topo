@@ -107,9 +107,11 @@ class _SketchViewState extends State<SketchView> {
           ? SketchViewMode.outline
           : SketchViewMode.sideView;
       _pendingCrossSection = null;
-      final position = _stationPositions[request.station];
+      final station =
+          _sectionSurvey.equivalentStations[request.station] ?? request.station;
+      final position = _stationPositions[station];
       if (position != null) {
-        _selectedStation = request.station;
+        _selectedStation = station;
         _transform = _transform.centeredOn([position]);
       }
     });
@@ -169,8 +171,19 @@ class _SketchViewState extends State<SketchView> {
         for (final s in otherSections) ...s.survey.referencePoints,
       ],
     );
+    // Stations the section draws, or equivalent to them, are left out of the
+    // rest of the cave so each is drawn only once
+    final equivalents = caveSurvey.equivalentStations;
+    final sectionDrawn = {
+      for (final station in _outlineDrawing.stations.keys)
+        equivalents[station] ?? station,
+    };
     _outlineRestDrawing = _SurveyDrawing.of(
-        cave?.corrected(restSurvey) ?? restSurvey, planPositions, planSplayEnd);
+            cave?.corrected(restSurvey) ?? restSurvey,
+            planPositions,
+            planSplayEnd)
+        .withoutStations((station) =>
+            sectionDrawn.contains(equivalents[station] ?? station));
     final sideView = SideView.of(caveSurvey, allPositions);
     _sideViewDrawing = _SurveyDrawing.of(
       sectionSurvey,
@@ -783,7 +796,8 @@ class _SurveyDrawing {
 
   /// Draws [survey] given where all stations of the cave appear in the view
   /// and where splays end. Shots to stations of other sections are drawn
-  /// too, so the section connects to them.
+  /// too, so the section connects to them. Of equivalent stations, only the
+  /// first is drawn.
   factory _SurveyDrawing.of(
     Survey survey,
     Map<Point, Offset> stationPositions,
@@ -800,14 +814,27 @@ class _SurveyDrawing {
       if (to == null) continue;
       (stretch.to == null ? splays : shots).add((from, to));
     }
-    final stations = survey.stations;
     return _SurveyDrawing(
-      stations: Map.fromEntries(
-          stationPositions.entries.where((e) => stations.contains(e.key))),
+      stations: {
+        for (final station in survey.distinctStations)
+          if (stationPositions[station] case final position?)
+            station: position,
+      },
       shots: shots,
       splays: splays,
     );
   }
+
+  /// This drawing without the stations for which [hidden] is true
+  _SurveyDrawing withoutStations(bool Function(Point station) hidden) =>
+      _SurveyDrawing(
+        stations: {
+          for (final MapEntry(:key, :value) in stations.entries)
+            if (!hidden(key)) key: value,
+        },
+        shots: shots,
+        splays: splays,
+      );
 }
 
 class _SketchPainter extends CustomPainter {

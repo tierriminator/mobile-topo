@@ -316,6 +316,43 @@ class Survey {
         ],
       };
 
+  /// For each station, the first station in data order it is equivalent to:
+  /// stations linked by zero length shots, as at the start of a new series,
+  /// are equivalent. A station without equivalents maps to itself.
+  Map<Point, Point> get equivalentStations {
+    final linked = <Point, List<Point>>{};
+    for (final stretch in stretches) {
+      final to = stretch.to;
+      if (to == null || stretch.distance != 0) continue;
+      (linked[stretch.from] ??= []).add(to);
+      (linked[to] ??= []).add(stretch.from);
+    }
+
+    final first = <Point, Point>{};
+    for (final station in stations) {
+      if (first.containsKey(station)) continue;
+      first[station] = station;
+      final pending = [station];
+      while (pending.isNotEmpty) {
+        for (final other in linked[pending.removeLast()] ?? const <Point>[]) {
+          if (first.containsKey(other)) continue;
+          first[other] = station;
+          pending.add(other);
+        }
+      }
+    }
+    return first;
+  }
+
+  /// The stations in data order, leaving out any equivalent to an earlier one
+  Set<Point> get distinctStations {
+    final equivalents = equivalentStations;
+    return {
+      for (final station in stations)
+        if (equivalents[station] == station) station,
+    };
+  }
+
   /// The last station (highest point number) of each series
   Set<Point> get seriesEnds {
     final last = <num, Point>{};

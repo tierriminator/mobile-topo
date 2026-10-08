@@ -331,6 +331,60 @@ void main() {
         paintsExactlyCountTimes(#drawLine, 2));
   });
 
+  group('Show All draws stations shared with the section only once', () {
+    Future<void> expectStations(WidgetTester tester, Survey entrance,
+        Survey continuation, int count) async {
+      final continuationSection = _section('continuation', continuation);
+      await _pumpSketchView(
+          tester,
+          _cave([_section('entrance', entrance), continuationSection]),
+          continuationSection);
+      await tester.tap(find.byType(PopupMenuButton<VoidCallback>));
+      await tester.pumpAndSettle();
+      await tester.tap(
+          find.widgetWithText(CheckedPopupMenuItem<VoidCallback>, 'Show All'));
+      await tester.pumpAndSettle();
+
+      expect(tester.renderObject(find.byType(CustomPaint).last),
+          paintsExactlyCountTimes(#drawCircle, count));
+    }
+
+    testWidgets('with the new series started in the section', (tester) async {
+      // 1.0 from the rest, 1.1 and 2.1 from the section
+      await expectStations(
+        tester,
+        _singleShot,
+        const Survey(
+          stretches: [
+            MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0),
+            MeasuredDistance(Point(2, 0), Point(2, 1), 4, 180, 0),
+          ],
+          referencePoints: [],
+        ),
+        3,
+      );
+    });
+
+    testWidgets('with the new series started in the rest', (tester) async {
+      // 1.0 from the rest, 2.0 and 2.1 from the section
+      await expectStations(
+        tester,
+        const Survey(
+          stretches: [
+            MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+            MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0),
+          ],
+          referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+        ),
+        const Survey(
+          stretches: [MeasuredDistance(Point(2, 0), Point(2, 1), 4, 180, 0)],
+          referencePoints: [],
+        ),
+        3,
+      );
+    });
+  });
+
   testWidgets('the grid is toggled from the menu', (tester) async {
     final section = _section('section', _singleShot);
     final settings = SettingsController();
