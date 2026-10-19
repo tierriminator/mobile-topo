@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mobile_topo"
+    namespace = "ch.tierry.mobiletopo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,10 +15,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mobile_topo"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Never change this: Android treats an app with another ID as a
+        // different app, so existing installs would not get updates.
+        applicationId = "ch.tierry.mobiletopo"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -1,4 +1,4 @@
-package com.example.mobile_topo
+package ch.tierry.mobiletopo
 
 import android.Manifest
 import android.app.Activity

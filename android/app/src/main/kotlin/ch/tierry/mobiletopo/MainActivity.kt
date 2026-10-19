@@ -1,4 +1,4 @@
-package com.example.mobile_topo
+package ch.tierry.mobiletopo
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

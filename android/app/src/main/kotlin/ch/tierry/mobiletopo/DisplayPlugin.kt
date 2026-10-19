@@ -1,4 +1,4 @@
-package com.example.mobile_topo
+package ch.tierry.mobiletopo
 
 import android.content.Context
 import io.flutter.embedding.engine.plugins.FlutterPlugin
