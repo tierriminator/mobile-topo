@@ -8,8 +8,9 @@ flutter = "3.47.2"
 java = "temurin-17"
 
 [env]
-# Headless Android SDK from `brew install --cask android-commandlinetools`.
-ANDROID_HOME = "/opt/homebrew/share/android-commandlinetools"
+# Headless Android SDK from `brew install --cask android-commandlinetools`,
+# unless ANDROID_HOME is already set (as on the GitHub Actions runners).
+ANDROID_HOME = "{{ get_env(name='ANDROID_HOME', default='/opt/homebrew/share/android-commandlinetools') }}"
 _.path = ["/opt/homebrew/share/android-commandlinetools/platform-tools"]
 
 # Tasks default to running in the config root, which is also the Flutter

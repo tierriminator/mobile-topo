@@ -53,7 +53,8 @@ mise run get                                     # flutter pub get
 Once mise is shell-activated, `flutter`, `dart`, and `java` resolve through its
 shims. Do **not** prefix commands with `mise exec` — it is redundant.
 
-`mise.toml` also exports `ANDROID_HOME`, so no shell export is needed for it.
+`mise.toml` also exports `ANDROID_HOME` (unless it is already set), so no shell
+export is needed for it.
 
 ### 2. Editor
 
@@ -139,6 +140,9 @@ anywhere in the repository.
 
 ## Releasing
 
+Android releases are signed APKs published as GitHub releases by
+`.github/workflows/release.yml`.
+
 ### Release key
 
 Android installs an update only if it is signed with the same key as the
@@ -164,7 +168,31 @@ Instead of `key.properties`, the build also reads the environment variables
 `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
 `ANDROID_KEY_PASSWORD`.
 
+The workflow sets these from the following repository secrets:
+
+| Secret | Value |
+|--------|-------|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i ~/mobile-topo-upload.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | `upload` |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
 Release builds without a key fail rather than fall back to the debug key.
+
+### Publishing a release
+
+1. Bump `version` in `pubspec.yaml`. The number after `+` is Android's
+   `versionCode` and must increase with every release.
+2. Commit, then tag with the version before the `+` and push the tag:
+
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+
+The workflow checks that the tag matches `pubspec.yaml`, runs analysis and
+tests, builds the APK and attaches it to a new release as
+`mobile-topo-<version>.apk`.
 
 The application ID `ch.tierry.mobiletopo` must never change: Android would
 treat the app as a different one and existing installs would not get updates.
