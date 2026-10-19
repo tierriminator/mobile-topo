@@ -133,8 +133,41 @@ anywhere in the repository.
 | `mise run l10n` | Regenerate localizations from `lib/l10n/*.arb` |
 | `mise run build-macos` | Build the macOS desktop app |
 | `mise run build-apk` | Build the Android APK |
+| `mise run build-apk-release` | Build the signed Android release APK (see [Releasing](#releasing)) |
 | `mise run build-ios` | Build for iOS device (unsigned) |
 | `mise run doctor` | `flutter doctor -v` |
+
+## Releasing
+
+### Release key
+
+Android installs an update only if it is signed with the same key as the
+installed app, so every release must use the same key. **Back up the keystore
+and its passwords**: without them, existing installs can never be updated.
+
+Generate the key once, outside the repository:
+
+```bash
+keytool -genkey -v -keystore ~/mobile-topo-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+For local release builds, create `android/key.properties` (git-ignored):
+
+```properties
+storeFile=/Users/<you>/mobile-topo-upload.jks
+storePassword=<keystore password>
+keyAlias=upload
+keyPassword=<key password>
+```
+
+Instead of `key.properties`, the build also reads the environment variables
+`ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD`.
+
+Release builds without a key fail rather than fall back to the debug key.
+
+The application ID `ch.tierry.mobiletopo` must never change: Android would
+treat the app as a different one and existing installs would not get updates.
 
 ## Maintenance notes
 

@@ -42,6 +42,10 @@ run = "flutter build macos --debug"
 description = "Build the Android APK"
 run = "flutter build apk --debug"
 
+[tasks.build-apk-release]
+description = "Build the signed release APK (needs the release key, see README)"
+run = "flutter build apk --release"
+
 [tasks.build-ios]
 description = "Build for iOS device (unsigned; needs the Xcode iOS platform)"
 run = "flutter build ios --no-codesign --debug"
