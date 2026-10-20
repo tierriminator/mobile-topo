@@ -121,8 +121,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   static const _dataIndex = 0;
-  static const _mapIndex = 1;
-  static const _sketchIndex = 2;
+  static const _sketchIndex = 1;
+  static const _mapIndex = 2;
   static const _explorerIndex = 3;
 
   int _selectedIndex = 0;
@@ -131,8 +131,8 @@ class _MainScreenState extends State<MainScreen> {
 
   late final List<Widget> _views = [
     const DataView(),
-    const MapView(),
     const SketchView(),
+    const MapView(),
     ExplorerView(key: _explorerKey),
     const OptionsView(),
   ];
@@ -297,14 +297,14 @@ class _MainScreenState extends State<MainScreen> {
             label: l10n.dataViewTitle,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.map_outlined),
-            activeIcon: const Icon(Icons.map),
-            label: l10n.mapViewTitle,
-          ),
-          BottomNavigationBarItem(
             icon: const Icon(Icons.draw_outlined),
             activeIcon: const Icon(Icons.draw),
             label: l10n.sketchViewTitle,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.map_outlined),
+            activeIcon: const Icon(Icons.map),
+            label: l10n.mapViewTitle,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.folder_outlined),
