@@ -323,7 +323,13 @@ UI widgets:
   Messpunkt) and of the DistoX2 German calibration manual (Display oben,
   rechts, unten, links), in Swiss spelling (ss for ß, «» quotes) as
   PocketTopo has it. Every new string needs a German translation too
-- To add a new language: create `app_<locale>.arb` and run `flutter gen-l10n`
+- To add a new language: create `app_<locale>.arb`, run `flutter gen-l10n`
+  and list the language in `CFBundleLocalizations` of `ios/Runner/Info.plist`
+  and `macos/Runner/Info.plist` and in
+  `android/app/src/main/res/xml/locales_config.xml`, which offer it in the
+  system's per-app language settings
+- Without a translation for any of the device's languages the app falls
+  back to English (`preferred-supported-locales` in `l10n.yaml`)
 - Access strings via `AppLocalizations.of(context)!.<key>`
 
 ### Dependency Injection (`main.dart`)
