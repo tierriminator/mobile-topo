@@ -305,6 +305,38 @@ void main() {
       expect(find.text('2296.588'), findsOneWidget);
     });
 
+    testWidgets('a new reference point is at the last measured station',
+        (tester) async {
+      // 1.1 is measured in another section, which has a reference point
+      final other = section(
+        'other',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 1), Point(1, 2), 3, 0, 0)],
+          referencePoints: [ReferencePoint(Point(1, 2), 0, 0, 0)],
+        ),
+      );
+      final s = section(
+        's',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 3, 0, 0)],
+          referencePoints: [],
+        ),
+      );
+      final selection = SelectionState()..selectSection(cave([other, s]), s);
+      final navigation = ViewNavigation();
+      await pumpDataView(
+          tester, selection, MeasurementService(SettingsController()),
+          navigation: navigation);
+      navigation.showReferencePoints();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add).hitTestable());
+      await tester.pumpAndSettle();
+
+      expect(selection.selectedSection?.survey.referencePoints.single.id,
+          const Point(1, 1));
+    });
+
     testWidgets('shows the reference points when asked, even with none',
         (tester) async {
       final s = section(

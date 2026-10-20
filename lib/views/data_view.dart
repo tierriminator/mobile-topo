@@ -262,16 +262,22 @@ class _DataViewState extends State<DataView> {
     await _changeSurvey(section.id, (survey) => survey.renumberFrom(index));
   }
 
+  /// A new reference point for [survey] of the selected section: at the
+  /// most recently measured station of the cave without one, or else at
+  /// the default station
+  ReferencePoint _newReferencePoint(Survey survey) => ReferencePoint(
+      _caveSurvey(survey).lastUnreferencedStation ?? _defaultStation, 0, 0, 0);
+
   Future<void> _addReferencePoint(Section section) async {
-    const point = ReferencePoint(Point(1, 0), 0, 0, 0);
-    await _changeSurvey(
-        section.id, (survey) => survey.addReferencePoint(point));
+    await _changeSurvey(section.id,
+        (survey) => survey.addReferencePoint(_newReferencePoint(survey)));
   }
 
   Future<void> _insertReferencePointAt(Section section, int index) async {
-    const point = ReferencePoint(Point(1, 0), 0, 0, 0);
     await _changeSurvey(
-        section.id, (survey) => survey.insertReferencePointAt(index, point));
+        section.id,
+        (survey) =>
+            survey.insertReferencePointAt(index, _newReferencePoint(survey)));
   }
 
   Future<void> _updateReferencePoint(

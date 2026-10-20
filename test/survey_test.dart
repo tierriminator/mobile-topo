@@ -98,6 +98,51 @@ void main() {
     });
   });
 
+  group('Survey.lastUnreferencedStation', () {
+    Point? station(List<MeasuredDistance> stretches,
+            [List<Point> referenced = const []]) =>
+        Survey(stretches: stretches, referencePoints: [
+          for (final p in referenced) ReferencePoint(p, 0, 0, 0),
+        ]).lastUnreferencedStation;
+
+    const series = [
+      MeasuredDistance(Point(1, 0), Point(1, 1), 5, 0, 0),
+      MeasuredDistance(Point(1, 1), null, 2, 90, 0),
+      MeasuredDistance(Point(1, 1), Point(1, 2), 5, 0, 0),
+    ];
+
+    test('is null without measurements', () {
+      expect(station([]), isNull);
+    });
+
+    test('is the station of the last stretch', () {
+      expect(station(series), const Point(1, 2));
+      // A backward shot's station is the one it is measured from
+      expect(
+          station(const [MeasuredDistance(Point(1, 2), Point(1, 1), 5, 0, 0)]),
+          const Point(1, 2));
+    });
+
+    test('goes back past stations with a reference point', () {
+      expect(station(series, [const Point(1, 2)]), const Point(1, 1));
+      expect(station(series, [const Point(1, 2), const Point(1, 1)]),
+          const Point(1, 0));
+      expect(
+          station(series,
+              [const Point(1, 0), const Point(1, 1), const Point(1, 2)]),
+          isNull);
+    });
+
+    test('counts equivalent stations as referenced', () {
+      // 2.0 starts a new series at 1.1, so it is the same station
+      final stretches = [
+        ...series.take(1),
+        const MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0),
+      ];
+      expect(station(stretches, [const Point(1, 1)]), const Point(1, 0));
+    });
+  });
+
   group('Survey.lastStation', () {
     Point? lastStation(List<MeasuredDistance> stretches,
             [List<ReferencePoint> referencePoints = const []]) =>

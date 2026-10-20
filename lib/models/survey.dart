@@ -410,6 +410,31 @@ class Survey {
   Point? get lastStation =>
       stretches.lastOrNull?.station ?? referencePoints.lastOrNull?.id;
 
+  /// The most recently measured station without a reference point, for a
+  /// new reference point: going back from the last stretch, its station,
+  /// then the one it is measured from. Stations equivalent to one with a
+  /// reference point count as having one. Returns null if every measured
+  /// station has one.
+  Point? get lastUnreferencedStation {
+    final equivalents = equivalentStations;
+    final referenced = {
+      for (final ref in referencePoints) equivalents[ref.id] ?? ref.id,
+    };
+    for (final stretch in stretches.reversed) {
+      final stations = {
+        stretch.station,
+        stretch.from,
+        if (stretch.to != null) stretch.to!,
+      };
+      for (final station in stations) {
+        if (!referenced.contains(equivalents[station] ?? station)) {
+          return station;
+        }
+      }
+    }
+    return null;
+  }
+
   /// First station of a new series: the series after the highest one in use
   Point get nextSeriesStart {
     var maxSeries = 0;
