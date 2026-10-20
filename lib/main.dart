@@ -259,22 +259,27 @@ class _MainScreenState extends State<MainScreen> {
     final cave = context.watch<SelectionState>().selectedCave;
 
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: _views,
+      // Keeps the views' toolbars clear of the status bar and display
+      // cutouts; the bottom navigation bar handles the bottom inset itself
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _views,
+              ),
             ),
-          ),
-          // Shown on every tab while the trip looks wrong, so that is noticed
-          // before measuring
-          if (cave != null && _needsTripCheck(cave))
-            TripBar(
-              cave: cave,
-              onTap: () => _onTripBarTapped(cave),
-            ),
-        ],
+            // Shown on every tab while the trip looks wrong, so that is
+            // noticed before measuring
+            if (cave != null && _needsTripCheck(cave))
+              TripBar(
+                cave: cave,
+                onTap: () => _onTripBarTapped(cave),
+              ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
