@@ -8,12 +8,14 @@ import 'widgets/choice_sheet.dart';
 
 /// Opens the page for [section] of [cave] and returns its name as it is
 /// when the page is left, or null if it is unchanged or the section was
-/// deleted. See [SectionPage.onSelect], [SectionPage.onExport] and
+/// deleted. The page starts editing the name if [editName] is set. See
+/// [SectionPage.onSelect], [SectionPage.onExport] and
 /// [SectionPage.onDelete] for the callbacks.
 Future<String?> editSection(
   BuildContext context,
   Cave cave,
   Section section, {
+  bool editName = false,
   bool isSelected = false,
   VoidCallback? onSelect,
   TherionExport? onExport,
@@ -24,6 +26,7 @@ Future<String?> editSection(
       builder: (context) => SectionPage(
         cave: cave,
         section: section,
+        editName: editName,
         isSelected: isSelected,
         onSelect: onSelect,
         onExport: onExport,
@@ -41,6 +44,10 @@ class SectionPage extends StatefulWidget {
   /// The cave the section belongs to, whose trips it was measured on
   final Cave cave;
   final Section section;
+
+  /// Whether the page starts editing the name, all of it selected, as for
+  /// a new section
+  final bool editName;
 
   /// Whether the section is the one the other views show
   final bool isSelected;
@@ -61,6 +68,7 @@ class SectionPage extends StatefulWidget {
     super.key,
     required this.cave,
     required this.section,
+    this.editName = false,
     this.isSelected = false,
     this.onSelect,
     this.onExport,
@@ -78,13 +86,15 @@ class _SectionPageState extends State<SectionPage> {
   late final TextEditingController _nameController;
 
   /// Whether the title shows a text field to edit the name
-  bool _editingName = false;
+  late bool _editingName = widget.editName;
 
   @override
   void initState() {
     super.initState();
     _settings = context.read<SettingsController>().settings;
     _nameController = TextEditingController(text: widget.section.name);
+    _nameController.selection = TextSelection(
+        baseOffset: 0, extentOffset: widget.section.name.length);
   }
 
   @override

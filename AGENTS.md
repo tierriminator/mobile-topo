@@ -293,8 +293,10 @@ UI widgets:
   files, each as a new section of the cave, adding the trips the cave
   does not have yet (same day, declination and comment). Tapping a node
   with children expands it; a cave's page opens from the info button at
-  the end of its row, a section's page when the section is tapped. The
-  pages export and delete them, a section after
+  the end of its row, a section's page when the section is tapped. A new
+  cave or section gets the default name and its page opens right away,
+  editing the name, as a new trip's does. The pages export and delete
+  them, a section after
   asking, along with the trips no other section uses unless the user
   keeps them
 - **`cave_page.dart`**: Cave overview page titled with the cave's

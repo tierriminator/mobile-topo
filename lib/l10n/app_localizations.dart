@@ -409,12 +409,6 @@ abstract class AppLocalizations {
   /// **'New Cave'**
   String get explorerNewCave;
 
-  /// Title for the new cave dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Create New Cave'**
-  String get explorerNewCaveTitle;
-
   /// Label for cave name input
   ///
   /// In en, this message translates to:
@@ -426,12 +420,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancel;
-
-  /// Create button text
-  ///
-  /// In en, this message translates to:
-  /// **'Create'**
-  String get create;
 
   /// Menu item to add a new section
   ///
@@ -456,12 +444,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New Section'**
   String get explorerNewSection;
-
-  /// Title for the new section dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Create New Section'**
-  String get explorerNewSectionTitle;
 
   /// Label for section name input
   ///

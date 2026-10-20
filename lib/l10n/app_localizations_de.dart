@@ -179,16 +179,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get explorerNewCave => 'Neue Höhle';
 
   @override
-  String get explorerNewCaveTitle => 'Neue Höhle anlegen';
-
-  @override
   String get explorerCaveName => 'Name der Höhle';
 
   @override
   String get cancel => 'Abbrechen';
-
-  @override
-  String get create => 'Anlegen';
 
   @override
   String get explorerAddSection => 'Abschnitt hinzufügen';
@@ -201,9 +195,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get explorerNewSection => 'Neuer Abschnitt';
-
-  @override
-  String get explorerNewSectionTitle => 'Neuen Abschnitt anlegen';
 
   @override
   String get explorerSectionName => 'Name des Abschnitts';

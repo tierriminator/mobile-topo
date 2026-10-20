@@ -197,6 +197,8 @@ class ExplorerViewState extends State<ExplorerView> {
     return null;
   }
 
+  /// Creates a cave with the default name and opens its page, editing the
+  /// name
   Future<void> _createNewCave() async {
     final l10n = AppLocalizations.of(context)!;
     final repository = context.read<CaveRepository>();
@@ -204,21 +206,9 @@ class ExplorerViewState extends State<ExplorerView> {
         context.read<SettingsController>().defaultCoordinateSystem;
     final now = DateTime.now();
 
-    // Show dialog to get cave name
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => _NewItemDialog(
-        title: l10n.explorerNewCaveTitle,
-        labelText: l10n.explorerCaveName,
-        defaultName: l10n.explorerNewCave,
-      ),
-    );
-
-    if (name == null || name.isEmpty) return;
-
     final cave = Cave(
       id: _uuid.v4(),
-      name: name,
+      name: l10n.explorerNewCave,
       coordinateSystem: coordinateSystem,
       createdAt: now,
       modifiedAt: now,
@@ -231,28 +221,22 @@ class ExplorerViewState extends State<ExplorerView> {
     setState(() {
       _expandedIds.add(cave.id);
     });
+
+    final loaded = _explorerState.findCave(cave.id);
+    if (loaded == null || !mounted) return;
+    await _openCave(loaded, editName: true);
   }
 
+  /// Creates a section with the default name in [cave] and opens its page,
+  /// editing the name
   Future<void> _createNewSection(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
     final repository = context.read<CaveRepository>();
     final now = DateTime.now();
 
-    // Show dialog to get section name
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => _NewItemDialog(
-        title: l10n.explorerNewSectionTitle,
-        labelText: l10n.explorerSectionName,
-        defaultName: l10n.explorerNewSection,
-      ),
-    );
-
-    if (name == null || name.isEmpty) return;
-
     final section = Section(
       id: _uuid.v4(),
-      name: name,
+      name: l10n.explorerNewSection,
       survey: const Survey(stretches: [], referencePoints: []),
       createdAt: now,
       modifiedAt: now,
@@ -264,6 +248,12 @@ class ExplorerViewState extends State<ExplorerView> {
     await _loadCaves();
 
     _showSections(cave);
+
+    final loaded = _loadedSection(cave.id, section.id);
+    if (loaded == null || !mounted) return;
+    await _openSection(
+        loaded, ExplorerPath.cave(cave.id).toSection(section.id),
+        editName: true);
   }
 
   /// Imports the PocketTopo files the user picks, each as a new section of
@@ -501,15 +491,16 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
-  /// Opens the page of a cave and saves its changed name and coordinate
-  /// system
-  Future<void> _openCave(Cave cave) async {
+  /// Opens the page of a cave, editing the name if [editName] is set, and
+  /// saves its changed name and coordinate system
+  Future<void> _openCave(Cave cave, {bool editName = false}) async {
     final repository = context.read<CaveRepository>();
     final selectionState = context.read<SelectionState>();
 
     final edited = await editCave(
       context,
       cave,
+      editName: editName,
       onExport: (name, {required pocketTopoText}) async {
         final current = _explorerState.findCave(cave.id);
         if (current == null) return;
@@ -618,8 +609,10 @@ class ExplorerViewState extends State<ExplorerView> {
       .where((s) => s.id == sectionId)
       .firstOrNull;
 
-  /// Opens the page of a section and saves its changed name
-  Future<void> _openSection(Section section, ExplorerPath path) async {
+  /// Opens the page of a section, editing the name if [editName] is set,
+  /// and saves its changed name
+  Future<void> _openSection(Section section, ExplorerPath path,
+      {bool editName = false}) async {
     final repository = context.read<CaveRepository>();
     final selectionState = context.read<SelectionState>();
     final cave = _explorerState.findCave(path.caveId);
@@ -629,6 +622,7 @@ class ExplorerViewState extends State<ExplorerView> {
       context,
       cave,
       section,
+      editName: editName,
       isSelected: _explorerState.currentPath?.sectionId == section.id,
       onSelect: () {
         final current = _loadedSection(cave.id, section.id);
@@ -1122,70 +1116,6 @@ class _DeleteSectionDialogState extends State<_DeleteSectionDialog> {
             foregroundColor: Theme.of(context).colorScheme.error,
           ),
           child: Text(l10n.explorerDelete),
-        ),
-      ],
-    );
-  }
-}
-
-/// Generic dialog for naming an item (cave, section, area), new or existing.
-/// The confirm button says [actionLabel], or "Create" if it is null.
-class _NewItemDialog extends StatefulWidget {
-  final String title;
-  final String labelText;
-  final String defaultName;
-
-  const _NewItemDialog({
-    required this.title,
-    required this.labelText,
-    required this.defaultName,
-  });
-
-  @override
-  State<_NewItemDialog> createState() => _NewItemDialogState();
-}
-
-class _NewItemDialogState extends State<_NewItemDialog> {
-  late TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.defaultName);
-    _controller.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: widget.defaultName.length,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: widget.labelText,
-        ),
-        onSubmitted: (value) => Navigator.of(context).pop(value),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.cancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: Text(l10n.create),
         ),
       ],
     );

@@ -311,11 +311,32 @@ void main() {
               const Settings(defaultCoordinateSystem: Utm(33))));
       await tester.tap(find.byTooltip('Add new'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Create'));
-      await tester.pumpAndSettle();
 
       expect(repository.cave.id, isNot('cave'));
       expect(repository.cave.coordinateSystem, const Utm(33));
+    });
+
+    testWidgets('a new cave opens its page, editing the name',
+        (tester) async {
+      final repository = await pumpExplorer(tester, []);
+      await tester.tap(find.byTooltip('Add new'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CavePage), findsOneWidget);
+      expect(repository.cave.name, 'New Cave');
+      final field = find.descendant(
+          of: find.byType(AppBar), matching: find.byType(TextField));
+      final controller = tester.widget<TextField>(field).controller!;
+      expect(controller.text, 'New Cave');
+      expect(controller.selection,
+          const TextSelection(baseOffset: 0, extentOffset: 8));
+
+      await tester.enterText(field, 'Hölloch');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(repository.cave.name, 'Hölloch');
+      expect(find.text('Hölloch'), findsOneWidget);
     });
 
     testWidgets('tapping the cave expands and collapses it', (tester) async {
@@ -371,13 +392,21 @@ void main() {
 
       await tester.tap(find.text('New Section'));
       await tester.pumpAndSettle();
-      // The name dialog suggests the same name
-      await tester.tap(find.text('Create'));
-      await tester.pumpAndSettle();
 
       expect(repository.cave.sections.map((s) => s.name),
           ['Section', 'New Section']);
-      expect(find.text('New Section'), findsOneWidget);
+      // Its page opens, editing the name
+      expect(find.byType(SectionPage), findsOneWidget);
+      final field = find.descendant(
+          of: find.byType(AppBar), matching: find.byType(TextField));
+      expect(tester.widget<TextField>(field).controller!.text, 'New Section');
+
+      await tester.enterText(field, 'Main passage');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(repository.savedSections.single.name, 'Main passage');
+      expect(find.text('Main passage'), findsOneWidget);
     });
   });
 

@@ -219,10 +219,6 @@
   "@explorerNewCave": {
     "description": "Default name for a new cave"
   },
-  "explorerNewCaveTitle": "Create New Cave",
-  "@explorerNewCaveTitle": {
-    "description": "Title for the new cave dialog"
-  },
   "explorerCaveName": "Cave name",
   "@explorerCaveName": {
     "description": "Label for cave name input"
@@ -230,10 +226,6 @@
   "cancel": "Cancel",
   "@cancel": {
     "description": "Cancel button text"
-  },
-  "create": "Create",
-  "@create": {
-    "description": "Create button text"
   },
   "explorerAddSection": "Add Section",
   "@explorerAddSection": {
@@ -250,10 +242,6 @@
   "explorerNewSection": "New Section",
   "@explorerNewSection": {
     "description": "Default name for a new section"
-  },
-  "explorerNewSectionTitle": "Create New Section",
-  "@explorerNewSectionTitle": {
-    "description": "Title for the new section dialog"
   },
   "explorerSectionName": "Section name",
   "@explorerSectionName": {

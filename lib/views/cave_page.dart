@@ -14,11 +14,13 @@ typedef CaveEdit = ({String name, CoordinateSystem coordinateSystem});
 
 /// Opens the page for [cave] and returns its name and coordinate system as
 /// they are when the page is left, or null if they are unchanged or the
-/// cave was deleted. See [CavePage.onExport], [CavePage.onDelete] and
+/// cave was deleted. The page starts editing the name if [editName] is set.
+/// See [CavePage.onExport], [CavePage.onDelete] and
 /// [CavePage.onShowReferencePoints] for the callbacks.
 Future<CaveEdit?> editCave(
   BuildContext context,
   Cave cave, {
+  bool editName = false,
   TherionExport? onExport,
   Future<bool> Function()? onDelete,
   VoidCallback? onShowReferencePoints,
@@ -27,6 +29,7 @@ Future<CaveEdit?> editCave(
     MaterialPageRoute(
       builder: (context) => CavePage(
         cave: cave,
+        editName: editName,
         onExport: onExport,
         onDelete: onDelete,
         onShowReferencePoints: onShowReferencePoints,
@@ -47,6 +50,10 @@ Future<CaveEdit?> editCave(
 class CavePage extends StatefulWidget {
   final Cave cave;
 
+  /// Whether the page starts editing the name, all of it selected, as for
+  /// a new cave
+  final bool editName;
+
   /// Exports the cave under its name as edited. Without it, the page offers
   /// no export button.
   final TherionExport? onExport;
@@ -62,6 +69,7 @@ class CavePage extends StatefulWidget {
   const CavePage({
     super.key,
     required this.cave,
+    this.editName = false,
     this.onExport,
     this.onDelete,
     this.onShowReferencePoints,
@@ -78,7 +86,7 @@ class _CavePageState extends State<CavePage> {
   late final TextEditingController _nameController;
 
   /// Whether the title shows a text field to edit the name
-  bool _editingName = false;
+  late bool _editingName = widget.editName;
   late CoordinateSystem _coordinateSystem;
 
   @override
@@ -86,6 +94,8 @@ class _CavePageState extends State<CavePage> {
     super.initState();
     _settings = context.read<SettingsController>().settings;
     _nameController = TextEditingController(text: widget.cave.name);
+    _nameController.selection = TextSelection(
+        baseOffset: 0, extentOffset: widget.cave.name.length);
     _coordinateSystem = widget.cave.coordinateSystem;
   }
 
