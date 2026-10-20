@@ -6,8 +6,14 @@ class Trip {
 
   /// Angle from map north to magnetic north in degrees, positive when
   /// magnetic north lies east of map north. It is added to the azimuth of
-  /// every stretch of this trip when positions are computed.
+  /// every stretch of this trip when positions are computed, unless
+  /// [autoDeclination] is set.
   final num declination;
+
+  /// Whether the declination is computed from the trip's date and the
+  /// cave's position instead of taking [declination]; see
+  /// [Cave.declinationOf]
+  final bool autoDeclination;
 
   /// Further information like the people involved or the cave's condition
   final String comment;
@@ -22,6 +28,7 @@ class Trip {
     required this.id,
     required this.date,
     this.declination = 0,
+    this.autoDeclination = false,
     this.comment = '',
     required this.createdAt,
     this.activatedAt,
@@ -41,6 +48,7 @@ class Trip {
   Trip copyWith({
     DateTime? date,
     num? declination,
+    bool? autoDeclination,
     String? comment,
     DateTime? activatedAt,
   }) {
@@ -48,6 +56,7 @@ class Trip {
       id: id,
       date: date ?? this.date,
       declination: declination ?? this.declination,
+      autoDeclination: autoDeclination ?? this.autoDeclination,
       comment: comment ?? this.comment,
       createdAt: createdAt,
       activatedAt: activatedAt ?? this.activatedAt,
@@ -58,6 +67,7 @@ class Trip {
         'id': id,
         'date': date.toIso8601String(),
         'declination': declination,
+        if (autoDeclination) 'autoDeclination': true,
         'comment': comment,
         'createdAt': createdAt.toIso8601String(),
         if (activatedAt != null)
@@ -68,6 +78,7 @@ class Trip {
         id: json['id'] as String,
         date: DateTime.parse(json['date'] as String),
         declination: json['declination'] as num? ?? 0,
+        autoDeclination: json['autoDeclination'] == true,
         comment: json['comment'] as String? ?? '',
         createdAt: DateTime.parse(json['createdAt'] as String),
         activatedAt: switch (json['activatedAt']) {

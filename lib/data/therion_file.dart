@@ -47,9 +47,10 @@ class TherionFile {
           if (line.trim().isNotEmpty) out.writeln('    # ${line.trim()}');
         }
       }
-      // Given even when zero, so Therion does not compute one of its own
+      // Given even when zero or automatic, so Therion does not compute one
+      // of its own
       out
-        ..writeln('    declination ${_angle(trip?.declination ?? 0)} degrees')
+        ..writeln('    declination ${_angle(_declination(cave, trip))} degrees')
         ..writeln('    data normal from to length compass clino');
       bool? flipped;
       for (final s in stretches) {
@@ -96,7 +97,7 @@ class TherionFile {
       out.writeln('TRIP');
       if (trip != null) out.writeln('DATE ${_date(trip.date, '-')}');
       out
-        ..writeln('DECLINATION\t${_angle(trip?.declination ?? 0)}')
+        ..writeln('DECLINATION\t${_angle(_declination(cave, trip))}')
         ..writeln('DATA');
       // Splays carry the direction of the survey shot before them, so they
       // do not change the direction of the shots that follow
@@ -159,6 +160,11 @@ class TherionFile {
       if (byTrip[null] case final stretches?) (null, stretches),
     ];
   }
+
+  /// The declination applied to the stretches of [trip], none if there is
+  /// no trip
+  static num _declination(Cave cave, Trip? trip) =>
+      trip == null ? 0 : cave.declinationOf(trip);
 
   /// Writes one drawing of the PocketTopo text: the stations and shots of
   /// [survey] that have a position in [stations], then the strokes of

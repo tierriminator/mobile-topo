@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -15,6 +16,7 @@ import '../data/therion_file.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/explorer_path.dart';
+import '../models/geo_position.dart';
 import '../models/survey.dart';
 import '../models/trip.dart';
 import 'trip_page.dart';
@@ -417,12 +419,14 @@ class ExplorerViewState extends State<ExplorerView> {
     final repository = context.read<CaveRepository>();
     final now = DateTime.now();
 
-    // The declination changes slowly, so the latest trip's value is a good
-    // starting point
+    // The declination is computed for the trip's date. Should it be set by
+    // hand, the latest trip's value is a good starting point, as it changes
+    // slowly.
     final trip = Trip(
       id: _uuid.v4(),
       date: DateUtils.dateOnly(now),
       declination: cave.activeTrip?.declination ?? 0,
+      autoDeclination: true,
       createdAt: now,
     );
 
@@ -517,6 +521,35 @@ class ExplorerViewState extends State<ExplorerView> {
       ]);
     });
     await repository.saveCave(renamed);
+  }
+
+  /// Asks for the location of a cave and saves it
+  Future<void> _editCaveLocation(Cave cave) async {
+    final repository = context.read<CaveRepository>();
+    final selectionState = context.read<SelectionState>();
+
+    final result = await showDialog<({GeoPosition? location})>(
+      context: context,
+      builder: (context) => _CaveLocationDialog(location: cave.location),
+    );
+    if (result == null || result.location == cave.location) return;
+    if (!mounted) return;
+
+    // The cave may have changed while the dialog was open
+    final current = _explorerState.findCave(cave.id);
+    if (current == null) return;
+    final located = current.copyWith(
+      location: result.location,
+      clearLocation: result.location == null,
+      modifiedAt: DateTime.now(),
+    );
+    setState(() {
+      _explorerState = _explorerState.copyWith(caves: [
+        for (final c in _explorerState.caves) c.id == cave.id ? located : c,
+      ]);
+    });
+    selectionState.updateLocation(located);
+    await repository.saveCave(located);
   }
 
   /// Deletes a cave with everything in it after asking
@@ -711,6 +744,8 @@ class ExplorerViewState extends State<ExplorerView> {
                   _importPocketTopo(cave);
                 case 'rename':
                   _renameCave(cave);
+                case 'location':
+                  _editCaveLocation(cave);
                 case 'delete':
                   _deleteCave(cave);
                 default:
@@ -757,6 +792,16 @@ class ExplorerViewState extends State<ExplorerView> {
                     const Icon(Icons.edit, size: 20),
                     const SizedBox(width: 8),
                     Text(l10n.explorerRename),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'location',
+                child: Row(
+                  children: [
+                    const Icon(Icons.place, size: 20),
+                    const SizedBox(width: 8),
+                    Text(l10n.explorerCaveLocation),
                   ],
                 ),
               ),
@@ -1147,6 +1192,108 @@ class _NewItemDialogState extends State<_NewItemDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(_controller.text),
           child: Text(widget.actionLabel ?? l10n.create),
+        ),
+      ],
+    );
+  }
+}
+
+/// Asks for the latitude and longitude of a cave. Pops with the entered
+/// location, which is null if both fields were left empty, or with nothing
+/// if cancelled.
+class _CaveLocationDialog extends StatefulWidget {
+  final GeoPosition? location;
+
+  const _CaveLocationDialog({this.location});
+
+  @override
+  State<_CaveLocationDialog> createState() => _CaveLocationDialogState();
+}
+
+class _CaveLocationDialogState extends State<_CaveLocationDialog> {
+  late final TextEditingController _latitude;
+  late final TextEditingController _longitude;
+  bool _invalid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _latitude = TextEditingController(
+        text: widget.location?.latitude.toString() ?? '');
+    _longitude = TextEditingController(
+        text: widget.location?.longitude.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _latitude.dispose();
+    _longitude.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final latitudeText = _latitude.text.trim();
+    final longitudeText = _longitude.text.trim();
+    if (latitudeText.isEmpty && longitudeText.isEmpty) {
+      Navigator.of(context).pop((location: null));
+      return;
+    }
+    final latitude = double.tryParse(latitudeText);
+    final longitude = double.tryParse(longitudeText);
+    final location = latitude == null || longitude == null
+        ? null
+        : GeoPosition(latitude, longitude);
+    if (location == null || !location.isValid) {
+      setState(() => _invalid = true);
+      return;
+    }
+    Navigator.of(context).pop((location: location));
+  }
+
+  Widget _field(TextEditingController controller, String label) => TextField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label, suffixText: '°'),
+        keyboardType: const TextInputType.numberWithOptions(
+          decimal: true,
+          signed: true,
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
+        ],
+        onSubmitted: (_) => _save(),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return AlertDialog(
+      title: Text(l10n.explorerCaveLocationTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l10n.explorerCaveLocationHelp),
+          const SizedBox(height: 8),
+          _field(_latitude, l10n.explorerLatitude),
+          _field(_longitude, l10n.explorerLongitude),
+          if (_invalid) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.explorerLocationInvalid,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: _save,
+          child: Text(MaterialLocalizations.of(context).okButtonLabel),
         ),
       ],
     );

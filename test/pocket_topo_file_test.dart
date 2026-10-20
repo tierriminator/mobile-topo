@@ -197,13 +197,18 @@ void main() {
       expect(second.declination, closeTo(-1.40625, 1e-9));
     });
 
-    test('reads automatic declination as zero', () {
+    test('reads automatic declination', () {
       final result = read(topFile(
-        tripCount: 1,
-        trips: (w) => w.trip(DateTime(2026, 10, 18), declination: -0x8000),
+        tripCount: 2,
+        trips: (w) {
+          w.trip(DateTime(2026, 10, 18), declination: -0x8000);
+          w.trip(DateTime(2026, 10, 19), declination: 0x0200);
+        },
       ));
 
-      expect(result.trips.single.declination, 0);
+      expect(result.trips[0].autoDeclination, isTrue);
+      expect(result.trips[0].declination, 0);
+      expect(result.trips[1].autoDeclination, isFalse);
     });
 
     test('shots refer to their trip by ID', () {
@@ -271,6 +276,18 @@ void main() {
       expect(result.trips.map((t) => t.id), ['trip0', 'trip1', 'trip2']);
       expect(result.survey.stretches.map((s) => s.tripId),
           ['trip0', 'trip1', 'trip2']);
+    });
+
+    test('tells automatic declination apart from a manual one', () {
+      final result = fileWithTrips([
+        (DateTime(2009, 7, 14, 10), 'Carla', 0),
+        (DateTime(2009, 7, 14, 12), 'Carla', -0x8000),
+        (DateTime(2009, 7, 14, 14), 'Carla', -0x8000),
+      ]).withTripsFrom([]);
+
+      expect(result.trips.map((t) => t.id), ['trip0', 'trip1']);
+      expect(result.survey.stretches.map((s) => s.tripId),
+          ['trip0', 'trip1', 'trip1']);
     });
 
     test('merges identical trips of the same file', () {

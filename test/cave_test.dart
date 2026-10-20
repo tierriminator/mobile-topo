@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/controllers/selection_state.dart';
+import 'package:mobile_topo/data/cave_file.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/geo_position.dart';
+import 'package:mobile_topo/models/magnetic_declination.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 
@@ -79,6 +82,74 @@ void main() {
       expect(azimuths, [92.5, 90.0]);
       // The stored data keeps the measured azimuth
       expect(c.allSections.first.survey.stretches.first.azimut, 90.0);
+    });
+
+    group('automatic declination', () {
+      final autoTrip = Trip(
+          id: 'trip',
+          date: DateTime(2026, 10, 20),
+          declination: 2.5,
+          autoDeclination: true,
+          createdAt: now);
+      const bern = GeoPosition(46.95108, 7.43864);
+      const reference = ReferencePoint(Point(1, 0), 2600000, 1200000, 500);
+
+      Cave withReference(List<ReferencePoint> refs) => cave()
+          .addTrip(autoTrip)
+          .replaceSection(Section(
+            id: 'root',
+            name: 'root',
+            survey: Survey(stretches: const [tripStretch], referencePoints: refs),
+            createdAt: now,
+            modifiedAt: now,
+          ));
+
+      test('is computed at a reference point in Swiss grid coordinates', () {
+        final c = withReference(const [reference])
+            .copyWith(location: const GeoPosition(-33.9, 18.4));
+        expect(c.declinationPosition.latitude, closeTo(bern.latitude, 1e-4));
+        expect(c.declinationOf(autoTrip),
+            closeTo(MagneticDeclination.at(bern, autoTrip.date), 1e-3));
+      });
+
+      test('is computed at the cave location without such a point', () {
+        const local = ReferencePoint(Point(1, 0), 0, 0, 0);
+        final c = withReference(const [local])
+            .copyWith(location: const GeoPosition(-33.9, 18.4));
+        expect(c.declinationPosition, const GeoPosition(-33.9, 18.4));
+      });
+
+      test('is computed at the Hölloch without a position', () {
+        expect(withReference(const []).declinationPosition,
+            GeoPosition.hoelloch);
+      });
+
+      test('corrects azimuths instead of the manual declination', () {
+        final c = withReference(const []);
+        final expected = 90 + MagneticDeclination.at(
+            GeoPosition.hoelloch, autoTrip.date);
+        expect(c.combinedSurvey.stretches.single.azimut,
+            closeTo(expected, 1e-9));
+      });
+
+      test('copyWith can clear the location', () {
+        final c = cave().copyWith(location: bern);
+        expect(c.copyWith(name: 'x').location, bern);
+        expect(c.copyWith(clearLocation: true).location, isNull);
+      });
+
+      test('survives a JSON round trip of the trip and the cave file', () {
+        expect(Trip.fromJson(autoTrip.toJson()).autoDeclination, isTrue);
+        expect(trip.toJson().containsKey('autoDeclination'), isFalse);
+        expect(Trip.fromJson(trip.toJson()).autoDeclination, isFalse);
+
+        final file = CaveFile(
+            id: 'c', name: 'c', location: bern, createdAt: now, modifiedAt: now);
+        expect(CaveFile.fromJson(file.toJson()).location, bern);
+        final unlocated =
+            CaveFile(id: 'c', name: 'c', createdAt: now, modifiedAt: now);
+        expect(CaveFile.fromJson(unlocated.toJson()).location, isNull);
+      });
     });
 
     test('the newest trip is the active one', () {

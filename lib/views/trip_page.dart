@@ -44,6 +44,7 @@ Future<Trip?> editTrip(
   if (edited == null ||
       (edited.date == trip.date &&
           edited.declination == trip.declination &&
+          edited.autoDeclination == trip.autoDeclination &&
           edited.comment == trip.comment &&
           edited.activatedAt == trip.activatedAt)) {
     return null;
@@ -83,6 +84,8 @@ class _TripPageState extends State<TripPage> {
   /// When the trip was made active on this page, if it was
   DateTime? _activatedAt;
 
+  late bool _autoDeclination;
+
   /// The declination as first shown, in the angle unit
   late final String _declinationText;
   late final TextEditingController _declinationController;
@@ -93,6 +96,7 @@ class _TripPageState extends State<TripPage> {
     super.initState();
     _settings = context.read<SettingsController>().settings;
     _date = widget.trip.date;
+    _autoDeclination = widget.trip.autoDeclination;
     _declinationText =
         formatNumber(_settings.angleUnit.fromDegrees(widget.trip.declination));
     _declinationController = TextEditingController(text: _declinationText);
@@ -165,9 +169,33 @@ class _TripPageState extends State<TripPage> {
   Trip get _edited => widget.trip.copyWith(
         date: _date,
         declination: _declination,
+        autoDeclination: _autoDeclination,
         comment: _commentController.text.trim(),
         activatedAt: _activatedAt,
       );
+
+  /// The automatic declination for the date shown, in degrees
+  num get _computedDeclination => widget.cave
+      .declinationOf(widget.trip.copyWith(date: _date, autoDeclination: true));
+
+  /// Switches between automatic and manual declination. A manual
+  /// declination not changed yet starts from the computed one.
+  void _setAutoDeclination(bool auto) {
+    setState(() {
+      _autoDeclination = auto;
+      if (!auto && _declinationController.text == _declinationText) {
+        _declinationController.text = formatNumber(
+            _settings.angleUnit.fromDegrees(_computedDeclination),
+            decimals: 1);
+      }
+    });
+  }
+
+  /// The automatic declination in the angle unit
+  String get _autoDeclinationText => '${formatNumber(
+        _settings.angleUnit.fromDegrees(_computedDeclination),
+        decimals: 1,
+      )}${_settings.angleUnit.symbol}';
 
   @override
   Widget build(BuildContext context) {
@@ -219,23 +247,31 @@ class _TripPageState extends State<TripPage> {
                 child: Text(tripDateText(context, _date)),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _declinationController,
-              decoration: InputDecoration(
-                labelText: l10n.tripDeclination,
-                helperText: l10n.tripDeclinationHelp,
-                helperMaxLines: 3,
-                suffixText: _settings.angleUnit.symbol,
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
-              ],
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.tripAutoDeclination),
+              subtitle: _autoDeclination ? Text(_autoDeclinationText) : null,
+              value: _autoDeclination,
+              onChanged: _setAutoDeclination,
             ),
+            if (!_autoDeclination)
+              TextField(
+                controller: _declinationController,
+                decoration: InputDecoration(
+                  labelText: l10n.tripDeclination,
+                  helperText: l10n.tripDeclinationHelp,
+                  helperMaxLines: 3,
+                  suffixText: _settings.angleUnit.symbol,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
+                ],
+              ),
             const SizedBox(height: 16),
             TextField(
               controller: _commentController,

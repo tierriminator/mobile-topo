@@ -40,6 +40,11 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   When the active trip is from an earlier day or missing, a warning bar
   appears above the bottom navigation on every tab, and connecting the DistoX
   asks to keep it or start a new one
+- **Automatic declination**: a trip's declination is either set by hand or
+  computed (the default for new trips and PocketTopo's "auto" trips) from
+  the trip date with the IGRF-14 magnetic model. It is computed at the
+  first reference point in Swiss grid coordinates, else at the location
+  set for the cave in the explorer, else at the Hölloch entrance
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -116,15 +121,25 @@ Pure domain objects without serialization logic:
   - `StationPosition`: Calculated 3D position of a station
   - `Survey`: Collection of stretches and reference points with position computation
 
-- **`trip.dart`**: `Trip` with ID, date, declination correction, comment,
-  creation time and the time it was last made active
+- **`trip.dart`**: `Trip` with ID, date, declination correction or
+  automatic declination, comment, creation time and the time it was last
+  made active
 
 - **`cave.dart`**: Explorer hierarchy
-  - `Cave`: Top-level container with areas, sections and trips; the trip
-    most recently created or made active is the active one. `combinedSurvey` applies each stretch's trip
-    declination to its azimuth
+  - `Cave`: Top-level container with areas, sections, trips and an optional
+    location; the trip most recently created or made active is the active
+    one. `declinationOf` gives a trip's declination, computing automatic
+    ones at `declinationPosition`; `combinedSurvey` applies it to each
+    stretch's azimuth
   - `Area`: Organizational container (can nest)
   - `Section`: Leaf node containing survey data and sketches
+
+- **`geo_position.dart`**: `GeoPosition` in WGS84 degrees, converted from
+  Swiss grid coordinates (LV95 or LV03, told apart by size)
+
+- **`magnetic_declination.dart`**: `MagneticDeclination.at` computes the
+  declination for a position and date from the IGRF-14, whose coefficients
+  `igrf_coefficients.dart` holds verbatim from IAGA's table
 
 - **`sketch.dart`**: Drawing primitives
   - `Stroke`: Single polyline with color and width
@@ -243,7 +258,8 @@ UI widgets:
 - **`explorer_view.dart`**: Cave/section browser; imports PocketTopo
   files, each as a new section of a cave, adding the trips the cave does
   not have yet (same day, declination and comment); exports a cave or a
-  section for Therion from its menu; renames a cave; deletes a cave or a section after
+  section for Therion from its menu; renames a cave and sets its location;
+  deletes a cave or a section after
   asking, a section along with the trips no other section uses unless the
   user keeps them
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)

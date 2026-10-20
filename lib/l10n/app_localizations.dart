@@ -465,6 +465,42 @@ abstract class AppLocalizations {
   /// **'Rename Cave'**
   String get explorerRenameCaveTitle;
 
+  /// Menu item setting where a cave lies
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get explorerCaveLocation;
+
+  /// Title of the dialog setting where a cave lies
+  ///
+  /// In en, this message translates to:
+  /// **'Cave Location'**
+  String get explorerCaveLocationTitle;
+
+  /// Explanation in the dialog setting where a cave lies
+  ///
+  /// In en, this message translates to:
+  /// **'Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.'**
+  String get explorerCaveLocationHelp;
+
+  /// Label for the latitude of a cave in WGS84 degrees
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get explorerLatitude;
+
+  /// Label for the longitude of a cave in WGS84 degrees
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get explorerLongitude;
+
+  /// Error shown when the entered cave location is out of range or incomplete
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a latitude from -90 to 90 and a longitude from -180 to 180, or leave both empty.'**
+  String get explorerLocationInvalid;
+
   /// Title of the dialog confirming that a cave is deleted
   ///
   /// In en, this message translates to:
@@ -614,6 +650,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip\'s stretches.'**
   String get tripDeclinationHelp;
+
+  /// Switch computing the declination of a trip from its date and the cave's position
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic declination'**
+  String get tripAutoDeclination;
 
   /// Label for the comment of a trip
   ///

@@ -72,7 +72,9 @@ class PocketTopoImport {
       a.date.year == b.date.year &&
       a.date.month == b.date.month &&
       a.date.day == b.date.day &&
-      (a.declination - b.declination).abs() < 1e-9 &&
+      a.autoDeclination == b.autoDeclination &&
+      (a.autoDeclination ||
+          (a.declination - b.declination).abs() < 1e-9) &&
       a.comment.trim() == b.comment.trim();
 }
 
@@ -254,20 +256,19 @@ class _TopReader {
         utc.second, utc.millisecond, utc.microsecond);
   }
 
-  /// Declination of trips set to automatic declination, which PocketTopo
-  /// applies as zero
+  /// Declination of trips set to automatic declination
   static const int _autoDeclination = -0x8000;
 
   Trip _trip() {
     final time = _time();
     final comment = _string();
     final rawDeclination = _int16();
-    final declination =
-        rawDeclination == _autoDeclination ? 0.0 : _degrees(rawDeclination);
+    final auto = rawDeclination == _autoDeclination;
     return Trip(
       id: _newId(),
       date: DateTime(time.year, time.month, time.day),
-      declination: declination,
+      declination: auto ? 0 : _degrees(rawDeclination),
+      autoDeclination: auto,
       comment: comment,
       createdAt: time,
     );

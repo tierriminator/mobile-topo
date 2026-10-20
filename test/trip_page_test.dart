@@ -254,6 +254,47 @@ void main() {
     });
   });
 
+  group('automatic declination', () {
+    final autoTrip = trip.copyWith(autoDeclination: true);
+
+    testWidgets('shows the computed declination instead of the field',
+        (tester) async {
+      await open(tester, tripToEdit: autoTrip);
+      // The cave has no position, so it is computed at the Hölloch
+      expect(find.text('3.7°'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Declination correction'),
+          findsNothing);
+    });
+
+    testWidgets('switching it off starts from the computed declination',
+        (tester) async {
+      final result = await open(tester, tripToEdit: autoTrip);
+      await tester.tap(find.text('Automatic declination'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '3.7'), findsOneWidget);
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      final edited = await result;
+      expect(edited?.autoDeclination, isFalse);
+      expect(edited?.declination, 3.7);
+    });
+
+    testWidgets('switching it on keeps the manual declination',
+        (tester) async {
+      final result =
+          await open(tester, tripToEdit: trip.copyWith(declination: 1.5));
+      await tester.tap(find.text('Automatic declination'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      final edited = await result;
+      expect(edited?.autoDeclination, isTrue);
+      expect(edited?.declination, 1.5);
+    });
+  });
+
   testWidgets('without onDelete there is no delete button', (tester) async {
     await open(tester);
     expect(find.text('Delete'), findsNothing);
@@ -263,6 +304,8 @@ void main() {
     final result = await open(tester, onDelete: () async => true);
     await tester.enterText(
         find.widgetWithText(TextField, 'Comment'), 'Anna, Ben');
+    await tester.scrollUntilVisible(find.text('Delete'), 100,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 
@@ -273,6 +316,8 @@ void main() {
   testWidgets('the page stays open if the trip is not deleted',
       (tester) async {
     await open(tester, onDelete: () async => false);
+    await tester.scrollUntilVisible(find.text('Delete'), 100,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 

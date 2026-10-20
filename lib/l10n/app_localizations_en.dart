@@ -209,6 +209,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerRenameCaveTitle => 'Rename Cave';
 
   @override
+  String get explorerCaveLocation => 'Location';
+
+  @override
+  String get explorerCaveLocationTitle => 'Cave Location';
+
+  @override
+  String get explorerCaveLocationHelp =>
+      'Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.';
+
+  @override
+  String get explorerLatitude => 'Latitude';
+
+  @override
+  String get explorerLongitude => 'Longitude';
+
+  @override
+  String get explorerLocationInvalid =>
+      'Enter a latitude from -90 to 90 and a longitude from -180 to 180, or leave both empty.';
+
+  @override
   String get explorerDeleteCaveTitle => 'Delete Cave';
 
   @override
@@ -310,6 +330,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tripDeclinationHelp =>
       'Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip\'s stretches.';
+
+  @override
+  String get tripAutoDeclination => 'Automatic declination';
 
   @override
   String get tripComment => 'Comment';

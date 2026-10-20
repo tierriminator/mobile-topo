@@ -259,6 +259,30 @@
   "@explorerRenameCaveTitle": {
     "description": "Title of the dialog renaming a cave"
   },
+  "explorerCaveLocation": "Location",
+  "@explorerCaveLocation": {
+    "description": "Menu item setting where a cave lies"
+  },
+  "explorerCaveLocationTitle": "Cave Location",
+  "@explorerCaveLocationTitle": {
+    "description": "Title of the dialog setting where a cave lies"
+  },
+  "explorerCaveLocationHelp": "Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.",
+  "@explorerCaveLocationHelp": {
+    "description": "Explanation in the dialog setting where a cave lies"
+  },
+  "explorerLatitude": "Latitude",
+  "@explorerLatitude": {
+    "description": "Label for the latitude of a cave in WGS84 degrees"
+  },
+  "explorerLongitude": "Longitude",
+  "@explorerLongitude": {
+    "description": "Label for the longitude of a cave in WGS84 degrees"
+  },
+  "explorerLocationInvalid": "Enter a latitude from -90 to 90 and a longitude from -180 to 180, or leave both empty.",
+  "@explorerLocationInvalid": {
+    "description": "Error shown when the entered cave location is out of range or incomplete"
+  },
   "explorerDeleteCaveTitle": "Delete Cave",
   "@explorerDeleteCaveTitle": {
     "description": "Title of the dialog confirming that a cave is deleted"
@@ -380,6 +404,10 @@
   "tripDeclinationHelp": "Angle from map north to magnetic north, positive when magnetic north lies east. Added to the azimuth of the trip's stretches.",
   "@tripDeclinationHelp": {
     "description": "Explanation of the declination correction"
+  },
+  "tripAutoDeclination": "Automatic declination",
+  "@tripAutoDeclination": {
+    "description": "Switch computing the declination of a trip from its date and the cave's position"
   },
   "tripComment": "Comment",
   "@tripComment": {

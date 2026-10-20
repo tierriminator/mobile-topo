@@ -1,3 +1,5 @@
+import 'geo_position.dart';
+import 'magnetic_declination.dart';
 import 'sketch.dart';
 import 'survey.dart';
 import 'trip.dart';
@@ -139,6 +141,10 @@ class Cave {
 
   /// Trips in the order they were created
   final List<Trip> trips;
+
+  /// Where the cave lies, as given by the user, for the automatic
+  /// declination; see [declinationPosition]
+  final GeoPosition? location;
   final DateTime createdAt;
   final DateTime modifiedAt;
 
@@ -149,16 +155,21 @@ class Cave {
     this.areas = const [],
     this.sections = const [],
     this.trips = const [],
+    this.location,
     required this.createdAt,
     required this.modifiedAt,
   });
 
+  /// A copy with the given fields replaced; [clearLocation] removes the
+  /// location
   Cave copyWith({
     String? name,
     String? description,
     List<Area>? areas,
     List<Section>? sections,
     List<Trip>? trips,
+    GeoPosition? location,
+    bool clearLocation = false,
     DateTime? modifiedAt,
   }) {
     return Cave(
@@ -168,6 +179,7 @@ class Cave {
       areas: areas ?? this.areas,
       sections: sections ?? this.sections,
       trips: trips ?? this.trips,
+      location: clearLocation ? null : location ?? this.location,
       createdAt: createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
     );
@@ -281,10 +293,29 @@ class Cave {
     ));
   }
 
+  /// Where the automatic declination is computed: at the first reference
+  /// point given in Swiss grid coordinates, else at the cave's [location],
+  /// else at the Hölloch
+  GeoPosition get declinationPosition {
+    for (final section in allSections) {
+      for (final ref in section.survey.referencePoints) {
+        final position = GeoPosition.fromSwissGrid(ref.east, ref.north);
+        if (position != null) return position;
+      }
+    }
+    return location ?? GeoPosition.hoelloch;
+  }
+
+  /// The declination applied to the stretches of [trip]: computed from its
+  /// date at [declinationPosition] if it is automatic, its own otherwise
+  num declinationOf(Trip trip) => trip.autoDeclination
+      ? MagneticDeclination.at(declinationPosition, trip.date)
+      : trip.declination;
+
   /// [survey] with each stretch's azimuth corrected by the declination of
   /// its trip
   Survey corrected(Survey survey) {
-    final declinations = {for (final t in trips) t.id: t.declination};
+    final declinations = {for (final t in trips) t.id: declinationOf(t)};
     MeasuredDistance correct(MeasuredDistance stretch) {
       final declination = declinations[stretch.tripId] ?? 0;
       if (declination == 0) return stretch;
