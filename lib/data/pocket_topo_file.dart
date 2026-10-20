@@ -425,21 +425,15 @@ class _TopReader {
   }
 
   /// Where the station the drawings are relative to lies in the outline and
-  /// in the side view: the first reference point, or the first station
-  /// measured from if there is none, which is then placed at the origin
+  /// in the side view: the first of the survey's origins
   static (Offset, Offset) _origins(Survey survey, List<Trip> trips) {
-    final origin = survey.referencePoints.firstOrNull?.id ??
-        survey.stretches.firstOrNull?.from;
+    final origin = survey.origins.firstOrNull?.id;
     if (origin == null) return (Offset.zero, Offset.zero);
 
-    final placed = survey.referencePoints.isEmpty
-        ? survey.copyWith(
-            referencePoints: [ReferencePoint(origin, 0, 0, 0)])
-        : survey;
     final now = DateTime.now();
     final corrected =
         Cave(id: '', name: '', trips: trips, createdAt: now, modifiedAt: now)
-            .corrected(placed);
+            .corrected(survey);
     final positions = corrected.computeStationPositions();
     final position = positions[origin]!;
     final sideView = SideView.of(corrected, positions).stationPositions;

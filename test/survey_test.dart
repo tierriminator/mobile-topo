@@ -31,6 +31,23 @@ void main() {
     });
   });
 
+  test('without reference points the first station is at the origin', () {
+    const survey = Survey(
+      stretches: [
+        MeasuredDistance(Point(7, 9), Point(7, 10), 0, 0, 0),
+        MeasuredDistance(Point(7, 10), Point(7, 11), 5, 90, 0),
+      ],
+      referencePoints: [],
+    );
+
+    final positions = survey.computeStationPositions();
+
+    expect(positions.keys,
+        unorderedEquals(const [Point(7, 9), Point(7, 10), Point(7, 11)]));
+    expect(positions[const Point(7, 9)]!.east, 0);
+    expect(positions[const Point(7, 11)]!.east, closeTo(5, 1e-9));
+  });
+
   test('Survey.totalLength sums survey shots but not cross sections', () {
     const survey = Survey(
       stretches: [

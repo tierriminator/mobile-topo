@@ -18,7 +18,7 @@ class SideView {
   const SideView._(this._stations);
 
   /// Lays out the stations that have a position in [positions], following
-  /// the survey shots of [survey] from each reference point in turn
+  /// the survey shots of [survey] from each of its origins in turn
   factory SideView.of(Survey survey, Map<Point, StationPosition> positions) {
     final shotsAt = <Point, List<MeasuredDistance>>{};
     for (final stretch in survey.stretches) {
@@ -29,7 +29,7 @@ class SideView {
     }
 
     final stations = <Point, _SideViewStation>{};
-    for (final ref in survey.referencePoints) {
+    for (final ref in survey.origins) {
       final start = positions[ref.id];
       if (start == null || stations.containsKey(ref.id)) continue;
 

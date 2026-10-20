@@ -244,13 +244,22 @@ class Survey {
             .toList(),
       );
 
-  /// Computes positions of all stations from reference points and stretches.
+  /// The reference points station positions start from: those of the
+  /// survey, or if it has none, the first station measured from at 0, 0, 0,
+  /// as in PocketTopo
+  List<ReferencePoint> get origins {
+    if (referencePoints.isNotEmpty) return referencePoints;
+    final first = stretches.firstOrNull?.from;
+    return first == null ? const [] : [ReferencePoint(first, 0, 0, 0)];
+  }
+
+  /// Computes positions of all stations from [origins] and stretches.
   /// Returns a map from Point to StationPosition.
   Map<Point, StationPosition> computeStationPositions() {
     final positions = <Point, StationPosition>{};
 
     // Start with reference points
-    for (final ref in referencePoints) {
+    for (final ref in origins) {
       positions[ref.id] = StationPosition(
         ref.id,
         ref.east.toDouble(),
