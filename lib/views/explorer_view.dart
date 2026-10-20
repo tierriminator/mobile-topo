@@ -297,7 +297,8 @@ class ExplorerViewState extends State<ExplorerView> {
       final section = Section(
         id: _uuid.v4(),
         name: name.isEmpty ? l10n.explorerNewSection : name,
-        survey: imported.survey,
+        // The file's coordinates are taken to be in the cave's system
+        survey: imported.survey.withReferenceSystem(cave.coordinateSystem),
         outlineSketch: imported.outlineSketch,
         sideViewSketch: imported.sideViewSketch,
         createdAt: now,

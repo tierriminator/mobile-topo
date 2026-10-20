@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'coordinate_system.dart';
+
 class Point implements Comparable<Point> {
   final num corridorId, pointId;
   const Point(this.corridorId, this.pointId);
@@ -154,14 +156,22 @@ class MeasuredDistance {
 
 class ReferencePoint {
   final Point id;
+
+  /// Coordinates as entered: East and North in [coordinateSystem], the
+  /// altitude in metres
   final num east, north, altitude;
+
+  /// The system East and North were entered in, or null if they are in
+  /// that of the cave. Kept so the cave's system can change without
+  /// changing the coordinates as entered; see [Cave.inCoordinateSystem].
+  final CoordinateSystem? coordinateSystem;
 
   /// Free text note on this reference point, like where the coordinates
   /// come from
   final String? comment;
 
   const ReferencePoint(this.id, this.east, this.north, this.altitude,
-      {this.comment});
+      {this.coordinateSystem, this.comment});
 
   /// A copy with the given values replaced. [comment] cannot be cleared this
   /// way; use [withComment] for it.
@@ -170,6 +180,7 @@ class ReferencePoint {
     num? east,
     num? north,
     num? altitude,
+    CoordinateSystem? coordinateSystem,
     String? comment,
   }) {
     return ReferencePoint(
@@ -177,6 +188,7 @@ class ReferencePoint {
       east ?? this.east,
       north ?? this.north,
       altitude ?? this.altitude,
+      coordinateSystem: coordinateSystem ?? this.coordinateSystem,
       comment: comment ?? this.comment,
     );
   }
@@ -187,6 +199,7 @@ class ReferencePoint {
         east,
         north,
         altitude,
+        coordinateSystem: coordinateSystem,
         comment: _normalizeComment(comment),
       );
 
@@ -195,6 +208,8 @@ class ReferencePoint {
         'east': east,
         'north': north,
         'altitude': altitude,
+        if (coordinateSystem != null)
+          'coordinateSystem': coordinateSystem!.toJson(),
         if (comment != null) 'comment': comment,
       };
 
@@ -203,6 +218,10 @@ class ReferencePoint {
         json['east'] as num,
         json['north'] as num,
         json['altitude'] as num,
+        coordinateSystem: switch (json['coordinateSystem']) {
+          final String system => CoordinateSystem.fromJson(system),
+          _ => null,
+        },
         comment: json['comment'] as String?,
       );
 }
@@ -476,6 +495,17 @@ class Survey {
       referencePoints: referencePoints ?? this.referencePoints,
     );
   }
+
+  /// This survey with the reference points that have no coordinate system
+  /// yet given [system], as when they come into a cave
+  Survey withReferenceSystem(CoordinateSystem system) => copyWith(
+        referencePoints: [
+          for (final ref in referencePoints)
+            ref.coordinateSystem == null
+                ? ref.copyWith(coordinateSystem: system)
+                : ref,
+        ],
+      );
 
   Survey addStretch(MeasuredDistance stretch) {
     return copyWith(stretches: [...stretches, stretch]);

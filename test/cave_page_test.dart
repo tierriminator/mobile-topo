@@ -35,7 +35,9 @@ void main() {
         modifiedAt: DateTime(2026),
       );
 
-  const entrance = ReferencePoint(Point(1, 0), 2709400, 1204300, 650);
+  const entrance = ReferencePoint(Point(1, 0), 2709400, 1204300, 650,
+      coordinateSystem: CoordinateSystem.swiss);
+  final entrancePosition = CoordinateSystem.swiss.toGeo(2709400, 1204300)!;
 
   /// Opens the page for [cave], by default one with the [entrance], with
   /// [settings] and returns the pending result of editCave
@@ -209,11 +211,12 @@ void main() {
         (tester) async {
       final result = await open(tester);
       await choose(tester, 'UTM');
-      // The entrance lies in zone 32 north; its LV95 numbers do not fit
+      // The entrance lies in zone 32 north and is shown converted there
       expect(find.text('32'), findsOneWidget);
-      expect(find.text('Reference point 1.0 does not fit the coordinate '
-              'system.'),
-          findsOneWidget);
+      final (:east, :north) = const Utm(32).fromGeo(entrancePosition);
+      expect(find.text('${east.toStringAsFixed(1)} m'), findsOneWidget);
+      expect(find.text('${north.toStringAsFixed(1)} m'), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber), findsNothing);
 
       await tester.tap(find.text('South'));
       await tester.pumpAndSettle();
@@ -222,7 +225,8 @@ void main() {
     });
 
     testWidgets('WGS84 shows the coordinates in degrees', (tester) async {
-      const lonLat = ReferencePoint(Point(1, 0), 8.788390, 46.976640, 700);
+      const lonLat = ReferencePoint(Point(1, 0), 8.788390, 46.976640, 700,
+          coordinateSystem: CoordinateSystem.wgs84);
       final result =
           await open(tester, cave: caveWith(const [lonLat]));
       await choose(tester, 'WGS84 longitude/latitude');
@@ -234,6 +238,24 @@ void main() {
 
       await leave(tester);
       expect((await result)?.coordinateSystem, CoordinateSystem.wgs84);
+    });
+
+    testWidgets('converts coordinates entered in another system',
+        (tester) async {
+      await open(tester);
+      await choose(tester, 'WGS84 longitude/latitude');
+      expect(
+          find.text('${entrancePosition.longitude.toStringAsFixed(6)}°'),
+          findsOneWidget);
+      expect(find.text('${entrancePosition.latitude.toStringAsFixed(6)}°'),
+          findsOneWidget);
+    });
+
+    testWidgets('shows grid coordinates in metres whatever the length unit',
+        (tester) async {
+      await open(tester, settings: const Settings(lengthUnit: LengthUnit.feet));
+      expect(find.text('2709400.0 m'), findsOneWidget);
+      expect(find.text('1204300.0 m'), findsOneWidget);
     });
   });
 

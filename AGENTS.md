@@ -51,9 +51,13 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   PocketTopo, and the Therion export writes them as `grid-angle`
 - **Coordinate systems**: each cave picks the system its reference points
   are given in: Swiss grid (the default), UTM with zone and hemisphere, or
-  WGS84 longitude/latitude. Coordinates are stored as entered and only
-  converted for calculations; degrees become metres in the UTM zone of the
-  cave for computing positions and exporting
+  WGS84 longitude/latitude. Each reference point keeps its coordinates as
+  entered along with the system they were entered in, so changing the
+  cave's system changes no data. They are shown and edited converted to
+  the cave's system, East and North in its unit (metres or degrees), and
+  stored in it once East or North is edited. Points without a system (old
+  files, imports) take the cave's. For positions and exports, degrees
+  become metres in the UTM zone of the cave
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -126,7 +130,7 @@ Pure domain objects without serialization logic:
 - **`survey.dart`**: Core survey data types
   - `Point`: Survey station with `corridorId` and `pointId` (maps to PocketTopo's `a.b` format)
   - `MeasuredDistance`: A "stretch" between two stations with distance, azimuth, inclination and an optional comment
-  - `ReferencePoint`: Entrance coordinates with station ID, east, north, altitude and an optional comment
+  - `ReferencePoint`: Entrance coordinates with station ID, east, north, altitude, the coordinate system they were entered in and an optional comment
   - `StationPosition`: Calculated 3D position of a station
   - `Survey`: Collection of stretches and reference points with position computation
 

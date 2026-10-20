@@ -226,13 +226,26 @@ class _CavePageState extends State<CavePage> {
     ];
   }
 
-  /// East and North in the cave's coordinate system: in degrees or in the
-  /// length unit
+  /// A row with [label] and a coordinate in metres
+  Widget _metres(String label, num metres) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(null),
+      title: Text(label),
+      trailing: Text(
+        '${metres.toStringAsFixed(1)} m',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    );
+  }
+
+  /// East and North in the unit of the cave's coordinate system: metres or
+  /// degrees
   List<Widget> _eastNorth(AppLocalizations l10n, num east, num north) {
     if (_coordinateSystem.isMetric) {
       return [
-        _length(null, l10n.columnEast, east),
-        _length(null, l10n.columnNorth, north),
+        _metres(l10n.columnEast, east),
+        _metres(l10n.columnNorth, north),
       ];
     }
     return [
@@ -241,11 +254,12 @@ class _CavePageState extends State<CavePage> {
     ];
   }
 
-  /// The coordinates the automatic declination uses: the cave's first
-  /// reference point if it fits the coordinate system, else the Hölloch's
-  /// in that system, with a warning saying why
+  /// The coordinates the automatic declination uses, in the coordinate
+  /// system: the cave's first reference point if it has a position, else
+  /// the Hölloch's, with a warning saying why
   List<Widget> _coordinates(AppLocalizations l10n, Cave cave) {
-    final ref = cave.firstReferencePoint;
+    final first = cave.firstReferencePoint;
+    final ref = first == null ? null : cave.inCoordinateSystem(first);
     final usable = ref != null && cave.referencePosition != null;
     final heading = ListTile(
       contentPadding: EdgeInsets.zero,

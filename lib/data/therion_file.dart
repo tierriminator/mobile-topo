@@ -21,9 +21,10 @@ class TherionFile {
   /// declination and the trip's stretches in data order. Splays lead to the
   /// anonymous station `-`.
   ///
-  /// The fixed stations keep the coordinates as entered, with the cave's
-  /// coordinate system given to Therion by `cs`. Therion then places the
-  /// cave on the earth; points that do not fit the system are `local`.
+  /// The fixed stations keep the coordinates as entered, with the
+  /// coordinate system they were entered in given to Therion by `cs`.
+  /// Therion then places the cave on the earth; points that do not fit
+  /// their system are `local`.
   static String survey(Cave cave, List<Section> sections, String name) {
     final out = StringBuffer()
       ..writeln('encoding utf-8')
@@ -35,7 +36,7 @@ class TherionFile {
         ..writeln()
         ..writeln('  centreline');
       final systems = [
-        for (final ref in references) _therionCs(cave.coordinateSystem, ref),
+        for (final ref in references) _therionCs(cave.systemOf(ref), ref),
       ];
       // Without any geodetic point, all is local, which needs no cs
       final geodetic = systems.any((cs) => cs != _localCs);

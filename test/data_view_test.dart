@@ -9,6 +9,8 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/coordinate_system.dart';
+import 'package:mobile_topo/models/geo_position.dart';
+import 'package:mobile_topo/views/widgets/number_format.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
@@ -302,6 +304,39 @@ void main() {
       expect(find.text('8.788390'), findsOneWidget);
       expect(find.text('46.976640'), findsOneWidget);
       // The altitude is still a length
+      expect(find.text('2296.588'), findsOneWidget);
+    });
+
+    testWidgets('reference points are shown in the cave\'s coordinate system',
+        (tester) async {
+      final s = section(
+        's',
+        const Survey(
+          stretches: [],
+          referencePoints: [
+            ReferencePoint(Point(1, 0), 8.78839, 46.97664, 700,
+                coordinateSystem: CoordinateSystem.wgs84),
+          ],
+        ),
+      );
+      final swissCave = cave([s]);
+      final navigation = ViewNavigation();
+      await pumpDataView(
+          tester,
+          SelectionState()..selectSection(swissCave, s),
+          MeasurementService(SettingsController()),
+          navigation: navigation,
+          settings: SettingsController(
+              const Settings(lengthUnit: LengthUnit.feet)));
+      navigation.showReferencePoints();
+      await tester.pumpAndSettle();
+
+      // In LV95 metres, while the altitude follows the length unit
+      final (:east, :north) = CoordinateSystem.swiss
+          .fromGeo(const GeoPosition(46.97664, 8.78839));
+      expect(find.text('East'), findsOneWidget);
+      expect(find.text(formatNumber(east)), findsOneWidget);
+      expect(find.text(formatNumber(north)), findsOneWidget);
       expect(find.text('2296.588'), findsOneWidget);
     });
 

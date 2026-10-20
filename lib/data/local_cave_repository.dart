@@ -232,7 +232,14 @@ class LocalCaveRepository implements CaveRepository {
   }
 
   Cave _buildCave(
-      CaveFile caveData, Map<String, Section> sections, List<Trip> trips) {
+      CaveFile caveData, Map<String, Section> loaded, List<Trip> trips) {
+    // Reference points stored without a coordinate system are in the cave's
+    final sections = {
+      for (final MapEntry(:key, :value) in loaded.entries)
+        key: value.copyWith(
+            survey: value.survey
+                .withReferenceSystem(caveData.coordinateSystem)),
+    };
     return Cave(
       id: caveData.id,
       name: caveData.name,

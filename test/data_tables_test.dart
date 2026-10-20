@@ -240,7 +240,7 @@ void main() {
       expect(updates, isEmpty);
     });
 
-    testWidgets('reference points are shown in the length unit',
+    testWidgets('reference point altitudes are shown in the length unit',
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -254,7 +254,8 @@ void main() {
           ),
         ),
       );
-      expect(find.text('328.084'), findsOneWidget);
+      // East and North stay in the metres of their coordinate system
+      expect(find.text('100'), findsOneWidget);
       expect(find.text('-10'), findsOneWidget);
     });
   });

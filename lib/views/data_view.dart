@@ -264,9 +264,15 @@ class _DataViewState extends State<DataView> {
 
   /// A new reference point for [survey] of the selected section: at the
   /// most recently measured station of the cave without one, or else at
-  /// the default station
+  /// the default station, in the cave's coordinate system
   ReferencePoint _newReferencePoint(Survey survey) => ReferencePoint(
-      _caveSurvey(survey).lastUnreferencedStation ?? _defaultStation, 0, 0, 0);
+        _caveSurvey(survey).lastUnreferencedStation ?? _defaultStation,
+        0,
+        0,
+        0,
+        coordinateSystem:
+            context.read<SelectionState>().selectedCave?.coordinateSystem,
+      );
 
   Future<void> _addReferencePoint(Section section) async {
     await _changeSurvey(section.id,
@@ -525,14 +531,14 @@ class _DataViewState extends State<DataView> {
         stretches.length - section.survey.stretches.length;
     final pointOffset =
         referencePoints.length - section.survey.referencePoints.length;
-    final hasTrips =
-        context.read<SelectionState>().selectedCave?.trips.isNotEmpty ?? false;
-    final inDegrees = context
-            .read<SelectionState>()
-            .selectedCave
-            ?.coordinateSystem
-            .isMetric ==
-        false;
+    final cave = context.read<SelectionState>().selectedCave;
+    final hasTrips = cave?.trips.isNotEmpty ?? false;
+    final inDegrees = cave?.coordinateSystem.isMetric == false;
+    // Shown and edited in the cave's coordinate system, whichever the
+    // points were entered in
+    final shownPoints = [
+      for (final ref in referencePoints) cave?.inCoordinateSystem(ref) ?? ref,
+    ];
 
     return IndexedStack(
       index: _mode == DataViewMode.stretches ? 0 : 1,
@@ -621,7 +627,7 @@ class _DataViewState extends State<DataView> {
               )
             : ReferencePointsTable(
                 key: _referencePointsTableKey,
-                data: referencePoints,
+                data: shownPoints,
                 lengthUnit: settings.lengthUnit,
                 degrees: inDegrees,
                 readOnlyRows: pointOffset,
@@ -632,8 +638,11 @@ class _DataViewState extends State<DataView> {
                     _insertReferencePointAt(section, index - pointOffset),
                 onInsertBelow: (index) =>
                     _insertReferencePointAt(section, index - pointOffset + 1),
-                onUpdate: (index, point) =>
-                    _updateReferencePoint(section, index - pointOffset, point),
+                onUpdate: (index, point) => _updateReferencePoint(
+                    section,
+                    index - pointOffset,
+                    cave?.editedReferencePoint(referencePoints[index], point) ??
+                        point),
                 onDelete: (indices) => _deleteReferencePoints(
                     section, {for (final i in indices) i - pointOffset}),
                 onCommentChanged: (index, comment) => _updateReferencePoint(

@@ -311,11 +311,46 @@ class Cave {
       .expand((s) => s.survey.referencePoints)
       .firstOrNull;
 
+  /// The system the coordinates of [ref] were entered in
+  CoordinateSystem systemOf(ReferencePoint ref) =>
+      ref.coordinateSystem ?? coordinateSystem;
+
+  /// The position of [ref], or null if its coordinates do not fit the
+  /// system they were entered in, as local ones do not
+  GeoPosition? positionOf(ReferencePoint ref) =>
+      systemOf(ref).toGeo(ref.east, ref.north);
+
+  /// [ref] with East and North in [system], by default the cave's: the
+  /// coordinates as entered if they are in it already or fit no system,
+  /// converted otherwise
+  ReferencePoint inCoordinateSystem(ReferencePoint ref,
+      [CoordinateSystem? system]) {
+    final target = system ?? coordinateSystem;
+    if (systemOf(ref) == target) return ref;
+    final position = positionOf(ref);
+    if (position == null) return ref;
+    final (:east, :north) = target.fromGeo(position);
+    return ref.copyWith(east: east, north: north, coordinateSystem: target);
+  }
+
+  /// The reference point to store after [original], as shown by
+  /// [inCoordinateSystem], was edited to [edited]: in the cave's system if
+  /// East or North changed, otherwise with the coordinates as entered, so
+  /// they are not converted needlessly
+  ReferencePoint editedReferencePoint(
+      ReferencePoint original, ReferencePoint edited) {
+    final shown = inCoordinateSystem(original);
+    if (edited.east != shown.east || edited.north != shown.north) {
+      return edited;
+    }
+    return original.copyWith(id: edited.id, altitude: edited.altitude);
+  }
+
   /// The position of the [firstReferencePoint], or null if there is none or
-  /// it does not fit the [coordinateSystem]
+  /// it fits no coordinate system
   GeoPosition? get referencePosition {
     final ref = firstReferencePoint;
-    return ref == null ? null : coordinateSystem.toGeo(ref.east, ref.north);
+    return ref == null ? null : positionOf(ref);
   }
 
   /// Where the automatic declination is computed: at the
@@ -351,8 +386,9 @@ class Cave {
 
   /// [survey] ready for computing positions: each stretch's azimuth
   /// corrected by the declination of its trip, and reference points in
-  /// metres. Coordinates in degrees are converted to the UTM zone of the
-  /// [declinationPosition] for this, so the whole cave shares one zone.
+  /// metres of the cave's coordinate system, or for one in degrees of the
+  /// UTM zone of the [declinationPosition], so the whole cave shares one
+  /// grid
   Survey corrected(Survey survey) {
     final declinations = {for (final t in trips) t.id: declinationOf(t)};
     MeasuredDistance correct(MeasuredDistance stretch) {
@@ -361,19 +397,13 @@ class Cave {
       return stretch.copyWith(azimut: stretch.azimut + declination);
     }
 
-    final metric = Utm.containing(declinationPosition);
-    ReferencePoint inMetres(ReferencePoint ref) {
-      final position = coordinateSystem.toGeo(ref.east, ref.north);
-      if (position == null) return ref;
-      final (:east, :north) = metric.fromGeo(position);
-      return ref.copyWith(east: east, north: north);
-    }
-
+    final metric = _metricSystem;
     return survey.copyWith(
       stretches: survey.stretches.map(correct).toList(),
-      referencePoints: coordinateSystem.isMetric
-          ? survey.referencePoints
-          : survey.referencePoints.map(inMetres).toList(),
+      referencePoints: [
+        for (final ref in survey.referencePoints)
+          inCoordinateSystem(ref, metric),
+      ],
     );
   }
 

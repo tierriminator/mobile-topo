@@ -748,8 +748,9 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
   final void Function(int index, ReferencePoint point)? onUpdate;
   final void Function(Point station)? onStartHere;
 
-  /// Whether East and North are longitude and latitude in degrees, which
-  /// are shown as they are rather than in the length unit
+  /// Whether East and North are longitude and latitude in degrees rather
+  /// than metres. Either way they are shown in the unit of their coordinate
+  /// system, not in the length unit, which only the altitude is shown in.
   final bool degrees;
 
   const ReferencePointsTable({
@@ -808,10 +809,8 @@ class ReferencePointsTableState
   @override
   List<Widget> buildDataCells(int index, ReferencePoint point) {
     final length = widget.lengthUnit;
-    // Degrees are kept as they are, with enough places for about 0.1 m
+    // Degrees get enough places for about 0.1 m
     final degrees = widget.degrees;
-    num show(num value) => degrees ? value : length.fromMeters(value);
-    num store(num value) => degrees ? value : length.toMeters(value);
     return [
       _PointCell(
         point: point.id,
@@ -821,21 +820,21 @@ class ReferencePointsTableState
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: show(point.east),
+        value: point.east,
         signed: true,
         decimalPlaces: degrees ? 6 : null,
         editable: isEditable(index),
         isEditing: isEditing(index, 1),
-        onChanged: (v) => _updatePoint(index, point, east: store(v)),
+        onChanged: (v) => _updatePoint(index, point, east: v),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: show(point.north),
+        value: point.north,
         signed: true,
         decimalPlaces: degrees ? 6 : null,
         editable: isEditable(index),
         isEditing: isEditing(index, 2),
-        onChanged: (v) => _updatePoint(index, point, north: store(v)),
+        onChanged: (v) => _updatePoint(index, point, north: v),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(

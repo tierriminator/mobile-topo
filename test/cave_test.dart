@@ -195,6 +195,83 @@ void main() {
         expect(swiss.combinedSurvey.referencePoints.single, same(reference));
       });
 
+      group('points entered in another system', () {
+        const swissPoint = ReferencePoint(Point(1, 0), 2709400, 1204300, 650,
+            coordinateSystem: CoordinateSystem.swiss);
+        final position = CoordinateSystem.swiss.toGeo(2709400, 1204300)!;
+        Cave utmCave(List<ReferencePoint> refs) => withReference(refs)
+            .copyWith(coordinateSystem: const Utm(32));
+
+        test('keep their own system for their position', () {
+          final c = utmCave(const [swissPoint]);
+          expect(c.systemOf(swissPoint), CoordinateSystem.swiss);
+          expect(c.referencePosition, position);
+        });
+
+        test('are converted to the cave\'s system', () {
+          final c = utmCave(const [swissPoint]);
+          final shown = c.inCoordinateSystem(swissPoint);
+          final (:east, :north) = const Utm(32).fromGeo(position);
+          expect(shown.east, east);
+          expect(shown.north, north);
+          expect(shown.altitude, 650);
+          expect(shown.coordinateSystem, const Utm(32));
+          // Positions are computed from them in the cave's grid too
+          expect(c.combinedSurvey.referencePoints.single.east, east);
+        });
+
+        test('are kept as entered when in the cave\'s system', () {
+          final c = withReference(const [swissPoint]);
+          expect(c.inCoordinateSystem(swissPoint), same(swissPoint));
+        });
+
+        test('are kept as they are when they fit no system', () {
+          const local = ReferencePoint(Point(1, 0), 10, 20, 30,
+              coordinateSystem: CoordinateSystem.swiss);
+          expect(utmCave(const [local]).inCoordinateSystem(local), same(local));
+        });
+
+        test('are stored in the cave\'s system once East or North is edited',
+            () {
+          final c = utmCave(const [swissPoint]);
+          final shown = c.inCoordinateSystem(swissPoint);
+
+          // Other edits keep the coordinates as entered
+          final renamed = c.editedReferencePoint(
+              swissPoint, shown.copyWith(id: const Point(2, 0), altitude: 700));
+          expect(renamed.id, const Point(2, 0));
+          expect(renamed.altitude, 700);
+          expect(renamed.east, 2709400);
+          expect(renamed.coordinateSystem, CoordinateSystem.swiss);
+
+          final moved = c.editedReferencePoint(
+              swissPoint, shown.copyWith(east: 512000));
+          expect(moved.east, 512000);
+          expect(moved.north, shown.north);
+          expect(moved.coordinateSystem, const Utm(32));
+        });
+
+        test('untagged ones take the system they come into', () {
+          const untagged = ReferencePoint(Point(1, 0), 1, 2, 3);
+          final survey = const Survey(
+            stretches: [],
+            referencePoints: [untagged, swissPoint],
+          ).withReferenceSystem(const Utm(32));
+          expect(survey.referencePoints.first.coordinateSystem,
+              const Utm(32));
+          expect(survey.referencePoints.last, same(swissPoint));
+        });
+
+        test('keep their system through JSON', () {
+          final copy = ReferencePoint.fromJson(swissPoint.toJson());
+          expect(copy.coordinateSystem, CoordinateSystem.swiss);
+          expect(ReferencePoint.fromJson(
+                  const ReferencePoint(Point(1, 0), 1, 2, 3).toJson())
+              .coordinateSystem,
+              isNull);
+        });
+      });
+
       test('the coordinate system is stored with the cave', () {
         final file = CaveFile(
             id: 'c',
