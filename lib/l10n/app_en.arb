@@ -408,6 +408,30 @@
   "@sectionIsSelected": {
     "description": "Disabled button on the page of the section the data, map and sketch views show"
   },
+  "sectionExport": "Export",
+  "@sectionExport": {
+    "description": "Button on the section page choosing a format to export the section in"
+  },
+  "exportFormat": "Export format",
+  "@exportFormat": {
+    "description": "Title of the dialog choosing the format of an export"
+  },
+  "exportTherionSurvey": "Therion survey (.th)",
+  "@exportTherionSurvey": {
+    "description": "Export format: a Therion survey file"
+  },
+  "exportTherionText": "Therion text (.txt)",
+  "@exportTherionText": {
+    "description": "Export format: the text PocketTopo exports for Therion's xtherion"
+  },
+  "exportTherionSurveyHelp": "Survey file with the centreline and the fixed stations",
+  "@exportTherionSurveyHelp": {
+    "description": "Explanation of the Therion survey export format"
+  },
+  "exportTherionTextHelp": "As PocketTopo exports it, for xtherion to import with the sketches",
+  "@exportTherionTextHelp": {
+    "description": "Explanation of the Therion text export format"
+  },
   "sectionLength": "Surveyed length",
   "@sectionLength": {
     "description": "Length of all survey shots of a section"

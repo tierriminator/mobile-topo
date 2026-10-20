@@ -379,20 +379,6 @@ class ExplorerViewState extends State<ExplorerView> {
     ];
   }
 
-  /// Menu entry deleting a cave or section
-  PopupMenuItem<String> _deleteMenuItem() {
-    return PopupMenuItem(
-      value: 'delete',
-      child: Row(
-        children: [
-          const Icon(Icons.delete, size: 20),
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.explorerDelete),
-        ],
-      ),
-    );
-  }
-
   /// Handles a selected entry of [_exportMenuItems]
   void _onExportSelected(
       String value, Cave cave, List<Section> sections, String name) {
@@ -622,6 +608,13 @@ class ExplorerViewState extends State<ExplorerView> {
       onSelect: () {
         final current = _loadedSection(cave.id, section.id);
         if (current != null) _selectSection(path, current);
+      },
+      onExport: (name, {required pocketTopoText}) async {
+        final current = _loadedSection(cave.id, section.id);
+        final latest = _explorerState.findCave(cave.id);
+        if (current == null || latest == null) return;
+        await _exportTherion(latest, [current], name,
+            pocketTopoText: pocketTopoText);
       },
       onDelete: () => _deleteSection(section, cave.id),
     );
@@ -966,7 +959,6 @@ class ExplorerViewState extends State<ExplorerView> {
   Widget _buildSectionNode(Section section, ExplorerPath parentPath, int depth) {
     final path = parentPath.toSection(section.id);
     final isSelected = _explorerState.currentPath?.sectionId == section.id;
-    final cave = _explorerState.findCave(path.caveId);
 
     return _buildTreeTile(
       icon: Icons.description,
@@ -977,23 +969,6 @@ class ExplorerViewState extends State<ExplorerView> {
       hasChildren: false,
       isSelected: isSelected,
       onTap: () => _openSection(section, path),
-      trailing: cave == null
-          ? null
-          : _trailingMenu(
-              onSelected: (value) {
-                switch (value) {
-                  case 'delete':
-                    _deleteSection(section, cave.id);
-                  default:
-                    _onExportSelected(value, cave, [section], section.name);
-                }
-              },
-              itemBuilder: (context) => [
-                ..._exportMenuItems(),
-                const PopupMenuDivider(),
-                _deleteMenuItem(),
-              ],
-            ),
     );
   }
 

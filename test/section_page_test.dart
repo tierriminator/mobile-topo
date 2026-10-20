@@ -44,6 +44,7 @@ void main() {
   Future<Future<String?>> open(WidgetTester tester,
       {bool isSelected = false,
       VoidCallback? onSelect,
+      SectionExport? onExport,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
     late Future<String?> result;
@@ -57,6 +58,7 @@ void main() {
             onPressed: () => result = editSection(context, cave, section,
                 isSelected: isSelected,
                 onSelect: onSelect,
+                onExport: onExport,
                 onDelete: onDelete),
             child: const Text('open'),
           ),
@@ -140,9 +142,51 @@ void main() {
     expect(button.onPressed, isNull);
   });
 
+  testWidgets('exports under the edited name, keeping the page open',
+      (tester) async {
+    final exports = <(String, bool)>[];
+    await open(tester,
+        onExport: (name, {required pocketTopoText}) async =>
+            exports.add((name, pocketTopoText)));
+    await editName(tester, 'Main passage');
+    for (final format in ['Therion survey (.th)', 'Therion text (.txt)']) {
+      await tester.tap(find.text('Export'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(format));
+      await tester.pumpAndSettle();
+    }
+
+    expect(exports, [('Main passage', false), ('Main passage', true)]);
+    expect(find.byType(SectionPage), findsOneWidget);
+  });
+
+  testWidgets('dismissing the format choice exports nothing',
+      (tester) async {
+    var exports = 0;
+    await open(tester,
+        onExport: (name, {required pocketTopoText}) async => exports++);
+    await tester.tap(find.text('Export'));
+    await tester.pumpAndSettle();
+    expect(find.text('Export format'), findsOneWidget);
+
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+
+    expect(exports, 0);
+    expect(find.text('Export format'), findsNothing);
+  });
+
+  testWidgets('without onExport there are no export buttons',
+      (tester) async {
+    await open(tester);
+    expect(find.byIcon(Icons.save_alt), findsNothing);
+  });
+
   testWidgets('deleting closes the page and discards edits', (tester) async {
     final result = await open(tester, onDelete: () async => true);
     await editName(tester, 'Main passage');
+    await tester.scrollUntilVisible(find.text('Delete'), 100,
+        scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 

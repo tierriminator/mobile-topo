@@ -15,6 +15,7 @@ Future<String?> editSection(
   Section section, {
   bool isSelected = false,
   VoidCallback? onSelect,
+  SectionExport? onExport,
   Future<bool> Function()? onDelete,
 }) async {
   final name = await Navigator.of(context).push<String>(
@@ -24,6 +25,7 @@ Future<String?> editSection(
         section: section,
         isSelected: isSelected,
         onSelect: onSelect,
+        onExport: onExport,
         onDelete: onDelete,
       ),
     ),
@@ -31,9 +33,14 @@ Future<String?> editSection(
   return name == section.name ? null : name;
 }
 
+/// Exports a section for Therion under [name]: as a survey file, or as the
+/// text PocketTopo exports for xtherion if [pocketTopoText] is set
+typedef SectionExport = Future<void> Function(String name,
+    {required bool pocketTopoText});
+
 /// Page giving an overview of a section, titled with its name, which it
-/// allows to change, and opening it in the data, map and sketch views.
-/// Leaving the page pops it with the name.
+/// allows to change, opening it in the data, map and sketch views and
+/// exporting it. Leaving the page pops it with the name.
 class SectionPage extends StatefulWidget {
   /// The cave the section belongs to, whose trips it was measured on
   final Cave cave;
@@ -46,6 +53,10 @@ class SectionPage extends StatefulWidget {
   /// closed
   final VoidCallback? onSelect;
 
+  /// Exports the section under its name as edited. Without it, the page
+  /// offers no export buttons.
+  final SectionExport? onExport;
+
   /// Deletes the section and returns whether it was deleted; the page
   /// closes if so. Without it, the page offers no delete button.
   final Future<bool> Function()? onDelete;
@@ -56,6 +67,7 @@ class SectionPage extends StatefulWidget {
     required this.section,
     this.isSelected = false,
     this.onSelect,
+    this.onExport,
     this.onDelete,
   });
 
@@ -134,6 +146,43 @@ class _SectionPageState extends State<SectionPage> {
     widget.onSelect!();
   }
 
+  /// Asks for the format and exports the section under the edited name
+  Future<void> _export() async {
+    final l10n = AppLocalizations.of(context)!;
+    final pocketTopoText = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(l10n.exportFormat,
+                  style: Theme.of(sheetContext).textTheme.titleMedium),
+            ),
+            for (final (value, icon, label, help) in [
+              (false, Icons.description, l10n.exportTherionSurvey,
+                  l10n.exportTherionSurveyHelp),
+              (true, Icons.draw, l10n.exportTherionText,
+                  l10n.exportTherionTextHelp),
+            ])
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                leading: Icon(icon),
+                title: Text(label),
+                subtitle: Text(help),
+                onTap: () => Navigator.of(sheetContext).pop(value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pocketTopoText == null) return;
+    await widget.onExport!(_name, pocketTopoText: pocketTopoText);
+  }
+
   Future<void> _delete() async {
     final deleted = await widget.onDelete!();
     // Closing with no result discards the edits of the deleted section
@@ -191,8 +240,17 @@ class _SectionPageState extends State<SectionPage> {
                 '${survey.distinctStations.length}'),
             _figure(Icons.event, l10n.sectionTrips,
                 '${widget.cave.tripsUsedBy(widget.section).length}'),
-            if (widget.onDelete != null) ...[
-              const SizedBox(height: 32),
+            if (widget.onExport != null || widget.onDelete != null)
+              const Divider(height: 24),
+            if (widget.onExport != null)
+              OutlinedButton.icon(
+                onPressed: _export,
+                icon: const Icon(Icons.save_alt),
+                label: Text(l10n.sectionExport),
+              ),
+            if (widget.onExport != null && widget.onDelete != null)
+              const SizedBox(height: 8),
+            if (widget.onDelete != null)
               OutlinedButton.icon(
                 onPressed: _delete,
                 icon: const Icon(Icons.delete),
@@ -202,7 +260,6 @@ class _SectionPageState extends State<SectionPage> {
                   side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-            ],
           ],
         ),
       ),

@@ -340,6 +340,20 @@ void main() {
       expect(selection.selectedSection, isNull);
     });
 
+    testWidgets('the section row has no menu, its page has the actions',
+        (tester) async {
+      await pumpExplorer(tester, []);
+      await tester.tap(find.byIcon(Icons.chevron_right).first);
+      await tester.pumpAndSettle();
+      // Only the cave's menu is left
+      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+
+      await tester.tap(find.text('Section'));
+      await tester.pumpAndSettle();
+      expect(find.text('Export'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
     testWidgets('the section page opens the section', (tester) async {
       await pumpExplorer(tester, []);
       await openSection(tester);

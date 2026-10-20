@@ -322,6 +322,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sectionIsSelected => 'Geöffneter Abschnitt';
 
   @override
+  String get sectionExport => 'Exportieren';
+
+  @override
+  String get exportFormat => 'Exportformat';
+
+  @override
+  String get exportTherionSurvey => 'Therion-Vermessung (.th)';
+
+  @override
+  String get exportTherionText => 'Therion-Text (.txt)';
+
+  @override
+  String get exportTherionSurveyHelp =>
+      'Vermessungsdatei mit Polygonzug und Fixpunkten';
+
+  @override
+  String get exportTherionTextHelp =>
+      'Wie PocketTopo ihn exportiert, damit xtherion ihn mit den Skizzen importiert';
+
+  @override
   String get sectionLength => 'Vermessene Länge';
 
   @override

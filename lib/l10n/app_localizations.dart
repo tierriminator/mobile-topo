@@ -679,6 +679,42 @@ abstract class AppLocalizations {
   /// **'Open section'**
   String get sectionIsSelected;
 
+  /// Button on the section page choosing a format to export the section in
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get sectionExport;
+
+  /// Title of the dialog choosing the format of an export
+  ///
+  /// In en, this message translates to:
+  /// **'Export format'**
+  String get exportFormat;
+
+  /// Export format: a Therion survey file
+  ///
+  /// In en, this message translates to:
+  /// **'Therion survey (.th)'**
+  String get exportTherionSurvey;
+
+  /// Export format: the text PocketTopo exports for Therion's xtherion
+  ///
+  /// In en, this message translates to:
+  /// **'Therion text (.txt)'**
+  String get exportTherionText;
+
+  /// Explanation of the Therion survey export format
+  ///
+  /// In en, this message translates to:
+  /// **'Survey file with the centreline and the fixed stations'**
+  String get exportTherionSurveyHelp;
+
+  /// Explanation of the Therion text export format
+  ///
+  /// In en, this message translates to:
+  /// **'As PocketTopo exports it, for xtherion to import with the sketches'**
+  String get exportTherionTextHelp;
+
   /// Length of all survey shots of a section
   ///
   /// In en, this message translates to:
