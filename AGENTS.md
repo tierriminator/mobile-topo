@@ -241,8 +241,10 @@ Persistence and serialization:
   `docs/pocket_topo/PocketTopoFileFormat.txt`) into trips, a survey and
   sketches; repeated measurements of a survey shot are averaged
 - **`therion_file.dart`**: Writes sections for Therion, either as a `.th`
-  survey file (a centreline per trip) or as the `.txt` PocketTopo exports
-  for Therion, which xtherion imports with the sketches
+  survey file (a centreline per trip, fixed stations as entered with the
+  cave's coordinate system as `cs`) or as the `.txt` PocketTopo exports
+  for Therion, which xtherion imports with the sketches (fixed stations in
+  metres, as the format has no coordinate system)
 
 **File structure on disk:**
 ```

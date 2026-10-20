@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import '../models/cave.dart';
+import '../models/coordinate_system.dart';
 import '../models/side_view.dart';
 import '../models/sketch.dart';
 import '../models/survey.dart';
@@ -19,19 +20,35 @@ class TherionFile {
   /// fixed stations, then one centreline per trip with its date, comment and
   /// declination and the trip's stretches in data order. Splays lead to the
   /// anonymous station `-`.
+  ///
+  /// The fixed stations keep the coordinates as entered, with the cave's
+  /// coordinate system given to Therion by `cs`. Therion then places the
+  /// cave on the earth; points that do not fit the system are `local`.
   static String survey(Cave cave, List<Section> sections, String name) {
     final out = StringBuffer()
       ..writeln('encoding utf-8')
       ..writeln('survey ${_surveyId(name)} -title ${_quoted(name)}');
 
-    final references = _references(cave, sections);
+    final references = [for (final s in sections) ...s.survey.referencePoints];
     if (references.isNotEmpty) {
       out
         ..writeln()
         ..writeln('  centreline');
-      for (final ref in references) {
-        out.writeln('    fix ${ref.id} ${_length(ref.east)} '
-            '${_length(ref.north)} ${_length(ref.altitude)}'
+      final systems = [
+        for (final ref in references) _therionCs(cave.coordinateSystem, ref),
+      ];
+      // Without any geodetic point, all is local, which needs no cs
+      final geodetic = systems.any((cs) => cs != _localCs);
+      String? current;
+      for (final (i, ref) in references.indexed) {
+        final cs = systems[i];
+        if (geodetic && cs != current) {
+          out.writeln('    cs $cs');
+          current = cs;
+        }
+        final horizontal = cs == _longLatCs ? _degrees : _length;
+        out.writeln('    fix ${ref.id} ${horizontal(ref.east)} '
+            '${horizontal(ref.north)} ${_length(ref.altitude)}'
             '${_comment(ref.comment)}');
       }
       out.writeln('  endcentreline');
@@ -161,6 +178,21 @@ class TherionFile {
     ];
   }
 
+  static const _localCs = 'local';
+  static const _longLatCs = 'long-lat';
+
+  /// Therion's name of the coordinate system [ref] is given in: that of
+  /// [system], or `local` if the point does not fit it
+  static String _therionCs(CoordinateSystem system, ReferencePoint ref) {
+    if (system.toGeo(ref.east, ref.north) == null) return _localCs;
+    return switch (system) {
+      // LV95 has seven digit East values, LV03 six
+      SwissGrid() => ref.east >= 1000000 ? 'EPSG:2056' : 'EPSG:21781',
+      Utm(:final zone, :final south) => 'UTM$zone${south ? 'S' : ''}',
+      Wgs84() => _longLatCs,
+    };
+  }
+
   /// The reference points of [sections] in metres, as positions are
   /// computed from them
   static List<ReferencePoint> _references(Cave cave, List<Section> sections) =>
@@ -265,6 +297,9 @@ class TherionFile {
       ].join(separator);
 
   static String _length(num metres) => metres.toStringAsFixed(3);
+
+  /// Degrees to about a centimetre
+  static String _degrees(num degrees) => degrees.toStringAsFixed(7);
 
   static String _angle(num degrees) => degrees.toStringAsFixed(2);
 }

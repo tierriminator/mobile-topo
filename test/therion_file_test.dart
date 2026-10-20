@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mobile_topo/data/therion_file.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
@@ -78,6 +79,75 @@ void main() {
 
     test('fixes the reference points', () {
       expect(lines, contains('    fix 1.0 100.000 200.000 300.000 # GPS'));
+      // Local coordinates only need no coordinate system
+      expect(lines.where((l) => l.trim().startsWith('cs ')), isEmpty);
+    });
+
+    group('coordinate system', () {
+      /// The lines of the fixed stations' centreline for [references] in
+      /// [system]
+      List<String> fixes(
+          CoordinateSystem system, List<ReferencePoint> references) {
+        final s = section(
+            's', 'S', Survey(stretches: const [], referencePoints: references));
+        final text = TherionFile.survey(
+            cave.copyWith(sections: [s], coordinateSystem: system), [s], 'S');
+        final lines = text.split('\n');
+        final start = lines.indexOf('  centreline');
+        return lines.sublist(start + 1, lines.indexOf('  endcentreline'));
+      }
+
+      test('is the EPSG code of the Swiss grid', () {
+        expect(
+            fixes(CoordinateSystem.swiss, const [
+              ReferencePoint(Point(1, 0), 2702698, 1203724, 735),
+              ReferencePoint(Point(2, 0), 702698, 203724, 735),
+            ]),
+            [
+              '    cs EPSG:2056',
+              '    fix 1.0 2702698.000 1203724.000 735.000',
+              '    cs EPSG:21781',
+              '    fix 2.0 702698.000 203724.000 735.000',
+            ]);
+      });
+
+      test('names the UTM zone and hemisphere', () {
+        expect(
+            fixes(const Utm(33, south: true), const [
+              ReferencePoint(Point(1, 0), 512345, 7190000, 1200),
+            ]).first,
+            '    cs UTM33S');
+        expect(
+            fixes(const Utm(32), const [
+              ReferencePoint(Point(1, 0), 512345, 5200000, 1200),
+            ]).first,
+            '    cs UTM32');
+      });
+
+      test('keeps degrees as they are, longitude first', () {
+        expect(
+            fixes(CoordinateSystem.wgs84, const [
+              ReferencePoint(Point(1, 0), 8.78839, 46.97664, 735),
+            ]),
+            [
+              '    cs long-lat',
+              '    fix 1.0 8.7883900 46.9766400 735.000',
+            ]);
+      });
+
+      test('is local for points that do not fit the system', () {
+        expect(
+            fixes(CoordinateSystem.swiss, const [
+              ReferencePoint(Point(1, 0), 2702698, 1203724, 735),
+              ReferencePoint(Point(2, 0), 10, 20, 30),
+            ]),
+            [
+              '    cs EPSG:2056',
+              '    fix 1.0 2702698.000 1203724.000 735.000',
+              '    cs local',
+              '    fix 2.0 10.000 20.000 30.000',
+            ]);
+      });
     });
 
     test('writes a centreline per trip in trip order', () {
