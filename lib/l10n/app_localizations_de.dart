@@ -313,6 +313,27 @@ class AppLocalizationsDe extends AppLocalizations {
   String get caveShowReferencePoints => 'Fixpunkte';
 
   @override
+  String get sectionRename => 'Umbenennen';
+
+  @override
+  String get sectionSelect => 'Öffnen';
+
+  @override
+  String get sectionIsSelected => 'Geöffneter Abschnitt';
+
+  @override
+  String get sectionLength => 'Vermessene Länge';
+
+  @override
+  String get sectionHeight => 'Höhenunterschied';
+
+  @override
+  String get sectionStations => 'Messpunkte';
+
+  @override
+  String get sectionTrips => 'Touren';
+
+  @override
   String get explorerDeleteCaveTitle => 'Höhle löschen';
 
   @override

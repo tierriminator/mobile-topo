@@ -18,6 +18,7 @@ import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/views/cave_page.dart';
 import 'package:mobile_topo/views/explorer_view.dart';
+import 'package:mobile_topo/views/section_page.dart';
 
 import 'pocket_topo_file_test.dart' show TopWriter, topFile;
 
@@ -97,6 +98,12 @@ class _SingleCaveRepository implements CaveRepository {
     this.cave = cave;
     saveCount++;
   }
+
+  final savedSections = <Section>[];
+
+  @override
+  Future<void> saveSection(String caveId, Section section) async =>
+      savedSections.add(section);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -313,6 +320,68 @@ void main() {
 
       expect(find.text('Section'), findsOneWidget);
       expect(find.byType(CavePage), findsNothing);
+    });
+  });
+
+  group('section row', () {
+    Future<void> openSection(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.chevron_right).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Section'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('tapping the section opens its page without selecting it',
+        (tester) async {
+      await pumpExplorer(tester, []);
+      await openSection(tester);
+
+      expect(find.byType(SectionPage), findsOneWidget);
+      expect(selection.selectedSection, isNull);
+    });
+
+    testWidgets('the section page opens the section', (tester) async {
+      await pumpExplorer(tester, []);
+      await openSection(tester);
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SectionPage), findsNothing);
+      expect(selection.selectedSection?.id, 's');
+    });
+
+    Future<void> rename(WidgetTester tester, String name) async {
+      await tester.tap(find.byIcon(Icons.edit));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.byType(TextField)),
+          name);
+    }
+
+    testWidgets('the section page renames the section', (tester) async {
+      final repository = await pumpExplorer(tester, []);
+      await openSection(tester);
+      await rename(tester, 'Main passage');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Main passage'), findsOneWidget);
+      expect(repository.savedSections.single.name, 'Main passage');
+    });
+
+    testWidgets('renaming the open section renames it in the other views',
+        (tester) async {
+      final repository = await pumpExplorer(tester, []);
+      await openSection(tester);
+      await rename(tester, 'Main passage');
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(selection.selectedSection?.name, 'Main passage');
+      expect(find.text('Main passage'), findsOneWidget);
+      expect(repository.savedSections.single.name, 'Main passage');
     });
   });
 }

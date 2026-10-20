@@ -474,6 +474,9 @@ class Survey {
     return total;
   }
 
+  /// Altitude difference between the highest and the lowest station
+  double get heightDifference => computeDepth(computeStationPositions());
+
   /// Calculates depth (difference between highest and lowest station)
   double computeDepth(Map<Point, StationPosition> positions) {
     if (positions.isEmpty) return 0;

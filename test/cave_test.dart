@@ -345,6 +345,23 @@ void main() {
       expect(c.tripsOnlyUsedBy('missing'), isEmpty);
     });
 
+    test('tripsUsedBy gives the trips a section measured on', () {
+      final shared = Trip(id: 'shared', date: now, createdAt: now);
+      final unused = Trip(id: 'unused', date: now, createdAt: now);
+      const sharedStretch = MeasuredDistance(
+          Point(1, 1), Point(1, 2), 5.0, 90.0, 0.0,
+          tripId: 'shared');
+      final a2 = section('a2', [sharedStretch, tripStretch, sharedStretch]);
+      final c = cave()
+          .addTrip(trip)
+          .addTrip(shared)
+          .addTrip(unused)
+          .replaceSection(a2);
+
+      expect(c.tripsUsedBy(a2), [trip, shared]);
+      expect(c.tripsUsedBy(section('root', [stretch])), isEmpty);
+    });
+
     test('a stretch keeps its trip through JSON and edits', () {
       final json = tripStretch.toJson();
       expect(MeasuredDistance.fromJson(json).tripId, 'trip');

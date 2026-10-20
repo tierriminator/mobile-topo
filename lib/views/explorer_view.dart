@@ -19,6 +19,7 @@ import '../models/explorer_path.dart';
 import '../models/survey.dart';
 import '../models/trip.dart';
 import 'cave_page.dart';
+import 'section_page.dart';
 import 'trip_page.dart';
 
 class ExplorerView extends StatefulWidget {
@@ -599,13 +600,59 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
+  /// The loaded section with [sectionId] in the cave with [caveId], if any
+  Section? _loadedSection(String caveId, String sectionId) => _explorerState
+      .findCave(caveId)
+      ?.allSections
+      .where((s) => s.id == sectionId)
+      .firstOrNull;
+
+  /// Opens the page of a section and saves its changed name
+  Future<void> _openSection(Section section, ExplorerPath path) async {
+    final repository = context.read<CaveRepository>();
+    final selectionState = context.read<SelectionState>();
+    final cave = _explorerState.findCave(path.caveId);
+    if (cave == null) return;
+
+    final name = await editSection(
+      context,
+      cave,
+      section,
+      isSelected: _explorerState.currentPath?.sectionId == section.id,
+      onSelect: () {
+        final current = _loadedSection(cave.id, section.id);
+        if (current != null) _selectSection(path, current);
+      },
+      onDelete: () => _deleteSection(section, cave.id),
+    );
+    if (name == null || !mounted) return;
+
+    // The section may have changed while the page was open; the selected
+    // one is changed through the selection, which the explorer follows
+    Section rename(Section s) =>
+        s.copyWith(name: name, modifiedAt: DateTime.now());
+    var renamed = selectionState.changeSection(section.id, rename);
+    if (renamed == null) {
+      final current = _loadedSection(cave.id, section.id);
+      if (current == null) return;
+      renamed = rename(current);
+      setState(() {
+        _explorerState = _explorerState.copyWith(caves: [
+          for (final c in _explorerState.caves)
+            c.id == cave.id ? c.replaceSection(renamed!) : c,
+        ]);
+      });
+    }
+    await repository.saveSection(cave.id, renamed);
+  }
+
   /// Deletes a section after asking, and the trips only it used unless the
-  /// user keeps them
-  Future<void> _deleteSection(Section section, String caveId) async {
+  /// user keeps them; returns whether it was deleted
+  Future<bool> _deleteSection(Section section, String caveId) async {
     final repository = context.read<CaveRepository>();
     final selectionState = context.read<SelectionState>();
     final cave = _explorerState.findCave(caveId);
-    if (cave == null) return;
+    if (cave == null) return false;
     final unusedTrips = cave.tripsOnlyUsedBy(section.id);
 
     final deleteTrips = await showDialog<bool>(
@@ -615,7 +662,7 @@ class ExplorerViewState extends State<ExplorerView> {
         tripCount: unusedTrips.length,
       ),
     );
-    if (deleteTrips == null || !mounted) return;
+    if (deleteTrips == null || !mounted) return false;
 
     // The cave may have changed while the dialog was open
     var updatedCave =
@@ -648,6 +695,7 @@ class ExplorerViewState extends State<ExplorerView> {
         await repository.deleteTrip(caveId, trip.id);
       }
     }
+    return true;
   }
 
   void _toggleExpanded(String id) {
@@ -928,7 +976,7 @@ class ExplorerViewState extends State<ExplorerView> {
       isExpanded: false,
       hasChildren: false,
       isSelected: isSelected,
-      onTap: () => _selectSection(path, section),
+      onTap: () => _openSection(section, path),
       trailing: cave == null
           ? null
           : _trailingMenu(

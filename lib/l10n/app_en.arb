@@ -396,6 +396,34 @@
   "@caveShowReferencePoints": {
     "description": "Button on the cave page showing the reference points in the data view"
   },
+  "sectionRename": "Rename",
+  "@sectionRename": {
+    "description": "Tooltip of the button editing the name of a section"
+  },
+  "sectionSelect": "Open",
+  "@sectionSelect": {
+    "description": "Button on the section page making it the section the data, map and sketch views show"
+  },
+  "sectionIsSelected": "Open section",
+  "@sectionIsSelected": {
+    "description": "Disabled button on the page of the section the data, map and sketch views show"
+  },
+  "sectionLength": "Surveyed length",
+  "@sectionLength": {
+    "description": "Length of all survey shots of a section"
+  },
+  "sectionHeight": "Height difference",
+  "@sectionHeight": {
+    "description": "Altitude difference between the highest and the lowest station of a section"
+  },
+  "sectionStations": "Stations",
+  "@sectionStations": {
+    "description": "Number of stations of a section"
+  },
+  "sectionTrips": "Trips",
+  "@sectionTrips": {
+    "description": "Number of trips the measurements of a section were taken on"
+  },
   "explorerDeleteCaveTitle": "Delete Cave",
   "@explorerDeleteCaveTitle": {
     "description": "Title of the dialog confirming that a cave is deleted"

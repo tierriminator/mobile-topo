@@ -272,6 +272,12 @@ class Cave {
     );
   }
 
+  /// Trips the given section measured on, in the order they were created
+  List<Trip> tripsUsedBy(Section section) {
+    final ids = {for (final s in section.survey.stretches) s.tripId};
+    return [for (final trip in trips) if (ids.contains(trip.id)) trip];
+  }
+
   /// Trips the given section measured on but no other section did, which
   /// are no longer used once the section is removed
   List<Trip> tripsOnlyUsedBy(String sectionId) {

@@ -291,14 +291,19 @@ UI widgets:
   files, each as a new section of a cave, adding the trips the cave does
   not have yet (same day, declination and comment); exports a cave or a
   section for Therion from its menu; opens a cave's page when the cave is
-  tapped (its arrow expands it); deletes a section after asking, along
-  with the trips no other section uses unless the user keeps them
+  tapped (its arrow expands it) and a section's page when the section is;
+  deletes a section after asking, along with the trips no other section
+  uses unless the user keeps them
 - **`cave_page.dart`**: Cave overview page titled with the cave's
   editable name: surveyed length and height difference of the whole cave,
   its coordinate system, the coordinates the automatic declination uses
   in that system (the first reference
   point's, or the Hölloch's with a warning and a way to the reference
   points), and deleting it
+- **`section_page.dart`**: Section overview page titled with the
+  section's editable name: surveyed length, height difference, number of
+  stations and of trips measured on, a button opening the section in the
+  data, map and sketch views, and deleting it
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units and the coordinate system for new caves, DistoX connection)
 - **`widgets/coordinate_system_field.dart`**: Picks a coordinate system, with zone and hemisphere for UTM; used on the cave page and in the options
 - **`widgets/data_tables.dart`**: Reusable table components

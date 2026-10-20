@@ -661,6 +661,48 @@ abstract class AppLocalizations {
   /// **'Reference points'**
   String get caveShowReferencePoints;
 
+  /// Tooltip of the button editing the name of a section
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get sectionRename;
+
+  /// Button on the section page making it the section the data, map and sketch views show
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get sectionSelect;
+
+  /// Disabled button on the page of the section the data, map and sketch views show
+  ///
+  /// In en, this message translates to:
+  /// **'Open section'**
+  String get sectionIsSelected;
+
+  /// Length of all survey shots of a section
+  ///
+  /// In en, this message translates to:
+  /// **'Surveyed length'**
+  String get sectionLength;
+
+  /// Altitude difference between the highest and the lowest station of a section
+  ///
+  /// In en, this message translates to:
+  /// **'Height difference'**
+  String get sectionHeight;
+
+  /// Number of stations of a section
+  ///
+  /// In en, this message translates to:
+  /// **'Stations'**
+  String get sectionStations;
+
+  /// Number of trips the measurements of a section were taken on
+  ///
+  /// In en, this message translates to:
+  /// **'Trips'**
+  String get sectionTrips;
+
   /// Title of the dialog confirming that a cave is deleted
   ///
   /// In en, this message translates to:
