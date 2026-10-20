@@ -67,6 +67,7 @@ mise run analyze       # flutter analyze
 mise run test          # flutter test
 mise run run           # flutter run  (append -- -d <device_id> for a device)
 mise run l10n          # flutter gen-l10n
+mise run icons         # render app icons from assets/logo/*.svg (macOS only)
 mise run build-macos   # flutter build macos --debug
 mise run build-apk     # flutter build apk --debug
 mise run build-apk-release  # signed release APK; releases: "Releasing" in README.md

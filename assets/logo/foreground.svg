@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- A survey line: three shots between four stations. Everything stays
+       within the central 66/108 circle that Android's adaptive icon masks
+       always show. -->
+  <polyline points="375,698 330,480 548,548 653,338" fill="none"
+            stroke="#dca64a" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#dca64a">
+    <circle cx="375" cy="698" r="60"/>
+    <circle cx="330" cy="480" r="60"/>
+    <circle cx="548" cy="548" r="60"/>
+    <circle cx="653" cy="338" r="60"/>
+  </g>
+  <g fill="#2e1f0b">
+    <circle cx="375" cy="698" r="26"/>
+    <circle cx="330" cy="480" r="26"/>
+    <circle cx="548" cy="548" r="26"/>
+    <circle cx="653" cy="338" r="26"/>
+  </g>
+</svg>

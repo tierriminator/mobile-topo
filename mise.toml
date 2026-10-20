@@ -31,6 +31,10 @@ run = "flutter test"
 description = "Regenerate localizations from lib/l10n/*.arb"
 run = "flutter gen-l10n"
 
+[tasks.icons]
+description = "Render the app icons for every platform from assets/logo (macOS only)"
+run = "swift tool/generate_icons.swift"
+
 [tasks.run]
 description = "Run the app (pass -- -d <device_id> to target a device)"
 run = "flutter run"
