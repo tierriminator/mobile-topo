@@ -254,10 +254,16 @@ class _TopReader {
         utc.second, utc.millisecond, utc.microsecond);
   }
 
+  /// Declination of trips set to automatic declination, which PocketTopo
+  /// applies as zero
+  static const int _autoDeclination = -0x8000;
+
   Trip _trip() {
     final time = _time();
     final comment = _string();
-    final declination = _degrees(_int16());
+    final rawDeclination = _int16();
+    final declination =
+        rawDeclination == _autoDeclination ? 0.0 : _degrees(rawDeclination);
     return Trip(
       id: _newId(),
       date: DateTime(time.year, time.month, time.day),

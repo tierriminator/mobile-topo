@@ -197,6 +197,15 @@ void main() {
       expect(second.declination, closeTo(-1.40625, 1e-9));
     });
 
+    test('reads automatic declination as zero', () {
+      final result = read(topFile(
+        tripCount: 1,
+        trips: (w) => w.trip(DateTime(2026, 10, 18), declination: -0x8000),
+      ));
+
+      expect(result.trips.single.declination, 0);
+    });
+
     test('shots refer to their trip by ID', () {
       final result = read(topFile(
         tripCount: 2,
