@@ -30,29 +30,4 @@ void main() {
           closeTo(5.208, 0.01));
     });
   });
-
-  group('GeoPosition.fromSwissGrid', () {
-    // Swisstopo's example: the old observatory in Bern
-    test('reads LV95 coordinates', () {
-      final position = GeoPosition.fromSwissGrid(2600000, 1200000)!;
-      expect(position.latitude, closeTo(46.95108, 1e-4));
-      expect(position.longitude, closeTo(7.43864, 1e-4));
-    });
-
-    test('reads LV03 coordinates', () {
-      final position = GeoPosition.fromSwissGrid(600000, 200000)!;
-      expect(position.latitude, closeTo(46.95108, 1e-4));
-      expect(position.longitude, closeTo(7.43864, 1e-4));
-    });
-
-    test('places the Hölloch at its entrance', () {
-      expect(GeoPosition.hoelloch.latitude, closeTo(46.97664, 1e-4));
-      expect(GeoPosition.hoelloch.longitude, closeTo(8.78839, 1e-4));
-    });
-
-    test('rejects coordinates outside Switzerland', () {
-      expect(GeoPosition.fromSwissGrid(0, 0), isNull);
-      expect(GeoPosition.fromSwissGrid(500000, 5200000), isNull);
-    });
-  });
 }

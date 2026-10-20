@@ -1,10 +1,15 @@
 import 'dart:math' as math;
 
+import 'package:proj4dart/proj4dart.dart' as proj4;
+
 import 'geo_position.dart';
 
 /// The coordinate system the East and North of a cave's reference points
 /// are given in. Coordinates are stored as entered and converted only for
 /// calculations that need positions on the earth or in metres.
+///
+/// The projections are computed by proj4dart from their EPSG definitions,
+/// the same PROJ uses, so positions agree with those Therion computes.
 sealed class CoordinateSystem {
   const CoordinateSystem();
 
@@ -56,34 +61,63 @@ sealed class CoordinateSystem {
   }
 }
 
-/// The Swiss grid: LV95 (East around 2'600'000 m) or LV03 (East around
-/// 600'000 m), told apart by their size
+/// Projections parsed from their definitions, each once
+final _projections = <String, proj4.Projection>{};
+
+proj4.Projection _projection(String definition) =>
+    _projections[definition] ??= proj4.Projection.parse(definition);
+
+/// [east] and [north] of [definition]'s projection on WGS84, or null if the
+/// result is no valid position
+GeoPosition? _inverse(String definition, num east, num north) {
+  final point = _projection(definition).transform(proj4.Projection.WGS84,
+      proj4.Point(x: east.toDouble(), y: north.toDouble()));
+  final position = GeoPosition(point.y, point.x);
+  return position.latitude.isFinite &&
+          position.longitude.isFinite &&
+          position.isValid
+      ? position
+      : null;
+}
+
+/// [position] projected by [definition]
+({double east, double north}) _forward(
+    String definition, GeoPosition position) {
+  final point = proj4.Projection.WGS84.transform(_projection(definition),
+      proj4.Point(x: position.longitude, y: position.latitude));
+  return (east: point.x, north: point.y);
+}
+
+/// The Swiss grid: LV95 (EPSG:2056, East around 2'600'000 m) or LV03
+/// (EPSG:21781, East around 600'000 m), told apart by their size
 class SwissGrid extends CoordinateSystem {
   const SwissGrid();
 
-  @override
-  GeoPosition? toGeo(num east, num north) =>
-      GeoPosition.fromSwissGrid(east, north);
+  /// The EPSG definitions, as PROJ has them
+  static const _lv95 = '+proj=somerc +lat_0=46.9524055555556 '
+      '+lon_0=7.43958333333333 +k_0=1 +x_0=2600000 +y_0=1200000 '
+      '+ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m '
+      '+no_defs';
+  static const _lv03 = '+proj=somerc +lat_0=46.9524055555556 '
+      '+lon_0=7.43958333333333 +k_0=1 +x_0=600000 +y_0=200000 '
+      '+ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m '
+      '+no_defs';
 
-  /// LV95 coordinates, by swisstopo's approximate formulas
+  /// Coordinates outside Switzerland in both LV95 and LV03, as local ones
+  /// are, do not fit
   @override
-  ({double east, double north}) fromGeo(GeoPosition position) {
-    // Latitude and longitude in units of 10000"
-    final phi = (position.latitude * 3600 - 169028.66) / 10000;
-    final lambda = (position.longitude * 3600 - 26782.5) / 10000;
-    final east = 2600072.37 +
-        211455.93 * lambda -
-        10938.51 * lambda * phi -
-        0.36 * lambda * phi * phi -
-        44.54 * lambda * lambda * lambda;
-    final north = 1200147.07 +
-        308807.95 * phi +
-        3745.25 * lambda * lambda +
-        76.63 * phi * phi -
-        194.56 * lambda * lambda * phi +
-        119.79 * phi * phi * phi;
-    return (east: east, north: north);
-  }
+  GeoPosition? toGeo(num east, num north) => switch ((east, north)) {
+        (>= 2480000 && <= 2840000, >= 1070000 && <= 1300000) =>
+          _inverse(_lv95, east, north),
+        (>= 480000 && <= 840000, >= 70000 && <= 300000) =>
+          _inverse(_lv03, east, north),
+        _ => null,
+      };
+
+  /// LV95 coordinates
+  @override
+  ({double east, double north}) fromGeo(GeoPosition position) =>
+      _forward(_lv95, position);
 
   @override
   String toJson() => 'swiss';
@@ -110,124 +144,22 @@ class Utm extends CoordinateSystem {
         south: position.latitude < 0,
       );
 
-  static const double _a = 6378137;
-  static const double _f = 1 / 298.257223563;
-  static const double _k0 = 0.9996;
-  static const double _falseEasting = 500000;
-  static const double _southFalseNorthing = 10000000;
+  /// The definition of EPSG:326xx or EPSG:327xx
+  String get _definition =>
+      '+proj=utm +zone=$zone${south ? ' +south' : ''} +datum=WGS84 '
+      '+units=m +no_defs';
 
-  static const double _e2 = _f * (2 - _f);
-  static const double _ep2 = _e2 / (1 - _e2);
-
-  /// Longitude of the zone's central meridian in radians
-  double get _centralMeridian => ((zone - 1) * 6 - 180 + 3) * math.pi / 180;
-
-  /// Distance along the meridian from the equator to [phi]
-  static double _meridianArc(double phi) {
-    const e4 = _e2 * _e2;
-    const e6 = e4 * _e2;
-    return _a *
-        ((1 - _e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi -
-            (3 * _e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * math.sin(2 * phi) +
-            (15 * e4 / 256 + 45 * e6 / 1024) * math.sin(4 * phi) -
-            (35 * e6 / 3072) * math.sin(6 * phi));
-  }
-
-  /// Snyder's series for the transverse Mercator projection, accurate to
-  /// well below a metre within a zone
   @override
-  ({double east, double north}) fromGeo(GeoPosition position) {
-    final phi = position.latitude * math.pi / 180;
-    final lambda = position.longitude * math.pi / 180;
-    final sinPhi = math.sin(phi);
-    final cosPhi = math.cos(phi);
-    final n = _a / math.sqrt(1 - _e2 * sinPhi * sinPhi);
-    final t = math.tan(phi) * math.tan(phi);
-    final c = _ep2 * cosPhi * cosPhi;
-    final a = cosPhi * (lambda - _centralMeridian);
-    final a2 = a * a;
+  ({double east, double north}) fromGeo(GeoPosition position) =>
+      _forward(_definition, position);
 
-    final east = _falseEasting +
-        _k0 *
-            n *
-            (a +
-                (1 - t + c) * a2 * a / 6 +
-                (5 - 18 * t + t * t + 72 * c - 58 * _ep2) * a2 * a2 * a / 120);
-    var north = _k0 *
-        (_meridianArc(phi) +
-            n *
-                math.tan(phi) *
-                (a2 / 2 +
-                    (5 - t + 9 * c + 4 * c * c) * a2 * a2 / 24 +
-                    (61 - 58 * t + t * t + 600 * c - 330 * _ep2) *
-                        a2 *
-                        a2 *
-                        a2 /
-                        720));
-    if (south) north += _southFalseNorthing;
-    return (east: east, north: north);
-  }
-
-  /// The inverse of [fromGeo]. Coordinates far outside a zone, like local
-  /// ones near zero, do not fit.
+  /// Coordinates far outside a zone, like local ones near zero, do not fit
   @override
   GeoPosition? toGeo(num east, num north) {
     if (east < 100000 || east > 900000 || north < 0 || north > 10000000) {
       return null;
     }
-    final x = east - _falseEasting;
-    final y = south ? north - _southFalseNorthing : north.toDouble();
-
-    const e4 = _e2 * _e2;
-    const e6 = e4 * _e2;
-    final mu = y / _k0 / (_a * (1 - _e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256));
-    final e1 = (1 - math.sqrt(1 - _e2)) / (1 + math.sqrt(1 - _e2));
-    final phi1 = mu +
-        (3 * e1 / 2 - 27 * math.pow(e1, 3) / 32) * math.sin(2 * mu) +
-        (21 * e1 * e1 / 16 - 55 * math.pow(e1, 4) / 32) * math.sin(4 * mu) +
-        (151 * math.pow(e1, 3) / 96) * math.sin(6 * mu) +
-        (1097 * math.pow(e1, 4) / 512) * math.sin(8 * mu);
-
-    final sinPhi1 = math.sin(phi1);
-    final cosPhi1 = math.cos(phi1);
-    final tanPhi1 = math.tan(phi1);
-    final c1 = _ep2 * cosPhi1 * cosPhi1;
-    final t1 = tanPhi1 * tanPhi1;
-    final n1 = _a / math.sqrt(1 - _e2 * sinPhi1 * sinPhi1);
-    final r1 = _a * (1 - _e2) / math.pow(1 - _e2 * sinPhi1 * sinPhi1, 1.5);
-    final d = x / (n1 * _k0);
-    final d2 = d * d;
-
-    final phi = phi1 -
-        (n1 * tanPhi1 / r1) *
-            (d2 / 2 -
-                (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * _ep2) * d2 * d2 / 24 +
-                (61 +
-                        90 * t1 +
-                        298 * c1 +
-                        45 * t1 * t1 -
-                        252 * _ep2 -
-                        3 * c1 * c1) *
-                    d2 *
-                    d2 *
-                    d2 /
-                    720);
-    final lambda = _centralMeridian +
-        (d -
-                (1 + 2 * t1 + c1) * d2 * d / 6 +
-                (5 -
-                        2 * c1 +
-                        28 * t1 -
-                        3 * c1 * c1 +
-                        8 * _ep2 +
-                        24 * t1 * t1) *
-                    d2 *
-                    d2 *
-                    d /
-                    120) /
-            cosPhi1;
-    final position = GeoPosition(phi * 180 / math.pi, lambda * 180 / math.pi);
-    return position.isValid ? position : null;
+    return _inverse(_definition, east, north);
   }
 
   @override

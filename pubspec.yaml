@@ -47,6 +47,7 @@ dependencies:
   flutter_slidable: ^4.0.3
   file_picker: ^13.1.0
   geolocator: ^14.0.1
+  proj4dart: ^3.0.0
 
 dev_dependencies:
   flutter_test:

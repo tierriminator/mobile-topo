@@ -150,11 +150,13 @@ Pure domain objects without serialization logic:
   - `Area`: Organizational container (can nest)
   - `Section`: Leaf node containing survey data and sketches
 
-- **`geo_position.dart`**: `GeoPosition` in WGS84 degrees, converted from
-  Swiss grid coordinates (LV95 or LV03, told apart by size)
+- **`geo_position.dart`**: `GeoPosition` in WGS84 degrees
 
-- **`coordinate_system.dart`**: `CoordinateSystem` (`SwissGrid`, `Utm`,
-  `Wgs84`) converting East and North to and from a `GeoPosition`
+- **`coordinate_system.dart`**: `CoordinateSystem` (`SwissGrid` with LV95
+  and LV03 told apart by size, `Utm`, `Wgs84`) converting East and North
+  to and from a `GeoPosition`. The projections are computed by the
+  `proj4dart` package from their EPSG definitions, as PROJ (and so
+  Therion) has them; do not hand-roll projection formulas
 
 - **`magnetic_declination.dart`**: `MagneticDeclination.at` computes the
   declination for a position and date from the IGRF-14, whose coefficients

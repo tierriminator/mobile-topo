@@ -84,12 +84,45 @@ void main() {
     });
   });
 
-  test('SwissGrid converts to LV95', () {
+  group('SwissGrid', () {
+    const swiss = CoordinateSystem.swiss;
+
     // Swisstopo's example: the old observatory in Bern
-    final (:east, :north) =
-        CoordinateSystem.swiss.fromGeo(const GeoPosition(46.95108, 7.43864));
-    expect(east, closeTo(2600000, 2));
-    expect(north, closeTo(1200000, 2));
+    test('reads LV95 coordinates', () {
+      final position = swiss.toGeo(2600000, 1200000)!;
+      expect(position.latitude, closeTo(46.95108, 1e-4));
+      expect(position.longitude, closeTo(7.43864, 1e-4));
+    });
+
+    test('reads LV03 coordinates', () {
+      final lv03 = swiss.toGeo(600000, 200000)!;
+      final lv95 = swiss.toGeo(2600000, 1200000)!;
+      expect(lv03.latitude, closeTo(lv95.latitude, 1e-9));
+      expect(lv03.longitude, closeTo(lv95.longitude, 1e-9));
+    });
+
+    test('converts to LV95', () {
+      final (:east, :north) =
+          swiss.fromGeo(const GeoPosition(46.95108, 7.43864));
+      expect(east, closeTo(2600000, 2));
+      expect(north, closeTo(1200000, 2));
+    });
+
+    test('converts back and forth to the millimetre', () {
+      final (:east, :north) = swiss.fromGeo(swiss.toGeo(2702698, 1203724)!);
+      expect(east, closeTo(2702698, 1e-3));
+      expect(north, closeTo(1203724, 1e-3));
+    });
+
+    test('places the Hölloch at its entrance', () {
+      expect(GeoPosition.hoelloch.latitude, closeTo(46.97664, 1e-4));
+      expect(GeoPosition.hoelloch.longitude, closeTo(8.78839, 1e-4));
+    });
+
+    test('rejects coordinates outside Switzerland', () {
+      expect(swiss.toGeo(0, 0), isNull);
+      expect(swiss.toGeo(500000, 5200000), isNull);
+    });
   });
 
   test('Wgs84 takes longitude as East and latitude as North', () {
