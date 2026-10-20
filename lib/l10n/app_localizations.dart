@@ -453,6 +453,18 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
+  /// Menu item and dialog button to rename an item
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get explorerRename;
+
+  /// Title of the dialog renaming a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Cave'**
+  String get explorerRenameCaveTitle;
+
   /// Title of the dialog confirming that a cave is deleted
   ///
   /// In en, this message translates to:

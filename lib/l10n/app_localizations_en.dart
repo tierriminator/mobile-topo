@@ -203,6 +203,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerSectionName => 'Section name';
 
   @override
+  String get explorerRename => 'Rename';
+
+  @override
+  String get explorerRenameCaveTitle => 'Rename Cave';
+
+  @override
   String get explorerDeleteCaveTitle => 'Delete Cave';
 
   @override

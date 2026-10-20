@@ -243,7 +243,7 @@ UI widgets:
 - **`explorer_view.dart`**: Cave/section browser; imports PocketTopo
   files, each as a new section of a cave, adding the trips the cave does
   not have yet (same day, declination and comment); exports a cave or a
-  section for Therion from its menu; deletes a cave or a section after
+  section for Therion from its menu; renames a cave; deletes a cave or a section after
   asking, a section along with the trips no other section uses unless the
   user keeps them
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)

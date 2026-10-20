@@ -488,6 +488,37 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
+  /// Asks for a new name for a cave and saves it
+  Future<void> _renameCave(Cave cave) async {
+    final l10n = AppLocalizations.of(context)!;
+    final repository = context.read<CaveRepository>();
+
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _NewItemDialog(
+        title: l10n.explorerRenameCaveTitle,
+        labelText: l10n.explorerCaveName,
+        defaultName: cave.name,
+        actionLabel: l10n.explorerRename,
+      ),
+    );
+    final trimmed = name?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == cave.name) return;
+    if (!mounted) return;
+
+    // The cave may have changed while the dialog was open
+    final current = _explorerState.findCave(cave.id);
+    if (current == null) return;
+    final renamed =
+        current.copyWith(name: trimmed, modifiedAt: DateTime.now());
+    setState(() {
+      _explorerState = _explorerState.copyWith(caves: [
+        for (final c in _explorerState.caves) c.id == cave.id ? renamed : c,
+      ]);
+    });
+    await repository.saveCave(renamed);
+  }
+
   /// Deletes a cave with everything in it after asking
   Future<void> _deleteCave(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
@@ -678,6 +709,8 @@ class ExplorerViewState extends State<ExplorerView> {
                   _createTrip(cave);
                 case 'import_pocket_topo':
                   _importPocketTopo(cave);
+                case 'rename':
+                  _renameCave(cave);
                 case 'delete':
                   _deleteCave(cave);
                 default:
@@ -717,6 +750,16 @@ class ExplorerViewState extends State<ExplorerView> {
               ),
               ..._exportMenuItems(),
               const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'rename',
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit, size: 20),
+                    const SizedBox(width: 8),
+                    Text(l10n.explorerRename),
+                  ],
+                ),
+              ),
               _deleteMenuItem(),
             ],
           ),
@@ -1044,16 +1087,19 @@ class _DeleteSectionDialogState extends State<_DeleteSectionDialog> {
   }
 }
 
-/// Generic dialog for creating a new item (cave, section, area)
+/// Generic dialog for naming an item (cave, section, area), new or existing.
+/// The confirm button says [actionLabel], or "Create" if it is null.
 class _NewItemDialog extends StatefulWidget {
   final String title;
   final String labelText;
   final String defaultName;
+  final String? actionLabel;
 
   const _NewItemDialog({
     required this.title,
     required this.labelText,
     required this.defaultName,
+    this.actionLabel,
   });
 
   @override
@@ -1100,7 +1146,7 @@ class _NewItemDialogState extends State<_NewItemDialog> {
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: Text(l10n.create),
+          child: Text(widget.actionLabel ?? l10n.create),
         ),
       ],
     );

@@ -251,6 +251,14 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
+  "explorerRename": "Rename",
+  "@explorerRename": {
+    "description": "Menu item and dialog button to rename an item"
+  },
+  "explorerRenameCaveTitle": "Rename Cave",
+  "@explorerRenameCaveTitle": {
+    "description": "Title of the dialog renaming a cave"
+  },
   "explorerDeleteCaveTitle": "Delete Cave",
   "@explorerDeleteCaveTitle": {
     "description": "Title of the dialog confirming that a cave is deleted"
