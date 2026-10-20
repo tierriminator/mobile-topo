@@ -60,4 +60,7 @@ jobs:
         run: |
           apk="$RUNNER_TEMP/mobile-topo-$VERSION.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "$apk"
-          gh release create "$GITHUB_REF_NAME" "$apk" --title "Mobile Topo $VERSION" --generate-notes
+          # Versions with a suffix (1.2.3-alpha.1) are published as pre-releases.
+          prerelease=()
+          if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" "$apk" --title "Mobile Topo $VERSION" --generate-notes "${prerelease[@]}"

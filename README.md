@@ -193,7 +193,8 @@ Release builds without a key fail rather than fall back to the debug key.
 
 The workflow checks that the tag matches `pubspec.yaml`, runs analysis and
 tests, builds the APK and attaches it to a new release as
-`mobile-topo-<version>.apk`.
+`mobile-topo-<version>.apk`. Versions with a suffix, such as
+`1.0.0-alpha.1+1` tagged `v1.0.0-alpha.1`, are published as pre-releases.
 
 The application ID `ch.tierry.mobiletopo` must never change: Android would
 treat the app as a different one and existing installs would not get updates.
