@@ -31,12 +31,16 @@ class ViewTransform {
       (screen - size.center(Offset.zero) - offset) / scale;
 
   /// The transform a pinch or pan gesture that started on this transform
-  /// leads to: zoomed by [gestureScale] and moved by [focalPointDelta]
-  ViewTransform pinched(double gestureScale, Offset focalPointDelta) =>
-      ViewTransform(
-        scale: math.max(minScale, scale * gestureScale),
-        offset: offset + focalPointDelta,
-      );
+  /// leads to: zoomed by [gestureScale] around [startFocalPoint], with the
+  /// world point there following the fingers to [focalPoint]
+  ViewTransform pinched(Offset startFocalPoint, Offset focalPoint,
+      double gestureScale, Size size) {
+    final zoomed = zoomedAt(startFocalPoint, size, gestureScale);
+    return ViewTransform(
+      scale: zoomed.scale,
+      offset: zoomed.offset + focalPoint - startFocalPoint,
+    );
+  }
 
   /// Zoomed by [factor], keeping the world point under [screenPos] in place
   ViewTransform zoomedAt(Offset screenPos, Size size, double factor) {

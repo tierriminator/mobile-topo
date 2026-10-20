@@ -115,8 +115,8 @@ class _MapViewState extends State<MapView> {
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
-      _transform = _gestureStart.pinched(
-          details.scale, details.localFocalPoint - _gestureFocalPoint);
+      _transform = _gestureStart.pinched(_gestureFocalPoint,
+          details.localFocalPoint, details.scale, _canvasSize);
     });
   }
 

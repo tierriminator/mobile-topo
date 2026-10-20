@@ -407,8 +407,8 @@ class _SketchViewState extends State<SketchView> {
       _eraseAt(details.localFocalPoint);
     } else if (_sketchMode == SketchMode.move || details.pointerCount > 1) {
       setState(() {
-        _transform = _gestureStart.pinched(
-            details.scale, details.localFocalPoint - _gestureFocalPoint);
+        _transform = _gestureStart.pinched(_gestureFocalPoint,
+            details.localFocalPoint, details.scale, _canvasSize);
       });
     }
   }

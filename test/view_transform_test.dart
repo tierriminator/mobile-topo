@@ -18,16 +18,30 @@ void main() {
 
   group('pinched', () {
     test('zooms in without limit and pans', () {
+      const centre = Offset(200, 150);
       final pinched = const ViewTransform(scale: 100)
-          .pinched(1000, const Offset(10, 20));
+          .pinched(centre, centre + const Offset(10, 20), 1000, size);
 
       expect(pinched.scale, 100000);
       expect(pinched.offset, const Offset(10, 20));
     });
 
+    test('keeps the world point under the fingers between them', () {
+      const transform = ViewTransform(scale: 10, offset: Offset(7, 3));
+      const start = Offset(320, 90);
+      const end = Offset(250, 140);
+      final worldUnderFingers = transform.screenToWorld(start, size);
+
+      final pinched = transform.pinched(start, end, 2.5, size);
+
+      expect(pinched.scale, 25);
+      final moved = pinched.worldToScreen(worldUnderFingers, size) - end;
+      expect(moved.distance, lessThan(1e-9));
+    });
+
     test('stops zooming out at the minimum scale', () {
-      final pinched =
-          const ViewTransform(scale: 10).pinched(0.01, Offset.zero);
+      final pinched = const ViewTransform(scale: 10)
+          .pinched(Offset.zero, Offset.zero, 0.01, size);
 
       expect(pinched.scale, ViewTransform.minScale);
     });
