@@ -56,6 +56,34 @@ void main() {
     });
   });
 
+  group('trueNorthAzimuth', () {
+    // Close to the meridian convergence of the sphere, -Δλ·sin φ
+    test('is zero on the central meridian', () {
+      expect(const Utm(32).trueNorthAzimuth(const GeoPosition(47, 9)),
+          closeTo(0, 1e-6));
+    });
+
+    test('turns towards the central meridian away from it', () {
+      // West of the meridian at 9°E, true north lies east of grid north
+      expect(const Utm(32).trueNorthAzimuth(GeoPosition.hoelloch),
+          closeTo(0.155, 0.005));
+      expect(
+          const Utm(32).trueNorthAzimuth(const GeoPosition(47, 11)),
+          closeTo(-2 * 0.7314, 0.01));
+      // South of the equator, it turns the other way
+      expect(
+          const Utm(33, south: true)
+              .trueNorthAzimuth(const GeoPosition(-25, 17)),
+          closeTo(2 * 0.4226, 0.01));
+    });
+
+    test('is about a degree at the Hölloch in the Swiss grid', () {
+      // The Swiss grid is centred on Bern, 1.35° west of the Hölloch
+      expect(CoordinateSystem.swiss.trueNorthAzimuth(GeoPosition.hoelloch),
+          closeTo(-0.99, 0.03));
+    });
+  });
+
   test('SwissGrid converts to LV95', () {
     // Swisstopo's example: the old observatory in Bern
     final (:east, :north) =

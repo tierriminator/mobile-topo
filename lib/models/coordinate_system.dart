@@ -25,6 +25,20 @@ sealed class CoordinateSystem {
   /// in; otherwise they are degrees
   bool get isMetric => true;
 
+  /// The azimuth of true north at [position], measured from grid north in
+  /// degrees: the meridian convergence. Adding it turns a bearing against
+  /// true north into one against grid north. Found by projecting a short
+  /// step north, as the projections are conformal.
+  double trueNorthAzimuth(GeoPosition position) {
+    const step = 1e-4;
+    final from = fromGeo(position);
+    final to =
+        fromGeo(GeoPosition(position.latitude + step, position.longitude));
+    return math.atan2(to.east - from.east, to.north - from.north) *
+        180 /
+        math.pi;
+  }
+
   /// The name the system is stored by
   String toJson();
 

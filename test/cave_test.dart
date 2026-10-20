@@ -137,10 +137,42 @@ void main() {
         expect(c.declinationPosition, GeoPosition.hoelloch);
       });
 
+      test('is turned to grid north at the reference point', () {
+        const atHoelloch = ReferencePoint(Point(1, 0),
+            GeoPosition.hoellochEast, GeoPosition.hoellochNorth, 735);
+        final c = withReference(const [atHoelloch]);
+        final trueDeclination = MagneticDeclination.at(
+            GeoPosition.hoelloch, autoTrip.date);
+        expect(c.automaticDeclination(autoTrip.date),
+            closeTo(trueDeclination, 1e-6));
+        // Grid north lies about a degree west of true north there
+        expect(c.gridConvergence, closeTo(-0.99, 0.03));
+        expect(c.declinationOf(autoTrip),
+            closeTo(trueDeclination + c.gridConvergence, 1e-9));
+
+        // A manual declination is already against map north
+        expect(c.declinationOf(autoTrip.copyWith(autoDeclination: false)),
+            2.5);
+      });
+
+      test('is turned at the Hölloch without a usable reference point', () {
+        const local = ReferencePoint(Point(1, 0), 0, 0, 0);
+        expect(withReference(const [local]).gridConvergence,
+            closeTo(-0.99, 0.03));
+        expect(withReference(const []).gridConvergence, closeTo(-0.99, 0.03));
+        // In UTM, the Hölloch is close to the central meridian
+        expect(
+            withReference(const [])
+                .copyWith(coordinateSystem: const Utm(32))
+                .gridConvergence,
+            closeTo(0.155, 0.005));
+      });
+
       test('corrects azimuths instead of the manual declination', () {
         final c = withReference(const []);
-        final expected = 90 + MagneticDeclination.at(
-            GeoPosition.hoelloch, autoTrip.date);
+        final expected = 90 +
+            MagneticDeclination.at(GeoPosition.hoelloch, autoTrip.date) +
+            c.gridConvergence;
         expect(c.combinedSurvey.stretches.single.azimut,
             closeTo(expected, 1e-9));
       });

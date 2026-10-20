@@ -44,7 +44,11 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   computed (the default for new trips and PocketTopo's "auto" trips) from
   the trip date with the IGRF-14 magnetic model. It is computed at the
   cave's first reference point if it fits the cave's coordinate system,
-  else at the Hölloch entrance; the cave page warns about the latter
+  else at the Hölloch entrance; the cave page warns about the latter.
+  The model gives it against true north; positions use it against grid
+  north, adding the meridian convergence where it is computed, in the
+  cave's coordinate system. Manual declinations are against map north, as in
+  PocketTopo, and the Therion export writes them as `grid-angle`
 - **Coordinate systems**: each cave picks the system its reference points
   are given in: Swiss grid (the default), UTM with zone and hemisphere, or
   WGS84 longitude/latitude. Coordinates are stored as entered and only

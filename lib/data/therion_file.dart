@@ -65,9 +65,14 @@ class TherionFile {
         }
       }
       // Given even when zero or automatic, so Therion does not compute one
-      // of its own
+      // of its own. Automatic declinations are against true north, which
+      // Therion turns to grid north itself; manual ones are against map
+      // north, as in PocketTopo.
       out
-        ..writeln('    declination ${_angle(_declination(cave, trip))} degrees')
+        ..writeln(trip != null && trip.autoDeclination
+            ? '    declination '
+                '${_angle(cave.automaticDeclination(trip.date))} degrees'
+            : '    grid-angle ${_angle(trip?.declination ?? 0)} degrees')
         ..writeln('    data normal from to length compass clino');
       bool? flipped;
       for (final s in stretches) {
@@ -205,8 +210,8 @@ class TherionFile {
           ))
           .referencePoints;
 
-  /// The declination applied to the stretches of [trip], none if there is
-  /// no trip
+  /// The declination against grid north applied to the stretches of
+  /// [trip], none if there is no trip
   static num _declination(Cave cave, Trip? trip) =>
       trip == null ? 0 : cave.declinationOf(trip);
 

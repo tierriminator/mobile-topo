@@ -260,8 +260,9 @@ void main() {
     testWidgets('shows the computed declination instead of the field',
         (tester) async {
       await open(tester, tripToEdit: autoTrip);
-      // The cave has no position, so it is computed at the Hölloch
-      expect(find.text('3.7°'), findsOneWidget);
+      // The cave has no position, so it is computed at the Hölloch: 3.7°
+      // against true north, 2.7° against Swiss grid north
+      expect(find.text('2.7°'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Declination correction'),
           findsNothing);
     });
@@ -271,13 +272,13 @@ void main() {
       final result = await open(tester, tripToEdit: autoTrip);
       await tester.tap(find.text('Automatic declination'));
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, '3.7'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '2.7'), findsOneWidget);
 
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       final edited = await result;
       expect(edited?.autoDeclination, isFalse);
-      expect(edited?.declination, 3.7);
+      expect(edited?.declination, 2.7);
     });
 
     testWidgets('switching it on keeps the manual declination',

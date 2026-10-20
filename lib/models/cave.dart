@@ -323,10 +323,30 @@ class Cave {
   GeoPosition get declinationPosition =>
       referencePosition ?? GeoPosition.hoelloch;
 
-  /// The declination applied to the stretches of [trip]: computed from its
-  /// date at [declinationPosition] if it is automatic, its own otherwise
+  /// The system positions are computed in: the [coordinateSystem], or for
+  /// degrees the UTM zone of the [declinationPosition]
+  CoordinateSystem get _metricSystem => coordinateSystem.isMetric
+      ? coordinateSystem
+      : Utm.containing(declinationPosition);
+
+  /// The azimuth of true north against grid north at the
+  /// [declinationPosition], which turns a declination against true north
+  /// into one against grid north. Without a usable reference point, the
+  /// cave is taken to lie at the Hölloch in its coordinate system, as for
+  /// the declination itself.
+  double get gridConvergence =>
+      _metricSystem.trueNorthAzimuth(declinationPosition);
+
+  /// The magnetic declination against true north on [date] at the
+  /// [declinationPosition]
+  double automaticDeclination(DateTime date) =>
+      MagneticDeclination.at(declinationPosition, date);
+
+  /// The declination against grid north applied to the stretches of
+  /// [trip]: computed from its date if it is automatic, its own otherwise,
+  /// which is given against map north as in PocketTopo
   num declinationOf(Trip trip) => trip.autoDeclination
-      ? MagneticDeclination.at(declinationPosition, trip.date)
+      ? automaticDeclination(trip.date) + gridConvergence
       : trip.declination;
 
   /// [survey] ready for computing positions: each stretch's azimuth

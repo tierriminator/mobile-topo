@@ -156,7 +156,8 @@ void main() {
       expect(earlier, greaterThan(0));
       expect(later, greaterThan(earlier));
       expect(lines[later + 1], '    # Alice, Bob');
-      expect(lines[later + 2], '    declination 2.50 degrees');
+      // Manual declinations are against map north
+      expect(lines[later + 2], '    grid-angle 2.50 degrees');
       expect(lines[later + 3], '    data normal from to length compass clino');
     });
 
@@ -175,12 +176,20 @@ void main() {
     test('puts stretches without a trip last, with no declination', () {
       final last = lines.lastIndexOf('  centreline');
       expect(lines.sublist(last + 1, last + 6), [
-        '    declination 0.00 degrees',
+        '    grid-angle 0.00 degrees',
         '    data normal from to length compass clino',
         '    extend right',
         '    1.3 1.4 1.000 0.00 0.00',
         '  endcentreline',
       ]);
+    });
+
+    test('gives automatic declinations against true north', () {
+      final auto = trip.copyWith(autoDeclination: true);
+      final autoCave = cave.copyWith(trips: [earlierTrip, auto]);
+      final lines = TherionFile.survey(autoCave, [entrance], 'S').split('\n');
+      final value = autoCave.automaticDeclination(auto.date);
+      expect(lines, contains('    declination ${value.toStringAsFixed(2)} degrees'));
     });
 
     test('falls back to a plain survey name', () {
