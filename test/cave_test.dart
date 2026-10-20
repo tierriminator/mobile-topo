@@ -204,6 +204,18 @@ void main() {
           isEmpty);
     });
 
+    test('removeCave clears the selection only if it is in that cave', () {
+      final c = cave();
+      final state = SelectionState()..selectSection(c, c.sections.first);
+
+      state.removeCave('other cave');
+      expect(state.selectedSection?.id, 'root');
+
+      state.removeCave('cave');
+      expect(state.selectedSection, isNull);
+      expect(state.selectedCave, isNull);
+    });
+
     test('removeSection clears the selection if it is the selected one', () {
       final c = cave();
       final state = SelectionState()..selectSection(c, c.sections.first);

@@ -32,7 +32,8 @@ abstract class CaveRepository {
   /// Also saves all sections and trips that are part of the cave.
   Future<void> saveCave(Cave cave);
 
-  /// Delete a cave and all its sections.
+  /// Delete a cave with all its sections and trips, after the saves of its
+  /// sections called before.
   Future<void> deleteCave(String caveId);
 
   /// Load a single section.

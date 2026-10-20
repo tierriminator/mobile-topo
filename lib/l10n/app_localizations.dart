@@ -453,6 +453,18 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
+  /// Title of the dialog confirming that a cave is deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Cave'**
+  String get explorerDeleteCaveTitle;
+
+  /// Message of the dialog confirming that a cave is deleted
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" will be deleted with all its sections, measurements, sketches and trips. This cannot be undone.'**
+  String explorerDeleteCaveMessage(String name);
+
   /// Title of the dialog confirming that a section is deleted
   ///
   /// In en, this message translates to:

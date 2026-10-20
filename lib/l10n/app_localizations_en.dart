@@ -203,6 +203,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerSectionName => 'Section name';
 
   @override
+  String get explorerDeleteCaveTitle => 'Delete Cave';
+
+  @override
+  String explorerDeleteCaveMessage(String name) {
+    return '\"$name\" will be deleted with all its sections, measurements, sketches and trips. This cannot be undone.';
+  }
+
+  @override
   String get explorerDeleteSectionTitle => 'Delete Section';
 
   @override

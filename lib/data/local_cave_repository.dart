@@ -387,6 +387,12 @@ class LocalCaveRepository implements CaveRepository {
 
   @override
   Future<void> deleteCave(String caveId) async {
+    // Pending section saves would otherwise bring files of the cave back
+    await Future.wait([
+      for (final entry in _sectionWrites.entries)
+        if (entry.key.startsWith('$caveId/')) entry.value.catchError((_) {}),
+    ]);
+
     final cavesDir = await _cavesDir;
     final caveDir = _caveDir(cavesDir, caveId);
 

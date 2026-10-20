@@ -251,6 +251,17 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
+  "explorerDeleteCaveTitle": "Delete Cave",
+  "@explorerDeleteCaveTitle": {
+    "description": "Title of the dialog confirming that a cave is deleted"
+  },
+  "explorerDeleteCaveMessage": "\"{name}\" will be deleted with all its sections, measurements, sketches and trips. This cannot be undone.",
+  "@explorerDeleteCaveMessage": {
+    "description": "Message of the dialog confirming that a cave is deleted",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "explorerDeleteSectionTitle": "Delete Section",
   "@explorerDeleteSectionTitle": {
     "description": "Title of the dialog confirming that a section is deleted"

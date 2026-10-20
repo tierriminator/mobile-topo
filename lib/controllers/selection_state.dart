@@ -38,6 +38,12 @@ class SelectionState extends ChangeNotifier {
     return changed;
   }
 
+  /// Take over the removal of the cave with [caveId]: clears the selection
+  /// if it is in that cave
+  void removeCave(String caveId) {
+    if (_selectedCave?.id == caveId) clearSelection();
+  }
+
   /// Take over the removal of a section from the cave with [caveId]: clears
   /// the selection if it is the selected section, or removes it from the
   /// selected cave otherwise

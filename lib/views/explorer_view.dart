@@ -372,6 +372,20 @@ class ExplorerViewState extends State<ExplorerView> {
     ];
   }
 
+  /// Menu entry deleting a cave or section
+  PopupMenuItem<String> _deleteMenuItem() {
+    return PopupMenuItem(
+      value: 'delete',
+      child: Row(
+        children: [
+          const Icon(Icons.delete, size: 20),
+          const SizedBox(width: 8),
+          Text(AppLocalizations.of(context)!.explorerDelete),
+        ],
+      ),
+    );
+  }
+
   /// Handles a selected entry of [_exportMenuItems]
   void _onExportSelected(
       String value, Cave cave, List<Section> sections, String name) {
@@ -472,6 +486,50 @@ class ExplorerViewState extends State<ExplorerView> {
     _applyTrips(cave.removeTrip(trip.id));
     await repository.deleteTrip(cave.id, trip.id);
     return true;
+  }
+
+  /// Deletes a cave with everything in it after asking
+  Future<void> _deleteCave(Cave cave) async {
+    final l10n = AppLocalizations.of(context)!;
+    final repository = context.read<CaveRepository>();
+    final selectionState = context.read<SelectionState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.explorerDeleteCaveTitle),
+        content: Text(l10n.explorerDeleteCaveMessage(cave.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.explorerDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _explorerState = ExplorerState(
+        caves: [
+          for (final c in _explorerState.caves)
+            if (c.id != cave.id) c,
+        ],
+        currentPath: _explorerState.currentPath?.caveId == cave.id
+            ? null
+            : _explorerState.currentPath,
+      );
+    });
+    selectionState.removeCave(cave.id);
+
+    await repository.deleteCave(cave.id);
   }
 
   /// Deletes a section after asking, and the trips only it used unless the
@@ -620,6 +678,8 @@ class ExplorerViewState extends State<ExplorerView> {
                   _createTrip(cave);
                 case 'import_pocket_topo':
                   _importPocketTopo(cave);
+                case 'delete':
+                  _deleteCave(cave);
                 default:
                   _onExportSelected(value, cave, cave.allSections, cave.name);
               }
@@ -656,6 +716,8 @@ class ExplorerViewState extends State<ExplorerView> {
                 ),
               ),
               ..._exportMenuItems(),
+              const PopupMenuDivider(),
+              _deleteMenuItem(),
             ],
           ),
         ),
@@ -790,7 +852,6 @@ class ExplorerViewState extends State<ExplorerView> {
   }
 
   Widget _buildSectionNode(Section section, ExplorerPath parentPath, int depth) {
-    final l10n = AppLocalizations.of(context)!;
     final path = parentPath.toSection(section.id);
     final isSelected = _explorerState.currentPath?.sectionId == section.id;
     final cave = _explorerState.findCave(path.caveId);
@@ -818,16 +879,7 @@ class ExplorerViewState extends State<ExplorerView> {
               itemBuilder: (context) => [
                 ..._exportMenuItems(),
                 const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.delete, size: 20),
-                      const SizedBox(width: 8),
-                      Text(l10n.explorerDelete),
-                    ],
-                  ),
-                ),
+                _deleteMenuItem(),
               ],
             ),
     );
