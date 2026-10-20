@@ -453,6 +453,24 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
+  /// Title of the dialog confirming that a section is deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Section'**
+  String get explorerDeleteSectionTitle;
+
+  /// Message of the dialog confirming that a section is deleted
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" will be deleted with all its measurements and sketches. This cannot be undone.'**
+  String explorerDeleteSectionMessage(String name);
+
+  /// Checkbox in the dialog deleting a section: also deletes the trips no other section has measurements of
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Also delete the trip only this section uses} other{Also delete the {count} trips only this section uses}}'**
+  String explorerDeleteSectionTrips(int count);
+
   /// Explorer node listing the trips of a cave
   ///
   /// In en, this message translates to:

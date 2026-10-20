@@ -43,7 +43,7 @@ abstract class CaveRepository {
   /// Saves of the same section are written in the order they were called.
   Future<void> saveSection(String caveId, Section section);
 
-  /// Delete a section.
+  /// Delete a section, after the saves of it called before.
   /// Note: This only deletes the section files, not the reference in cave.json.
   /// Call saveCave after removing the section from the hierarchy.
   Future<void> deleteSection(String caveId, String sectionId);

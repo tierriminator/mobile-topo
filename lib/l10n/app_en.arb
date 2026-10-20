@@ -251,6 +251,24 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
+  "explorerDeleteSectionTitle": "Delete Section",
+  "@explorerDeleteSectionTitle": {
+    "description": "Title of the dialog confirming that a section is deleted"
+  },
+  "explorerDeleteSectionMessage": "\"{name}\" will be deleted with all its measurements and sketches. This cannot be undone.",
+  "@explorerDeleteSectionMessage": {
+    "description": "Message of the dialog confirming that a section is deleted",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "explorerDeleteSectionTrips": "{count, plural, =1{Also delete the trip only this section uses} other{Also delete the {count} trips only this section uses}}",
+  "@explorerDeleteSectionTrips": {
+    "description": "Checkbox in the dialog deleting a section: also deletes the trips no other section has measurements of",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "explorerTrips": "Trips",
   "@explorerTrips": {
     "description": "Explorer node listing the trips of a cave"

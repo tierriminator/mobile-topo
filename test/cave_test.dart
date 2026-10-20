@@ -56,6 +56,13 @@ void main() {
       expect(a2.survey.stretches, [stretch]);
       expect(updated.allSections.length, 3);
     });
+
+    test('removeSection removes a deeply nested section', () {
+      expect(cave().removeSection('a2').allSections.map((s) => s.id),
+          ['root', 'a1']);
+      expect(cave().removeSection('root').allSections.map((s) => s.id),
+          ['a1', 'a2']);
+    });
   });
 
   group('Trips', () {
@@ -105,6 +112,24 @@ void main() {
         c.replaceSection(section('a2', [tripStretch])).isTripUsed('trip'),
         isTrue,
       );
+    });
+
+    test('tripsOnlyUsedBy leaves out trips other sections or none use', () {
+      final shared = Trip(id: 'shared', date: now, createdAt: now);
+      final unused = Trip(id: 'unused', date: now, createdAt: now);
+      const sharedStretch = MeasuredDistance(
+          Point(1, 1), Point(1, 2), 5.0, 90.0, 0.0,
+          tripId: 'shared');
+      final c = cave()
+          .addTrip(trip)
+          .addTrip(shared)
+          .addTrip(unused)
+          .replaceSection(section('a2', [tripStretch, sharedStretch]))
+          .replaceSection(section('root', [sharedStretch]));
+
+      expect(c.tripsOnlyUsedBy('a2'), [trip]);
+      expect(c.tripsOnlyUsedBy('root'), isEmpty);
+      expect(c.tripsOnlyUsedBy('missing'), isEmpty);
     });
 
     test('a stretch keeps its trip through JSON and edits', () {
@@ -177,6 +202,27 @@ void main() {
               .survey
               .stretches,
           isEmpty);
+    });
+
+    test('removeSection clears the selection if it is the selected one', () {
+      final c = cave();
+      final state = SelectionState()..selectSection(c, c.sections.first);
+
+      state.removeSection('cave', 'root');
+
+      expect(state.selectedSection, isNull);
+      expect(state.selectedCave, isNull);
+    });
+
+    test('removeSection removes another section from the selected cave', () {
+      final c = cave();
+      final state = SelectionState()..selectSection(c, c.sections.first);
+
+      state.removeSection('cave', 'a2');
+      state.removeSection('other cave', 'a1');
+
+      expect(state.selectedSection?.id, 'root');
+      expect(state.selectedCave!.allSections.map((s) => s.id), ['root', 'a1']);
     });
 
     test('updateTrips takes over trips but keeps the selected sections', () {

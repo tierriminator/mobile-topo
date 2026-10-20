@@ -101,6 +101,14 @@ class Area {
     );
   }
 
+  /// Remove the section with the given ID (recursive)
+  Area removeSection(String sectionId) {
+    return copyWith(
+      subAreas: [for (final a in subAreas) a.removeSection(sectionId)],
+      sections: [for (final s in sections) if (s.id != sectionId) s],
+    );
+  }
+
   /// All sections in this area and its sub-areas (recursive)
   List<Section> get allSections => [
         ...sections,
@@ -229,6 +237,30 @@ class Cave {
       areas: [for (final a in areas) a.replaceSection(section)],
       sections: [for (final s in sections) s.id == section.id ? section : s],
     );
+  }
+
+  /// Remove the section with the given ID anywhere in the hierarchy
+  Cave removeSection(String sectionId) {
+    return copyWith(
+      areas: [for (final a in areas) a.removeSection(sectionId)],
+      sections: [for (final s in sections) if (s.id != sectionId) s],
+      modifiedAt: DateTime.now(),
+    );
+  }
+
+  /// Trips the given section measured on but no other section did, which
+  /// are no longer used once the section is removed
+  List<Trip> tripsOnlyUsedBy(String sectionId) {
+    final section =
+        allSections.where((s) => s.id == sectionId).firstOrNull;
+    if (section == null) return const [];
+    final rest = removeSection(sectionId);
+    return [
+      for (final trip in trips)
+        if (section.survey.stretches.any((s) => s.tripId == trip.id) &&
+            !rest.isTripUsed(trip.id))
+          trip,
+    ];
   }
 
   /// All sections in this cave, including those nested in areas

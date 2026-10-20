@@ -38,6 +38,20 @@ class SelectionState extends ChangeNotifier {
     return changed;
   }
 
+  /// Take over the removal of a section from the cave with [caveId]: clears
+  /// the selection if it is the selected section, or removes it from the
+  /// selected cave otherwise
+  void removeSection(String caveId, String sectionId) {
+    final selected = _selectedCave;
+    if (selected?.id != caveId) return;
+    if (_selectedSection?.id == sectionId) {
+      clearSelection();
+      return;
+    }
+    _selectedCave = selected!.removeSection(sectionId);
+    notifyListeners();
+  }
+
   /// Take over the trips of [cave] if it is the selected one
   void updateTrips(Cave cave) {
     final selected = _selectedCave;

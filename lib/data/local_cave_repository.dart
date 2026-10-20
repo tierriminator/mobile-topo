@@ -414,16 +414,18 @@ class LocalCaveRepository implements CaveRepository {
       });
 
   @override
-  Future<void> deleteSection(String caveId, String sectionId) async {
-    final cavesDir = await _cavesDir;
-    final caveDir = _caveDir(cavesDir, caveId);
-    final sectionsDir = _sectionsDir(caveDir);
-    final sectionDir = _sectionDir(sectionsDir, sectionId);
+  Future<void> deleteSection(String caveId, String sectionId) =>
+      // Queued so that a pending save does not bring the files back
+      _queueSectionWrite(caveId, sectionId, () async {
+        final cavesDir = await _cavesDir;
+        final caveDir = _caveDir(cavesDir, caveId);
+        final sectionsDir = _sectionsDir(caveDir);
+        final sectionDir = _sectionDir(sectionsDir, sectionId);
 
-    if (await sectionDir.exists()) {
-      await sectionDir.delete(recursive: true);
-    }
-  }
+        if (await sectionDir.exists()) {
+          await sectionDir.delete(recursive: true);
+        }
+      });
 
   @override
   Future<Section> importSection(String caveId, Section section) async {

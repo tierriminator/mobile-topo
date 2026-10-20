@@ -203,6 +203,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerSectionName => 'Section name';
 
   @override
+  String get explorerDeleteSectionTitle => 'Delete Section';
+
+  @override
+  String explorerDeleteSectionMessage(String name) {
+    return '\"$name\" will be deleted with all its measurements and sketches. This cannot be undone.';
+  }
+
+  @override
+  String explorerDeleteSectionTrips(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Also delete the $count trips only this section uses',
+      one: 'Also delete the trip only this section uses',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get explorerTrips => 'Trips';
 
   @override

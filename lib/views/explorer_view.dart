@@ -474,6 +474,57 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
+  /// Deletes a section after asking, and the trips only it used unless the
+  /// user keeps them
+  Future<void> _deleteSection(Section section, String caveId) async {
+    final repository = context.read<CaveRepository>();
+    final selectionState = context.read<SelectionState>();
+    final cave = _explorerState.findCave(caveId);
+    if (cave == null) return;
+    final unusedTrips = cave.tripsOnlyUsedBy(section.id);
+
+    final deleteTrips = await showDialog<bool>(
+      context: context,
+      builder: (context) => _DeleteSectionDialog(
+        sectionName: section.name,
+        tripCount: unusedTrips.length,
+      ),
+    );
+    if (deleteTrips == null || !mounted) return;
+
+    // The cave may have changed while the dialog was open
+    var updatedCave =
+        (_explorerState.findCave(caveId) ?? cave).removeSection(section.id);
+    if (deleteTrips) {
+      for (final trip in unusedTrips) {
+        updatedCave = updatedCave.removeTrip(trip.id);
+      }
+    }
+
+    setState(() {
+      _explorerState = ExplorerState(
+        caves: [
+          for (final c in _explorerState.caves)
+            c.id == caveId ? updatedCave : c,
+        ],
+        currentPath: _explorerState.currentPath?.sectionId == section.id
+            ? null
+            : _explorerState.currentPath,
+      );
+    });
+    selectionState
+      ..removeSection(caveId, section.id)
+      ..updateTrips(updatedCave);
+
+    await repository.saveCave(updatedCave);
+    await repository.deleteSection(caveId, section.id);
+    if (deleteTrips) {
+      for (final trip in unusedTrips) {
+        await repository.deleteTrip(caveId, trip.id);
+      }
+    }
+  }
+
   void _toggleExpanded(String id) {
     setState(() {
       if (_expandedIds.contains(id)) {
@@ -739,6 +790,7 @@ class ExplorerViewState extends State<ExplorerView> {
   }
 
   Widget _buildSectionNode(Section section, ExplorerPath parentPath, int depth) {
+    final l10n = AppLocalizations.of(context)!;
     final path = parentPath.toSection(section.id);
     final isSelected = _explorerState.currentPath?.sectionId == section.id;
     final cave = _explorerState.findCave(path.caveId);
@@ -755,9 +807,28 @@ class ExplorerViewState extends State<ExplorerView> {
       trailing: cave == null
           ? null
           : _trailingMenu(
-              onSelected: (value) =>
-                  _onExportSelected(value, cave, [section], section.name),
-              itemBuilder: (context) => _exportMenuItems(),
+              onSelected: (value) {
+                switch (value) {
+                  case 'delete':
+                    _deleteSection(section, cave.id);
+                  default:
+                    _onExportSelected(value, cave, [section], section.name);
+                }
+              },
+              itemBuilder: (context) => [
+                ..._exportMenuItems(),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete, size: 20),
+                      const SizedBox(width: 8),
+                      Text(l10n.explorerDelete),
+                    ],
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -858,6 +929,65 @@ class ExplorerViewState extends State<ExplorerView> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Asks whether to delete a section. Pops whether the trips only it uses
+/// are deleted too, or null if the user cancels.
+class _DeleteSectionDialog extends StatefulWidget {
+  final String sectionName;
+
+  /// Number of trips only this section uses
+  final int tripCount;
+
+  const _DeleteSectionDialog({
+    required this.sectionName,
+    required this.tripCount,
+  });
+
+  @override
+  State<_DeleteSectionDialog> createState() => _DeleteSectionDialogState();
+}
+
+class _DeleteSectionDialogState extends State<_DeleteSectionDialog> {
+  bool _deleteTrips = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return AlertDialog(
+      title: Text(l10n.explorerDeleteSectionTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.explorerDeleteSectionMessage(widget.sectionName)),
+          if (widget.tripCount > 0)
+            CheckboxListTile(
+              value: _deleteTrips,
+              onChanged: (value) => setState(() => _deleteTrips = value!),
+              title: Text(l10n.explorerDeleteSectionTrips(widget.tripCount)),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () =>
+              Navigator.of(context).pop(widget.tripCount > 0 && _deleteTrips),
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(l10n.explorerDelete),
+        ),
+      ],
     );
   }
 }
