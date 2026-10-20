@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'coordinate_system.dart';
 import 'geo_position.dart';
 import 'magnetic_declination.dart';
 import 'sketch.dart';
@@ -143,6 +144,9 @@ class Cave {
 
   /// Trips in the order they were created
   final List<Trip> trips;
+
+  /// The system the East and North of the reference points are given in
+  final CoordinateSystem coordinateSystem;
   final DateTime createdAt;
   final DateTime modifiedAt;
 
@@ -153,6 +157,7 @@ class Cave {
     this.areas = const [],
     this.sections = const [],
     this.trips = const [],
+    this.coordinateSystem = CoordinateSystem.swiss,
     required this.createdAt,
     required this.modifiedAt,
   });
@@ -163,6 +168,7 @@ class Cave {
     List<Area>? areas,
     List<Section>? sections,
     List<Trip>? trips,
+    CoordinateSystem? coordinateSystem,
     DateTime? modifiedAt,
   }) {
     return Cave(
@@ -172,6 +178,7 @@ class Cave {
       areas: areas ?? this.areas,
       sections: sections ?? this.sections,
       trips: trips ?? this.trips,
+      coordinateSystem: coordinateSystem ?? this.coordinateSystem,
       createdAt: createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
     );
@@ -304,14 +311,17 @@ class Cave {
       .expand((s) => s.survey.referencePoints)
       .firstOrNull;
 
-  /// Where the automatic declination is computed: at the
-  /// [firstReferencePoint] if it is in Swiss grid coordinates, else at the
-  /// Hölloch
-  GeoPosition get declinationPosition {
+  /// The position of the [firstReferencePoint], or null if there is none or
+  /// it does not fit the [coordinateSystem]
+  GeoPosition? get referencePosition {
     final ref = firstReferencePoint;
-    return (ref == null ? null : GeoPosition.fromSwissGrid(ref.east, ref.north)) ??
-        GeoPosition.hoelloch;
+    return ref == null ? null : coordinateSystem.toGeo(ref.east, ref.north);
   }
+
+  /// Where the automatic declination is computed: at the
+  /// [referencePosition], else at the Hölloch
+  GeoPosition get declinationPosition =>
+      referencePosition ?? GeoPosition.hoelloch;
 
   /// The declination applied to the stretches of [trip]: computed from its
   /// date at [declinationPosition] if it is automatic, its own otherwise
@@ -319,8 +329,10 @@ class Cave {
       ? MagneticDeclination.at(declinationPosition, trip.date)
       : trip.declination;
 
-  /// [survey] with each stretch's azimuth corrected by the declination of
-  /// its trip
+  /// [survey] ready for computing positions: each stretch's azimuth
+  /// corrected by the declination of its trip, and reference points in
+  /// metres. Coordinates in degrees are converted to the UTM zone of the
+  /// [declinationPosition] for this, so the whole cave shares one zone.
   Survey corrected(Survey survey) {
     final declinations = {for (final t in trips) t.id: declinationOf(t)};
     MeasuredDistance correct(MeasuredDistance stretch) {
@@ -329,7 +341,20 @@ class Cave {
       return stretch.copyWith(azimut: stretch.azimut + declination);
     }
 
-    return survey.copyWith(stretches: survey.stretches.map(correct).toList());
+    final metric = Utm.containing(declinationPosition);
+    ReferencePoint inMetres(ReferencePoint ref) {
+      final position = coordinateSystem.toGeo(ref.east, ref.north);
+      if (position == null) return ref;
+      final (:east, :north) = metric.fromGeo(position);
+      return ref.copyWith(east: east, north: north);
+    }
+
+    return survey.copyWith(
+      stretches: survey.stretches.map(correct).toList(),
+      referencePoints: coordinateSystem.isMetric
+          ? survey.referencePoints
+          : survey.referencePoints.map(inMetres).toList(),
+    );
   }
 
   /// Check if this cave is empty

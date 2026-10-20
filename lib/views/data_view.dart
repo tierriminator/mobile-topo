@@ -521,6 +521,12 @@ class _DataViewState extends State<DataView> {
         referencePoints.length - section.survey.referencePoints.length;
     final hasTrips =
         context.read<SelectionState>().selectedCave?.trips.isNotEmpty ?? false;
+    final inDegrees = context
+            .read<SelectionState>()
+            .selectedCave
+            ?.coordinateSystem
+            .isMetric ==
+        false;
 
     return IndexedStack(
       index: _mode == DataViewMode.stretches ? 0 : 1,
@@ -611,6 +617,7 @@ class _DataViewState extends State<DataView> {
                 key: _referencePointsTableKey,
                 data: referencePoints,
                 lengthUnit: settings.lengthUnit,
+                degrees: inDegrees,
                 readOnlyRows: pointOffset,
                 onShowStation: _viewNavigation.show,
                 sketchStations: section.survey.stations,

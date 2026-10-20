@@ -1,3 +1,5 @@
+import '../models/coordinate_system.dart';
+
 /// Area structure for cave.json - contains section references, not full sections.
 class AreaRef {
   final String id;
@@ -50,6 +52,7 @@ class CaveFile {
   final String? description;
   final DateTime createdAt;
   final DateTime modifiedAt;
+  final CoordinateSystem coordinateSystem;
   final List<AreaRef> areas;
   final List<String> rootSectionIds;
 
@@ -57,6 +60,7 @@ class CaveFile {
     required this.id,
     required this.name,
     this.description,
+    this.coordinateSystem = CoordinateSystem.swiss,
     required this.createdAt,
     required this.modifiedAt,
     this.areas = const [],
@@ -67,6 +71,7 @@ class CaveFile {
         'id': id,
         'name': name,
         if (description != null) 'description': description,
+        'coordinateSystem': coordinateSystem.toJson(),
         'createdAt': createdAt.toIso8601String(),
         'modifiedAt': modifiedAt.toIso8601String(),
         'areas': areas.map((a) => a.toJson()).toList(),
@@ -77,6 +82,8 @@ class CaveFile {
         id: json['id'] as String,
         name: json['name'] as String,
         description: json['description'] as String?,
+        coordinateSystem:
+            CoordinateSystem.fromJson(json['coordinateSystem'] as String?),
         createdAt: DateTime.parse(json['createdAt'] as String),
         modifiedAt: DateTime.parse(json['modifiedAt'] as String),
         areas: (json['areas'] as List?)

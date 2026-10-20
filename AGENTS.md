@@ -43,8 +43,13 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 - **Automatic declination**: a trip's declination is either set by hand or
   computed (the default for new trips and PocketTopo's "auto" trips) from
   the trip date with the IGRF-14 magnetic model. It is computed at the
-  cave's first reference point if it is in Swiss grid coordinates, else at
-  the Hölloch entrance; the cave page warns about the latter
+  cave's first reference point if it fits the cave's coordinate system,
+  else at the Hölloch entrance; the cave page warns about the latter
+- **Coordinate systems**: each cave picks the system its reference points
+  are given in: Swiss grid (the default), UTM with zone and hemisphere, or
+  WGS84 longitude/latitude. Coordinates are stored as entered and only
+  converted for calculations; degrees become metres in the UTM zone of the
+  cave for computing positions and exporting
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -126,16 +131,21 @@ Pure domain objects without serialization logic:
   made active
 
 - **`cave.dart`**: Explorer hierarchy
-  - `Cave`: Top-level container with areas, sections and trips; the trip
-    most recently created or made active is the active one. Its first
-    reference point gives its coordinates. `declinationOf` gives a trip's declination, computing automatic
-    ones at `declinationPosition`; `combinedSurvey` applies it to each
-    stretch's azimuth
+  - `Cave`: Top-level container with areas, sections, trips and the
+    coordinate system of its reference points; the trip most recently
+    created or made active is the active one. Its first reference point
+    gives its coordinates. `declinationOf` gives a trip's declination,
+    computing automatic ones at `declinationPosition`; `corrected` (and so
+    `combinedSurvey`) applies it to each stretch's azimuth and puts the
+    reference points in metres
   - `Area`: Organizational container (can nest)
   - `Section`: Leaf node containing survey data and sketches
 
 - **`geo_position.dart`**: `GeoPosition` in WGS84 degrees, converted from
   Swiss grid coordinates (LV95 or LV03, told apart by size)
+
+- **`coordinate_system.dart`**: `CoordinateSystem` (`SwissGrid`, `Utm`,
+  `Wgs84`) converting East and North to and from a `GeoPosition`
 
 - **`magnetic_declination.dart`**: `MagneticDeclination.at` computes the
   declination for a position and date from the IGRF-14, whose coefficients
@@ -263,7 +273,8 @@ UI widgets:
   with the trips no other section uses unless the user keeps them
 - **`cave_page.dart`**: Cave overview page titled with the cave's
   editable name: surveyed length and height difference of the whole cave,
-  the coordinates the automatic declination uses (the first reference
+  its coordinate system, the coordinates the automatic declination uses
+  in that system (the first reference
   point's, or the Hölloch's with a warning and a way to the reference
   points), and deleting it
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)

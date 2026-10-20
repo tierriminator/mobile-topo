@@ -748,6 +748,10 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
   final void Function(int index, ReferencePoint point)? onUpdate;
   final void Function(Point station)? onStartHere;
 
+  /// Whether East and North are longitude and latitude in degrees, which
+  /// are shown as they are rather than in the length unit
+  final bool degrees;
+
   const ReferencePointsTable({
     super.key,
     required super.data,
@@ -763,6 +767,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.lengthUnit,
     this.onUpdate,
     this.onStartHere,
+    this.degrees = false,
   });
 
   @override
@@ -792,8 +797,10 @@ class ReferencePointsTableState
   List<Widget> buildHeaderCells(AppLocalizations l10n) {
     return [
       _HeaderCell(text: l10n.columnId),
-      _HeaderCell(text: l10n.columnEast),
-      _HeaderCell(text: l10n.columnNorth),
+      _HeaderCell(
+          text: widget.degrees ? l10n.columnLongitude : l10n.columnEast),
+      _HeaderCell(
+          text: widget.degrees ? l10n.columnLatitude : l10n.columnNorth),
       _HeaderCell(text: l10n.columnAltitude),
     ];
   }
@@ -801,6 +808,10 @@ class ReferencePointsTableState
   @override
   List<Widget> buildDataCells(int index, ReferencePoint point) {
     final length = widget.lengthUnit;
+    // Degrees are kept as they are, with enough places for about 0.1 m
+    final degrees = widget.degrees;
+    num show(num value) => degrees ? value : length.fromMeters(value);
+    num store(num value) => degrees ? value : length.toMeters(value);
     return [
       _PointCell(
         point: point.id,
@@ -810,21 +821,21 @@ class ReferencePointsTableState
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: length.fromMeters(point.east),
+        value: show(point.east),
         signed: true,
+        decimalPlaces: degrees ? 6 : null,
         editable: isEditable(index),
         isEditing: isEditing(index, 1),
-        onChanged: (v) =>
-            _updatePoint(index, point, east: length.toMeters(v)),
+        onChanged: (v) => _updatePoint(index, point, east: store(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(
-        value: length.fromMeters(point.north),
+        value: show(point.north),
         signed: true,
+        decimalPlaces: degrees ? 6 : null,
         editable: isEditable(index),
         isEditing: isEditing(index, 2),
-        onChanged: (v) =>
-            _updatePoint(index, point, north: length.toMeters(v)),
+        onChanged: (v) => _updatePoint(index, point, north: store(v)),
         onEditingComplete: _clearEditing,
       ),
       _NumberCell(

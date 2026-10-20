@@ -79,6 +79,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get columnEast => 'East';
 
   @override
+  String get columnLongitude => 'Long.';
+
+  @override
+  String get columnLatitude => 'Lat.';
+
+  @override
   String get columnNorth => 'North';
 
   @override
@@ -226,9 +232,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get caveNoReferencePoint => 'The cave has no reference point yet.';
 
   @override
-  String caveNotSwissGrid(String station) {
-    return 'Reference point $station is not in the Swiss grid (LV95 or LV03).';
+  String caveNotInCoordinateSystem(String station) {
+    return 'Reference point $station does not fit the coordinate system.';
   }
+
+  @override
+  String get caveCoordinateSystem => 'Coordinate system';
+
+  @override
+  String get coordinateSystemSwiss => 'Swiss grid (LV95/LV03)';
+
+  @override
+  String get coordinateSystemUtm => 'UTM';
+
+  @override
+  String get coordinateSystemWgs84 => 'WGS84 longitude/latitude';
+
+  @override
+  String get caveUtmZone => 'Zone';
+
+  @override
+  String get caveUtmNorth => 'North';
+
+  @override
+  String get caveUtmSouth => 'South';
+
+  @override
+  String get caveLongitude => 'Longitude';
+
+  @override
+  String get caveLatitude => 'Latitude';
 
   @override
   String get caveShowReferencePoints => 'Reference points';

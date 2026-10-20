@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/views/cave_page.dart';
@@ -38,11 +39,11 @@ void main() {
 
   /// Opens the page for [cave], by default one with the [entrance], with
   /// [settings] and returns the pending result of editCave
-  Future<Future<String?>> open(WidgetTester tester,
+  Future<Future<CaveEdit?>> open(WidgetTester tester,
       {Cave? cave,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
-    late Future<String?> result;
+    late Future<CaveEdit?> result;
     await tester.pumpWidget(ChangeNotifierProvider(
       create: (_) => SettingsController(settings),
       child: MaterialApp(
@@ -135,24 +136,27 @@ void main() {
       await open(tester, cave: caveWith(const []));
       expect(find.text('Coordinates of the Hölloch (default)'),
           findsOneWidget);
-      expect(find.text('2702698.0 m'), findsOneWidget);
-      expect(find.text('1203724.0 m'), findsOneWidget);
+      expect(find.textContaining('27026'), findsOneWidget);
+      expect(find.textContaining('12037'), findsOneWidget);
       expect(find.text('The cave has no reference point yet.'),
           findsOneWidget);
     });
 
-    testWidgets('outside the Swiss grid are warned about', (tester) async {
+    testWidgets('not fitting the coordinate system are warned about',
+        (tester) async {
       await open(tester,
           cave: caveWith(const [ReferencePoint(Point(1, 0), 0, 0, 0)]));
       expect(find.text('Coordinates of the Hölloch (default)'),
           findsOneWidget);
-      expect(find.textContaining('Reference point 1.0 is not in the Swiss'),
+      expect(
+          find.text(
+              'Reference point 1.0 does not fit the coordinate system.'),
           findsOneWidget);
     });
 
     testWidgets('a warning leads to the reference points', (tester) async {
       var shown = 0;
-      late Future<String?> result;
+      late Future<CaveEdit?> result;
       await tester.pumpWidget(ChangeNotifierProvider(
         create: (_) => SettingsController(),
         child: MaterialApp(
@@ -177,13 +181,59 @@ void main() {
       expect(shown, 1);
       expect(find.byType(CavePage), findsNothing);
       // The page keeps its edits when leaving this way
-      expect(await result, 'Hölloch');
+      expect((await result)?.name, 'Hölloch');
     });
 
     testWidgets('usable ones offer no way to the reference points',
         (tester) async {
       await open(tester);
       expect(find.text('Reference points'), findsNothing);
+    });
+  });
+
+  group('coordinate system', () {
+    Future<void> choose(WidgetTester tester, String system) async {
+      await tester.tap(find.text('Swiss grid (LV95/LV03)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(system).last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is the Swiss grid by default', (tester) async {
+      await open(tester);
+      expect(find.text('Swiss grid (LV95/LV03)'), findsOneWidget);
+      expect(find.text('Zone'), findsNothing);
+    });
+
+    testWidgets('UTM starts in the zone of the cave, and can be changed',
+        (tester) async {
+      final result = await open(tester);
+      await choose(tester, 'UTM');
+      // The entrance lies in zone 32 north; its LV95 numbers do not fit
+      expect(find.text('32'), findsOneWidget);
+      expect(find.text('Reference point 1.0 does not fit the coordinate '
+              'system.'),
+          findsOneWidget);
+
+      await tester.tap(find.text('South'));
+      await tester.pumpAndSettle();
+      await leave(tester);
+      expect((await result)?.coordinateSystem, const Utm(32, south: true));
+    });
+
+    testWidgets('WGS84 shows the coordinates in degrees', (tester) async {
+      const lonLat = ReferencePoint(Point(1, 0), 8.788390, 46.976640, 700);
+      final result =
+          await open(tester, cave: caveWith(const [lonLat]));
+      await choose(tester, 'WGS84 longitude/latitude');
+
+      expect(find.text('Longitude'), findsOneWidget);
+      expect(find.text('8.788390°'), findsOneWidget);
+      expect(find.text('46.976640°'), findsOneWidget);
+      expect(find.text('700.0 m'), findsOneWidget);
+
+      await leave(tester);
+      expect((await result)?.coordinateSystem, CoordinateSystem.wgs84);
     });
   });
 
@@ -197,7 +247,7 @@ void main() {
     final result = await open(tester);
     await editName(tester, ' Hölloch ');
     await leave(tester);
-    expect(await result, 'Hölloch');
+    expect((await result)?.name, 'Hölloch');
   });
 
   testWidgets('an empty name keeps the old one', (tester) async {

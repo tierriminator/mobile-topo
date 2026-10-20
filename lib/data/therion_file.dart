@@ -24,7 +24,7 @@ class TherionFile {
       ..writeln('encoding utf-8')
       ..writeln('survey ${_surveyId(name)} -title ${_quoted(name)}');
 
-    final references = [for (final s in sections) ...s.survey.referencePoints];
+    final references = _references(cave, sections);
     if (references.isNotEmpty) {
       out
         ..writeln()
@@ -80,7 +80,7 @@ class TherionFile {
   static String pocketTopoText(Cave cave, List<Section> sections) {
     final out = StringBuffer();
 
-    final references = [for (final s in sections) ...s.survey.referencePoints];
+    final references = _references(cave, sections);
     if (references.isNotEmpty) {
       out.writeln('FIX');
       for (final ref in references) {
@@ -160,6 +160,18 @@ class TherionFile {
       if (byTrip[null] case final stretches?) (null, stretches),
     ];
   }
+
+  /// The reference points of [sections] in metres, as positions are
+  /// computed from them
+  static List<ReferencePoint> _references(Cave cave, List<Section> sections) =>
+      cave
+          .corrected(Survey(
+            stretches: const [],
+            referencePoints: [
+              for (final s in sections) ...s.survey.referencePoints
+            ],
+          ))
+          .referencePoints;
 
   /// The declination applied to the stretches of [trip], none if there is
   /// no trip

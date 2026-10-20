@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/controllers/selection_state.dart';
+import 'package:mobile_topo/data/cave_file.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/geo_position.dart';
 import 'package:mobile_topo/models/magnetic_declination.dart';
 import 'package:mobile_topo/models/survey.dart';
@@ -119,6 +121,16 @@ void main() {
             GeoPosition.hoelloch);
       });
 
+      test('is computed at the first reference point in other systems', () {
+        const lonLat = ReferencePoint(Point(1, 0), 18.4, -33.9, 0);
+        final c = withReference(const [lonLat])
+            .copyWith(coordinateSystem: CoordinateSystem.wgs84);
+        expect(c.declinationPosition, const GeoPosition(-33.9, 18.4));
+        // In the Swiss grid, the same numbers are local coordinates
+        expect(withReference(const [lonLat]).declinationPosition,
+            GeoPosition.hoelloch);
+      });
+
       test('is computed at the Hölloch without a reference point', () {
         final c = withReference(const []);
         expect(c.firstReferencePoint, isNull);
@@ -131,6 +143,39 @@ void main() {
             GeoPosition.hoelloch, autoTrip.date);
         expect(c.combinedSurvey.stretches.single.azimut,
             closeTo(expected, 1e-9));
+      });
+
+      test('positions are computed in metres from degrees', () {
+        // 0.001° of latitude apart: about 111 m
+        const first = ReferencePoint(Point(1, 0), 8.79, 46.98, 600);
+        const second = ReferencePoint(Point(2, 0), 8.79, 46.981, 610);
+        final c = withReference(const [first, second])
+            .copyWith(coordinateSystem: CoordinateSystem.wgs84);
+        final [a, b] = c.combinedSurvey.referencePoints;
+        expect(b.north - a.north, closeTo(111.2, 0.5));
+        expect(b.east - a.east, closeTo(0, 0.5));
+        expect(a.altitude, 600);
+        // The stored data keeps the degrees
+        expect(c.firstReferencePoint, first);
+
+        // Metric systems are kept as they are
+        final swiss = withReference(const [reference]);
+        expect(swiss.combinedSurvey.referencePoints.single, same(reference));
+      });
+
+      test('the coordinate system is stored with the cave', () {
+        final file = CaveFile(
+            id: 'c',
+            name: 'c',
+            coordinateSystem: const Utm(33, south: true),
+            createdAt: now,
+            modifiedAt: now);
+        expect(CaveFile.fromJson(file.toJson()).coordinateSystem,
+            const Utm(33, south: true));
+
+        // Caves stored before there was a choice are in the Swiss grid
+        final json = file.toJson()..remove('coordinateSystem');
+        expect(CaveFile.fromJson(json).coordinateSystem, CoordinateSystem.swiss);
       });
 
       test('survives a JSON round trip of the trip', () {

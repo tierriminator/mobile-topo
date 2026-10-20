@@ -492,11 +492,13 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
-  /// Opens the page of a cave and saves its changed name
+  /// Opens the page of a cave and saves its changed name and coordinate
+  /// system
   Future<void> _openCave(Cave cave) async {
     final repository = context.read<CaveRepository>();
+    final selectionState = context.read<SelectionState>();
 
-    final name = await editCave(
+    final edited = await editCave(
       context,
       cave,
       onDelete: () => _deleteCave(cave),
@@ -504,18 +506,23 @@ class ExplorerViewState extends State<ExplorerView> {
           ? null
           : () => _showReferencePoints(cave.id),
     );
-    if (name == null || !mounted) return;
+    if (edited == null || !mounted) return;
 
     // The cave may have changed while the page was open
     final current = _explorerState.findCave(cave.id);
     if (current == null) return;
-    final renamed = current.copyWith(name: name, modifiedAt: DateTime.now());
+    final updated = current.copyWith(
+      name: edited.name,
+      coordinateSystem: edited.coordinateSystem,
+      modifiedAt: DateTime.now(),
+    );
     setState(() {
       _explorerState = _explorerState.copyWith(caves: [
-        for (final c in _explorerState.caves) c.id == cave.id ? renamed : c,
+        for (final c in _explorerState.caves) c.id == cave.id ? updated : c,
       ]);
     });
-    await repository.saveCave(renamed);
+    selectionState.updateCoordinateSystem(updated);
+    await repository.saveCave(updated);
   }
 
   /// Shows the reference points of a cave in the data view, selecting the

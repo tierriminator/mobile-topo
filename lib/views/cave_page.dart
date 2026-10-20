@@ -3,20 +3,24 @@ import 'package:provider/provider.dart';
 import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/coordinate_system.dart';
 import '../models/geo_position.dart';
 import '../models/settings.dart';
 
-/// Opens the page for [cave] and returns its name as it is when the page is
-/// left, or null if it is unchanged or the cave was deleted. See
-/// [CavePage.onDelete] and [CavePage.onShowReferencePoints] for the
-/// callbacks.
-Future<String?> editCave(
+/// What the cave page changes about a cave
+typedef CaveEdit = ({String name, CoordinateSystem coordinateSystem});
+
+/// Opens the page for [cave] and returns its name and coordinate system as
+/// they are when the page is left, or null if they are unchanged or the
+/// cave was deleted. See [CavePage.onDelete] and
+/// [CavePage.onShowReferencePoints] for the callbacks.
+Future<CaveEdit?> editCave(
   BuildContext context,
   Cave cave, {
   Future<bool> Function()? onDelete,
   VoidCallback? onShowReferencePoints,
 }) async {
-  final name = await Navigator.of(context).push<String>(
+  final edited = await Navigator.of(context).push<CaveEdit>(
     MaterialPageRoute(
       builder: (context) => CavePage(
         cave: cave,
@@ -25,11 +29,17 @@ Future<String?> editCave(
       ),
     ),
   );
-  return name == cave.name ? null : name;
+  if (edited == null ||
+      (edited.name == cave.name &&
+          edited.coordinateSystem == cave.coordinateSystem)) {
+    return null;
+  }
+  return edited;
 }
 
 /// Page giving an overview of a cave, titled with its name, which it allows
-/// to change. Leaving the page pops it with the edited name.
+/// to change along with the coordinate system. Leaving the page pops it
+/// with the edits.
 class CavePage extends StatefulWidget {
   final Cave cave;
 
@@ -60,13 +70,17 @@ class _CavePageState extends State<CavePage> {
 
   /// Whether the title shows a text field to edit the name
   bool _editingName = false;
+  late CoordinateSystem _coordinateSystem;
 
   @override
   void initState() {
     super.initState();
     _settings = context.read<SettingsController>().settings;
     _nameController = TextEditingController(text: widget.cave.name);
+    _coordinateSystem = widget.cave.coordinateSystem;
   }
+
+  CaveEdit get _edited => (name: _name, coordinateSystem: _coordinateSystem);
 
   @override
   void dispose() {
@@ -137,19 +151,102 @@ class _CavePageState extends State<CavePage> {
     );
   }
 
+  /// A row with [label] and an angle in degrees
+  Widget _degrees(String label, num degrees) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(null),
+      title: Text(label),
+      trailing: Text(
+        '${degrees.toStringAsFixed(6)}°',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    );
+  }
+
   /// Closes the page, keeping the edits, and shows the reference points
   void _showReferencePoints() {
-    Navigator.of(context).pop(_name);
+    Navigator.of(context).pop(_edited);
     widget.onShowReferencePoints!();
   }
 
+  /// Choice of the coordinate system, with the zone and hemisphere for UTM
+  List<Widget> _coordinateSystemChoice(AppLocalizations l10n, Cave cave) {
+    final system = _coordinateSystem;
+    return [
+      DropdownButtonFormField<Type>(
+        initialValue: system.runtimeType,
+        decoration: InputDecoration(labelText: l10n.caveCoordinateSystem),
+        items: [
+          DropdownMenuItem(
+              value: SwissGrid, child: Text(l10n.coordinateSystemSwiss)),
+          DropdownMenuItem(value: Utm, child: Text(l10n.coordinateSystemUtm)),
+          DropdownMenuItem(
+              value: Wgs84, child: Text(l10n.coordinateSystemWgs84)),
+        ],
+        onChanged: (type) => setState(() {
+          _coordinateSystem = switch (type) {
+            const (Utm) => Utm.containing(cave.declinationPosition),
+            const (Wgs84) => CoordinateSystem.wgs84,
+            _ => CoordinateSystem.swiss,
+          };
+        }),
+      ),
+      if (system is Utm) ...[
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                initialValue: system.zone,
+                decoration: InputDecoration(labelText: l10n.caveUtmZone),
+                items: [
+                  for (var zone = 1; zone <= 60; zone++)
+                    DropdownMenuItem(value: zone, child: Text('$zone')),
+                ],
+                onChanged: (zone) => setState(() =>
+                    _coordinateSystem = Utm(zone!, south: system.south)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(value: false, label: Text(l10n.caveUtmNorth)),
+                ButtonSegment(value: true, label: Text(l10n.caveUtmSouth)),
+              ],
+              selected: {system.south},
+              onSelectionChanged: (selected) => setState(() =>
+                  _coordinateSystem =
+                      Utm(system.zone, south: selected.single)),
+            ),
+          ],
+        ),
+      ],
+      const SizedBox(height: 8),
+    ];
+  }
+
+  /// East and North in the cave's coordinate system: in degrees or in the
+  /// length unit
+  List<Widget> _eastNorth(AppLocalizations l10n, num east, num north) {
+    if (_coordinateSystem.isMetric) {
+      return [
+        _length(null, l10n.columnEast, east),
+        _length(null, l10n.columnNorth, north),
+      ];
+    }
+    return [
+      _degrees(l10n.caveLongitude, east),
+      _degrees(l10n.caveLatitude, north),
+    ];
+  }
+
   /// The coordinates the automatic declination uses: the cave's first
-  /// reference point if it is in Swiss grid coordinates, else the Hölloch's,
-  /// with a warning saying why
-  List<Widget> _coordinates(AppLocalizations l10n) {
-    final ref = widget.cave.firstReferencePoint;
-    final usable =
-        ref != null && GeoPosition.fromSwissGrid(ref.east, ref.north) != null;
+  /// reference point if it fits the coordinate system, else the Hölloch's
+  /// in that system, with a warning saying why
+  List<Widget> _coordinates(AppLocalizations l10n, Cave cave) {
+    final ref = cave.firstReferencePoint;
+    final usable = ref != null && cave.referencePosition != null;
     final heading = ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.place),
@@ -160,22 +257,21 @@ class _CavePageState extends State<CavePage> {
     if (usable) {
       return [
         heading,
-        _length(null, l10n.columnEast, ref.east),
-        _length(null, l10n.columnNorth, ref.north),
+        ..._eastNorth(l10n, ref.east, ref.north),
         _length(null, l10n.caveAltitude, ref.altitude),
       ];
     }
+    final hoelloch = _coordinateSystem.fromGeo(GeoPosition.hoelloch);
     return [
       heading,
-      _length(null, l10n.columnEast, GeoPosition.hoellochEast),
-      _length(null, l10n.columnNorth, GeoPosition.hoellochNorth),
+      ..._eastNorth(l10n, hoelloch.east, hoelloch.north),
       ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.warning_amber,
             color: Theme.of(context).colorScheme.error),
         title: Text(ref == null
             ? l10n.caveNoReferencePoint
-            : l10n.caveNotSwissGrid(ref.id.toString())),
+            : l10n.caveNotInCoordinateSystem(ref.id.toString())),
         trailing: widget.onShowReferencePoints == null
             ? null
             : TextButton(
@@ -189,12 +285,13 @@ class _CavePageState extends State<CavePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final cave = widget.cave;
+    // Positions and coordinates depend on the coordinate system as edited
+    final cave = widget.cave.copyWith(coordinateSystem: _coordinateSystem);
 
-    return PopScope<String>(
+    return PopScope<CaveEdit>(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) Navigator.of(context).pop(_name);
+        if (!didPop) Navigator.of(context).pop(_edited);
       },
       child: Scaffold(
         appBar: AppBar(title: _title(l10n), actions: [_nameButton(l10n)]),
@@ -204,7 +301,8 @@ class _CavePageState extends State<CavePage> {
             _length(Icons.straighten, l10n.caveLength, cave.totalLength),
             _length(Icons.height, l10n.caveHeight, cave.heightDifference),
             const Divider(height: 24),
-            ..._coordinates(l10n),
+            ..._coordinateSystemChoice(l10n, cave),
+            ..._coordinates(l10n, cave),
             if (widget.onDelete != null) ...[
               const SizedBox(height: 32),
               OutlinedButton.icon(

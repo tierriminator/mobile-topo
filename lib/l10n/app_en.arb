@@ -92,6 +92,14 @@
   "@columnEast": {
     "description": "Column header for east coordinate"
   },
+  "columnLongitude": "Long.",
+  "@columnLongitude": {
+    "description": "Column header for the longitude of a reference point given in WGS84 degrees"
+  },
+  "columnLatitude": "Lat.",
+  "@columnLatitude": {
+    "description": "Column header for the latitude of a reference point given in WGS84 degrees"
+  },
   "columnNorth": "North",
   "@columnNorth": {
     "description": "Column header for north coordinate"
@@ -282,12 +290,48 @@
   "@caveNoReferencePoint": {
     "description": "Warning on the cave page when the cave has no reference point"
   },
-  "caveNotSwissGrid": "Reference point {station} is not in the Swiss grid (LV95 or LV03).",
-  "@caveNotSwissGrid": {
-    "description": "Warning on the cave page when the first reference point cannot be located",
+  "caveNotInCoordinateSystem": "Reference point {station} does not fit the coordinate system.",
+  "@caveNotInCoordinateSystem": {
+    "description": "Warning on the cave page when the first reference point cannot be located in the cave's coordinate system",
     "placeholders": {
       "station": {"type": "String"}
     }
+  },
+  "caveCoordinateSystem": "Coordinate system",
+  "@caveCoordinateSystem": {
+    "description": "Label for the coordinate system the reference points of a cave are given in"
+  },
+  "coordinateSystemSwiss": "Swiss grid (LV95/LV03)",
+  "@coordinateSystemSwiss": {
+    "description": "The Swiss coordinate system"
+  },
+  "coordinateSystemUtm": "UTM",
+  "@coordinateSystemUtm": {
+    "description": "The Universal Transverse Mercator coordinate system"
+  },
+  "coordinateSystemWgs84": "WGS84 longitude/latitude",
+  "@coordinateSystemWgs84": {
+    "description": "Geographic coordinates in degrees, longitude as East and latitude as North"
+  },
+  "caveUtmZone": "Zone",
+  "@caveUtmZone": {
+    "description": "Label for the UTM zone of a cave"
+  },
+  "caveUtmNorth": "North",
+  "@caveUtmNorth": {
+    "description": "The northern hemisphere, for UTM"
+  },
+  "caveUtmSouth": "South",
+  "@caveUtmSouth": {
+    "description": "The southern hemisphere, for UTM"
+  },
+  "caveLongitude": "Longitude",
+  "@caveLongitude": {
+    "description": "Label for the longitude of a cave's coordinates"
+  },
+  "caveLatitude": "Latitude",
+  "@caveLatitude": {
+    "description": "Label for the latitude of a cave's coordinates"
   },
   "caveShowReferencePoints": "Reference points",
   "@caveShowReferencePoints": {

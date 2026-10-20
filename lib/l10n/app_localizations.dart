@@ -232,6 +232,18 @@ abstract class AppLocalizations {
   /// **'East'**
   String get columnEast;
 
+  /// Column header for the longitude of a reference point given in WGS84 degrees
+  ///
+  /// In en, this message translates to:
+  /// **'Long.'**
+  String get columnLongitude;
+
+  /// Column header for the latitude of a reference point given in WGS84 degrees
+  ///
+  /// In en, this message translates to:
+  /// **'Lat.'**
+  String get columnLatitude;
+
   /// Column header for north coordinate
   ///
   /// In en, this message translates to:
@@ -495,11 +507,65 @@ abstract class AppLocalizations {
   /// **'The cave has no reference point yet.'**
   String get caveNoReferencePoint;
 
-  /// Warning on the cave page when the first reference point cannot be located
+  /// Warning on the cave page when the first reference point cannot be located in the cave's coordinate system
   ///
   /// In en, this message translates to:
-  /// **'Reference point {station} is not in the Swiss grid (LV95 or LV03).'**
-  String caveNotSwissGrid(String station);
+  /// **'Reference point {station} does not fit the coordinate system.'**
+  String caveNotInCoordinateSystem(String station);
+
+  /// Label for the coordinate system the reference points of a cave are given in
+  ///
+  /// In en, this message translates to:
+  /// **'Coordinate system'**
+  String get caveCoordinateSystem;
+
+  /// The Swiss coordinate system
+  ///
+  /// In en, this message translates to:
+  /// **'Swiss grid (LV95/LV03)'**
+  String get coordinateSystemSwiss;
+
+  /// The Universal Transverse Mercator coordinate system
+  ///
+  /// In en, this message translates to:
+  /// **'UTM'**
+  String get coordinateSystemUtm;
+
+  /// Geographic coordinates in degrees, longitude as East and latitude as North
+  ///
+  /// In en, this message translates to:
+  /// **'WGS84 longitude/latitude'**
+  String get coordinateSystemWgs84;
+
+  /// Label for the UTM zone of a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Zone'**
+  String get caveUtmZone;
+
+  /// The northern hemisphere, for UTM
+  ///
+  /// In en, this message translates to:
+  /// **'North'**
+  String get caveUtmNorth;
+
+  /// The southern hemisphere, for UTM
+  ///
+  /// In en, this message translates to:
+  /// **'South'**
+  String get caveUtmSouth;
+
+  /// Label for the longitude of a cave's coordinates
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get caveLongitude;
+
+  /// Label for the latitude of a cave's coordinates
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get caveLatitude;
 
   /// Button on the cave page showing the reference points in the data view
   ///
