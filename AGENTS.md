@@ -318,6 +318,11 @@ UI widgets:
 
 - Uses Flutter's built-in localization with ARB files
 - Template file: `app_en.arb` (English)
+- German: `app_de.arb`, using the terms of PocketTopo's German manual
+  (Messdaten, Fixpunkte, Plan, Grundriss, Seitenriss, Querschnitt, Tour,
+  Messpunkt) and of the DistoX2 German calibration manual (Display oben,
+  rechts, unten, links), in Swiss spelling (ss for ß, «» quotes) as
+  PocketTopo has it. Every new string needs a German translation too
 - To add a new language: create `app_<locale>.arb` and run `flutter gen-l10n`
 - Access strings via `AppLocalizations.of(context)!.<key>`
 
