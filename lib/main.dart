@@ -15,6 +15,7 @@ import 'services/bluetooth_adapter_android.dart';
 import 'services/bluetooth_adapter_macos.dart';
 import 'services/calibration_service.dart';
 import 'services/distox_service.dart';
+import 'services/location_service.dart';
 import 'services/measurement_service.dart';
 import 'services/screen_density.dart';
 import 'views/data_view.dart';
@@ -83,6 +84,8 @@ void main() async {
         ChangeNotifierProvider.value(value: calibrationService),
         Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
         Provider<SettingsRepository>(create: (_) => settingsRepository),
+        Provider<LocationService>(
+            create: (_) => const GeolocatorLocationService()),
         Provider<ScreenDensity>.value(value: screenDensity),
       ],
       child: const MyApp(),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +17,7 @@ import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
+import 'package:mobile_topo/services/location_service.dart';
 import 'package:mobile_topo/services/measurement_service.dart';
 import 'package:mobile_topo/views/data_view.dart';
 
@@ -25,6 +28,25 @@ class _InMemoryCaveRepository implements CaveRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Location service whose fixes the test sends, or that reports [problem]
+class _FakeLocationService implements LocationService {
+  final LocationProblem? problem;
+  final fixesController = StreamController<LocationFix>();
+  LocationProblem? openedSettings;
+
+  _FakeLocationService([this.problem]);
+
+  @override
+  Future<LocationProblem?> prepare() async => problem;
+
+  @override
+  Stream<LocationFix> fixes() => fixesController.stream;
+
+  @override
+  Future<void> openSettings(LocationProblem problem) async =>
+      openedSettings = problem;
 }
 
 void main() {
@@ -52,6 +74,7 @@ void main() {
     MeasurementService measurementService, {
     ViewNavigation? navigation,
     SettingsController? settings,
+    LocationService? location,
   }) {
     return tester.pumpWidget(
       MultiProvider(
@@ -61,6 +84,8 @@ void main() {
           ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
           ChangeNotifierProvider.value(value: settings ?? SettingsController()),
           Provider<CaveRepository>.value(value: _InMemoryCaveRepository()),
+          Provider<LocationService>.value(
+              value: location ?? _FakeLocationService()),
         ],
         child: const MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -338,6 +363,112 @@ void main() {
       expect(find.text(formatNumber(east)), findsOneWidget);
       expect(find.text(formatNumber(north)), findsOneWidget);
       expect(find.text('2296.588'), findsOneWidget);
+    });
+
+    group('measuring a position', () {
+      final s = section(
+        's',
+        const Survey(
+          stretches: [],
+          referencePoints: [
+            ReferencePoint(Point(1, 0), 1, 2, 650,
+                coordinateSystem: CoordinateSystem.swiss),
+          ],
+        ),
+      );
+
+      /// Shows the reference points with [location] and opens the measuring
+      /// dialog from the row's menu
+      Future<SelectionState> open(
+          WidgetTester tester, _FakeLocationService location) async {
+        final selection = SelectionState()..selectSection(cave([s]), s);
+        final navigation = ViewNavigation();
+        await pumpDataView(
+            tester, selection, MeasurementService(SettingsController()),
+            navigation: navigation, location: location);
+        navigation.showReferencePoints();
+        await tester.pumpAndSettle();
+        await openMenuOn(tester, '1.0');
+        await tester.tap(find.text('Measure position'));
+        // The spinner shown while waiting never settles
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        return selection;
+      }
+
+      testWidgets('averages the fixes into the reference point',
+          (tester) async {
+        final location = _FakeLocationService();
+        final selection = await open(tester, location);
+        expect(find.text('Waiting for the first position…'), findsOneWidget);
+
+        location.fixesController
+          ..add(const LocationFix(
+              latitude: 46.9766,
+              longitude: 8.7884,
+              altitude: 735,
+              accuracy: 4))
+          ..add(const LocationFix(
+              latitude: 46.9768,
+              longitude: 8.7886,
+              altitude: 737,
+              accuracy: 4));
+        await tester.pump();
+        Finder inDialog(String text) => find.descendant(
+            of: find.byType(AlertDialog), matching: find.text(text));
+        expect(inDialog('2'), findsOneWidget);
+        expect(inDialog('±4.0 m'), findsOneWidget);
+
+        await tester.tap(find.text('Use position'));
+        await tester.pumpAndSettle();
+
+        final point =
+            selection.selectedSection!.survey.referencePoints.single;
+        expect(point.coordinateSystem, CoordinateSystem.wgs84);
+        expect(point.north, closeTo(46.9767, 1e-12));
+        expect(point.east, closeTo(8.7885, 1e-12));
+        expect(point.altitude, 736);
+        expect(point.id, const Point(1, 0));
+      });
+
+      testWidgets('keeps the altitude if none is measured', (tester) async {
+        final location = _FakeLocationService();
+        final selection = await open(tester, location);
+        location.fixesController.add(const LocationFix(
+            latitude: 46.9766, longitude: 8.7884, accuracy: 4));
+        await tester.pump();
+        await tester.tap(find.text('Use position'));
+        await tester.pumpAndSettle();
+
+        expect(selection.selectedSection!.survey.referencePoints.single.altitude,
+            650);
+      });
+
+      testWidgets('cancelling keeps the reference point', (tester) async {
+        final location = _FakeLocationService();
+        final selection = await open(tester, location);
+        location.fixesController.add(const LocationFix(
+            latitude: 46.9766, longitude: 8.7884, accuracy: 4));
+        await tester.pump();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        final point =
+            selection.selectedSection!.survey.referencePoints.single;
+        expect(point.east, 1);
+        expect(point.coordinateSystem, CoordinateSystem.swiss);
+      });
+
+      testWidgets('explains why it cannot measure', (tester) async {
+        final location = _FakeLocationService(LocationProblem.imprecise);
+        await open(tester, location);
+        expect(find.textContaining('approximate location'), findsOneWidget);
+        expect(find.text('Use position'), findsNothing);
+
+        await tester.tap(find.text('Open settings'));
+        await tester.pump();
+        expect(location.openedSettings, LocationProblem.imprecise);
+      });
     });
 
     testWidgets('a new reference point is at the last measured station',

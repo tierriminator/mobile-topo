@@ -237,6 +237,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get measurePosition => 'Measure position';
+
+  @override
+  String get measurePositionTitle => 'Measure Position';
+
+  @override
+  String get measurePositionHint =>
+      'Hold the device still under open sky. The longer you measure, the more exact the averaged position.';
+
+  @override
+  String get measurePositionWaiting => 'Waiting for the first position…';
+
+  @override
+  String get measurePositionFixes => 'Positions measured';
+
+  @override
+  String get measurePositionAccuracy => 'Current accuracy';
+
+  @override
+  String get measurePositionScatter => 'Scatter';
+
+  @override
+  String get measurePositionUse => 'Use position';
+
+  @override
+  String measurePositionFailed(String error) {
+    return 'The position could not be measured: $error';
+  }
+
+  @override
+  String get locationDisabled => 'Location services are turned off.';
+
+  @override
+  String get locationDenied => 'Mobile Topo may not use your location.';
+
+  @override
+  String get locationImprecise =>
+      'Mobile Topo may only use your approximate location, which is too coarse for a reference point. Allow the precise location.';
+
+  @override
+  String get locationOpenSettings => 'Open settings';
+
+  @override
   String get caveCoordinateSystem => 'Coordinate system';
 
   @override

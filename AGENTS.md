@@ -234,6 +234,15 @@ Business logic and external device communication:
   - Thresholds: distance <0.05m, angular difference <1.7°
   - Emits each measurement immediately, then notifies when triple detected
 
+- **`location_service.dart`**: `LocationService`, the device position for
+  measuring reference points; `GeolocatorLocationService` implements it
+  with the `geolocator` plugin at the best accuracy, on Android from the
+  satellite receiver with sea level altitudes (`useMSLAltitude`)
+
+- **`position_average.dart`**: `PositionAverage` averages position fixes
+  weighted by the inverse square of their accuracy and reports their
+  scatter
+
 ### Data Layer (`lib/data/`)
 
 Persistence and serialization:
@@ -295,6 +304,9 @@ UI widgets:
 - **`widgets/trip_picker.dart`**: Picks a trip by day from a calendar, then
   from a list if several trips share the day; used to change a shot's trip
   in the data view
+- **`widgets/position_measurement_dialog.dart`**: Measures the device
+  position for a reference point (from its row menu), averaging fixes
+  until the user takes the position, which is stored as WGS84 degrees
 - **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`
 
@@ -319,6 +331,7 @@ MultiProvider(
     ChangeNotifierProvider.value(value: measurementService),
     Provider<CaveRepository>(create: (_) => LocalCaveRepository()),
     Provider<SettingsRepository>(create: (_) => settingsRepository),
+    Provider<LocationService>(create: (_) => const GeolocatorLocationService()),
   ],
   child: const MyApp(),
 )

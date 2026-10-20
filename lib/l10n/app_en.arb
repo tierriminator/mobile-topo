@@ -297,6 +297,61 @@
       "station": {"type": "String"}
     }
   },
+  "measurePosition": "Measure position",
+  "@measurePosition": {
+    "description": "Menu item measuring the device's position for a reference point"
+  },
+  "measurePositionTitle": "Measure Position",
+  "@measurePositionTitle": {
+    "description": "Title of the dialog measuring the device's position"
+  },
+  "measurePositionHint": "Hold the device still under open sky. The longer you measure, the more exact the averaged position.",
+  "@measurePositionHint": {
+    "description": "Advice in the dialog measuring the device's position"
+  },
+  "measurePositionWaiting": "Waiting for the first position…",
+  "@measurePositionWaiting": {
+    "description": "Shown until the device reports its first position"
+  },
+  "measurePositionFixes": "Positions measured",
+  "@measurePositionFixes": {
+    "description": "Label for the number of positions averaged so far"
+  },
+  "measurePositionAccuracy": "Current accuracy",
+  "@measurePositionAccuracy": {
+    "description": "Label for the accuracy the device estimates for its latest position"
+  },
+  "measurePositionScatter": "Scatter",
+  "@measurePositionScatter": {
+    "description": "Label for how far the measured positions lie from their average"
+  },
+  "measurePositionUse": "Use position",
+  "@measurePositionUse": {
+    "description": "Button taking the averaged position for the reference point"
+  },
+  "measurePositionFailed": "The position could not be measured: {error}",
+  "@measurePositionFailed": {
+    "description": "Shown when the device fails to report its position",
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "locationDisabled": "Location services are turned off.",
+  "@locationDisabled": {
+    "description": "Shown when the device's location services are off"
+  },
+  "locationDenied": "Mobile Topo may not use your location.",
+  "@locationDenied": {
+    "description": "Shown when the app has no permission to use the location"
+  },
+  "locationImprecise": "Mobile Topo may only use your approximate location, which is too coarse for a reference point. Allow the precise location.",
+  "@locationImprecise": {
+    "description": "Shown when the app may only use the approximate location"
+  },
+  "locationOpenSettings": "Open settings",
+  "@locationOpenSettings": {
+    "description": "Button opening the system settings to allow the location"
+  },
   "caveCoordinateSystem": "Coordinate system",
   "@caveCoordinateSystem": {
     "description": "Label for the coordinate system the reference points of a cave are given in"

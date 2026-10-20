@@ -6,9 +6,11 @@
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
-    <!-- Discovery required a location permission before Android 12. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
+    <!-- Measuring the position of reference points; Bluetooth discovery
+         needed it too before Android 12. Precise location requires the
+         coarse one to be requested along with it. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Android 12 (API 31) and above: runtime permissions. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />

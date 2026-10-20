@@ -7,10 +7,12 @@ import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
+import '../models/coordinate_system.dart';
 import '../models/settings.dart';
 import '../models/survey.dart';
 import '../services/measurement_service.dart';
 import 'widgets/data_tables.dart';
+import 'widgets/position_measurement_dialog.dart';
 import 'widgets/trip_picker.dart';
 
 class DataView extends StatefulWidget {
@@ -284,6 +286,29 @@ class _DataViewState extends State<DataView> {
         section.id,
         (survey) =>
             survey.insertReferencePointAt(index, _newReferencePoint(survey)));
+  }
+
+  /// Measures the device's position for the reference point at [index] of
+  /// [section] and takes it as WGS84 degrees, as measured, so nothing is
+  /// lost converting. Without a measured altitude, the point keeps its own.
+  Future<void> _measureReferencePoint(Section section, int index) async {
+    final system =
+        context.read<SelectionState>().selectedCave?.coordinateSystem ??
+            CoordinateSystem.swiss;
+    final measured = await measurePosition(context, system);
+    if (measured == null || !mounted) return;
+    await _changeSurvey(section.id, (survey) {
+      final point = survey.referencePoints[index];
+      return survey.updateReferencePointAt(
+        index,
+        point.copyWith(
+          east: measured.longitude,
+          north: measured.latitude,
+          altitude: measured.altitude,
+          coordinateSystem: CoordinateSystem.wgs84,
+        ),
+      );
+    });
   }
 
   Future<void> _updateReferencePoint(
@@ -650,6 +675,8 @@ class _DataViewState extends State<DataView> {
                     index - pointOffset,
                     referencePoints[index].withComment(comment)),
                 onStartHere: (station) => _startNewSeries(section, station),
+                onMeasurePosition: (index) =>
+                    _measureReferencePoint(section, index - pointOffset),
                 onAdd: () => _addReferencePoint(section),
               ),
       ],

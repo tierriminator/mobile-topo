@@ -748,6 +748,9 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
   final void Function(int index, ReferencePoint point)? onUpdate;
   final void Function(Point station)? onStartHere;
 
+  /// Measures the device's position for the editable row at the index
+  final void Function(int index)? onMeasurePosition;
+
   /// Whether East and North are longitude and latitude in degrees rather
   /// than metres. Either way they are shown in the unit of their coordinate
   /// system, not in the length unit, which only the altitude is shown in.
@@ -768,6 +771,7 @@ class ReferencePointsTable extends EditableDataTable<ReferencePoint> {
     super.lengthUnit,
     this.onUpdate,
     this.onStartHere,
+    this.onMeasurePosition,
     this.degrees = false,
   });
 
@@ -865,6 +869,9 @@ class ReferencePointsTableState
       if (station != null)
         PopupMenuItem(value: 'startHere', child: Text(l10n.startHere)),
       if (!isReadOnly(index)) ...[
+        if (widget.onMeasurePosition != null)
+          PopupMenuItem(
+              value: 'measurePosition', child: Text(l10n.measurePosition)),
         PopupMenuItem(value: 'insertAbove', child: Text(l10n.insertAbove)),
         PopupMenuItem(value: 'insertBelow', child: Text(l10n.insertBelow)),
         PopupMenuItem(value: 'delete', child: Text(l10n.explorerDelete)),
@@ -878,6 +885,8 @@ class ReferencePointsTableState
     switch (value) {
       case 'startHere':
         widget.onStartHere?.call(station!);
+      case 'measurePosition':
+        widget.onMeasurePosition?.call(index);
       case 'insertAbove':
         widget.onInsertAbove?.call(index);
       case 'insertBelow':

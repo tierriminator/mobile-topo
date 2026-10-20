@@ -513,6 +513,84 @@ abstract class AppLocalizations {
   /// **'Reference point {station} does not fit the coordinate system.'**
   String caveNotInCoordinateSystem(String station);
 
+  /// Menu item measuring the device's position for a reference point
+  ///
+  /// In en, this message translates to:
+  /// **'Measure position'**
+  String get measurePosition;
+
+  /// Title of the dialog measuring the device's position
+  ///
+  /// In en, this message translates to:
+  /// **'Measure Position'**
+  String get measurePositionTitle;
+
+  /// Advice in the dialog measuring the device's position
+  ///
+  /// In en, this message translates to:
+  /// **'Hold the device still under open sky. The longer you measure, the more exact the averaged position.'**
+  String get measurePositionHint;
+
+  /// Shown until the device reports its first position
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the first position…'**
+  String get measurePositionWaiting;
+
+  /// Label for the number of positions averaged so far
+  ///
+  /// In en, this message translates to:
+  /// **'Positions measured'**
+  String get measurePositionFixes;
+
+  /// Label for the accuracy the device estimates for its latest position
+  ///
+  /// In en, this message translates to:
+  /// **'Current accuracy'**
+  String get measurePositionAccuracy;
+
+  /// Label for how far the measured positions lie from their average
+  ///
+  /// In en, this message translates to:
+  /// **'Scatter'**
+  String get measurePositionScatter;
+
+  /// Button taking the averaged position for the reference point
+  ///
+  /// In en, this message translates to:
+  /// **'Use position'**
+  String get measurePositionUse;
+
+  /// Shown when the device fails to report its position
+  ///
+  /// In en, this message translates to:
+  /// **'The position could not be measured: {error}'**
+  String measurePositionFailed(String error);
+
+  /// Shown when the device's location services are off
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are turned off.'**
+  String get locationDisabled;
+
+  /// Shown when the app has no permission to use the location
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Topo may not use your location.'**
+  String get locationDenied;
+
+  /// Shown when the app may only use the approximate location
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Topo may only use your approximate location, which is too coarse for a reference point. Allow the precise location.'**
+  String get locationImprecise;
+
+  /// Button opening the system settings to allow the location
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get locationOpenSettings;
+
   /// Label for the coordinate system the reference points of a cave are given in
   ///
   /// In en, this message translates to:
