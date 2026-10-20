@@ -39,11 +39,19 @@ void main() {
       expect(moved.distance, lessThan(1e-9));
     });
 
-    test('stops zooming out at the minimum scale', () {
+    test('zooms out without limit', () {
       final pinched = const ViewTransform(scale: 10)
-          .pinched(Offset.zero, Offset.zero, 0.01, size);
+          .pinched(Offset.zero, Offset.zero, 0.0001, size);
 
-      expect(pinched.scale, ViewTransform.minScale);
+      expect(pinched.scale, closeTo(0.001, 1e-12));
+    });
+
+    test('a pinch onto one point keeps the scale', () {
+      final pinched = const ViewTransform(scale: 10)
+          .pinched(Offset.zero, const Offset(3, 4), 0, size);
+
+      expect(pinched.scale, 10);
+      expect(pinched.offset, const Offset(3, 4));
     });
   });
 

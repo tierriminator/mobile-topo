@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
@@ -12,11 +10,7 @@ import '../../models/survey.dart';
 /// Transforms are immutable: panning and zooming produce new transforms.
 @immutable
 class ViewTransform {
-  /// Furthest a view can be zoomed out, in pixels per metre. Zooming in is
-  /// unlimited.
-  static const minScale = 5.0;
-
-  /// Pixels per metre
+  /// Pixels per metre; zooming is unlimited either way
   final double scale;
 
   /// Screen position of the world origin, relative to the canvas centre
@@ -42,9 +36,12 @@ class ViewTransform {
     );
   }
 
-  /// Zoomed by [factor], keeping the world point under [screenPos] in place
+  /// Zoomed by [factor], keeping the world point under [screenPos] in place.
+  /// A factor of zero or less, as of fingers pinched onto one point, leaves
+  /// the scale as it is.
   ViewTransform zoomedAt(Offset screenPos, Size size, double factor) {
-    final newScale = math.max(minScale, scale * factor);
+    if (factor <= 0) return this;
+    final newScale = scale * factor;
     final fromCenter = screenPos - size.center(Offset.zero);
     return ViewTransform(
       scale: newScale,
