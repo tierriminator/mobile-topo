@@ -259,6 +259,10 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
+  "caveOverview": "Cave overview",
+  "@caveOverview": {
+    "description": "Tooltip of the explorer button opening the page of a cave"
+  },
   "caveRename": "Rename",
   "@caveRename": {
     "description": "Tooltip of the button editing the name of a cave"

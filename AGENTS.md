@@ -291,9 +291,10 @@ UI widgets:
   a sections node (expanded by default) and a trips node, each with a plus
   button: the sections one adds an empty section or imports PocketTopo
   files, each as a new section of the cave, adding the trips the cave
-  does not have yet (same day, declination and comment). Opens a cave's
-  page when the cave is tapped (its arrow expands it) and a section's page
-  when the section is; the pages export and delete them, a section after
+  does not have yet (same day, declination and comment). Tapping a node
+  with children expands it; a cave's page opens from the info button at
+  the end of its row, a section's page when the section is tapped. The
+  pages export and delete them, a section after
   asking, along with the trips no other section uses unless the user
   keeps them
 - **`cave_page.dart`**: Cave overview page titled with the cave's

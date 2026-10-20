@@ -469,6 +469,12 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
+  /// Tooltip of the explorer button opening the page of a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Cave overview'**
+  String get caveOverview;
+
   /// Tooltip of the button editing the name of a cave
   ///
   /// In en, this message translates to:

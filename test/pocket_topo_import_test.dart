@@ -269,11 +269,11 @@ void main() {
   });
 
   group('cave row', () {
-    testWidgets('tapping the cave opens its page, which renames it',
+    testWidgets('the info button opens the cave page, which renames it',
         (tester) async {
       final repository = await pumpExplorer(tester, []);
 
-      await tester.tap(find.text('Cave'));
+      await tester.tap(find.byTooltip('Cave overview'));
       await tester.pumpAndSettle();
       expect(find.byType(CavePage), findsOneWidget);
 
@@ -293,7 +293,7 @@ void main() {
     testWidgets('the cave page leads to the reference points of a section',
         (tester) async {
       await pumpExplorer(tester, []);
-      await tester.tap(find.text('Cave'));
+      await tester.tap(find.byTooltip('Cave overview'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Reference points'));
@@ -318,16 +318,21 @@ void main() {
       expect(repository.cave.coordinateSystem, const Utm(33));
     });
 
-    testWidgets('tapping the arrow expands the cave', (tester) async {
+    testWidgets('tapping the cave expands and collapses it', (tester) async {
       await pumpExplorer(tester, []);
       expect(find.text('Section'), findsNothing);
 
-      await expandCave(tester);
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
 
       expect(find.text('Sections'), findsOneWidget);
       expect(find.text('Section'), findsOneWidget);
       expect(find.text('Trips'), findsOneWidget);
       expect(find.byType(CavePage), findsNothing);
+
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sections'), findsNothing);
     });
 
     testWidgets('the cave row has no menu, its page exports and deletes',
@@ -335,7 +340,7 @@ void main() {
       await pumpExplorer(tester, []);
       expect(find.byIcon(Icons.more_vert), findsNothing);
 
-      await tester.tap(find.text('Cave'));
+      await tester.tap(find.byTooltip('Cave overview'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Delete'), 100,
           scrollable: find.byType(Scrollable).first);

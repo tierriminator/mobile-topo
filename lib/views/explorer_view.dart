@@ -799,8 +799,13 @@ class ExplorerViewState extends State<ExplorerView> {
           depth: 0,
           isExpanded: isExpanded,
           hasChildren: true, // Always show expand arrow for caves
-          onTap: () => _openCave(cave),
-          onExpand: () => _toggleExpanded(cave.id),
+          onTap: () => _toggleExpanded(cave.id),
+          trailing: IconButton(
+            icon: const Icon(Icons.info_outline, size: 20),
+            style: _trailingButtonStyle,
+            onPressed: () => _openCave(cave),
+            tooltip: AppLocalizations.of(context)!.caveOverview,
+          ),
         ),
         if (isExpanded) ...[
           _buildSectionsNode(cave),
@@ -1009,14 +1014,8 @@ class ExplorerViewState extends State<ExplorerView> {
     required bool hasChildren,
     bool isSelected = false,
     VoidCallback? onTap,
-    VoidCallback? onExpand,
     Widget? trailing,
   }) {
-    final arrow = Icon(
-      isExpanded ? Icons.expand_more : Icons.chevron_right,
-      size: 20,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1030,15 +1029,12 @@ class ExplorerViewState extends State<ExplorerView> {
         ),
         child: Row(
           children: [
-            if (hasChildren && onExpand != null)
-              // A target of its own, as tapping the row does something else
-              InkResponse(
-                onTap: onExpand,
-                radius: 20,
-                child: arrow,
+            if (hasChildren)
+              Icon(
+                isExpanded ? Icons.expand_more : Icons.chevron_right,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               )
-            else if (hasChildren)
-              arrow
             else
               const SizedBox(width: 20),
             const SizedBox(width: 4),

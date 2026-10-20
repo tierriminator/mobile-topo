@@ -209,6 +209,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get explorerSectionName => 'Name des Abschnitts';
 
   @override
+  String get caveOverview => 'Höhlenübersicht';
+
+  @override
   String get caveRename => 'Umbenennen';
 
   @override
