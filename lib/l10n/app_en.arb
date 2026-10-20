@@ -251,25 +251,21 @@
   "@explorerSectionName": {
     "description": "Label for section name input"
   },
-  "explorerRename": "Rename",
-  "@explorerRename": {
-    "description": "Menu item and dialog button to rename an item"
+  "caveRename": "Rename",
+  "@caveRename": {
+    "description": "Tooltip of the button editing the name of a cave"
   },
-  "explorerRenameCaveTitle": "Rename Cave",
-  "@explorerRenameCaveTitle": {
-    "description": "Title of the dialog renaming a cave"
+  "caveLength": "Surveyed length",
+  "@caveLength": {
+    "description": "Length of all survey shots of a cave"
   },
-  "explorerCaveLocation": "Location",
-  "@explorerCaveLocation": {
-    "description": "Menu item setting where a cave lies"
+  "caveHeight": "Height difference",
+  "@caveHeight": {
+    "description": "Altitude difference between the highest and the lowest station of a cave"
   },
-  "explorerCaveLocationTitle": "Cave Location",
-  "@explorerCaveLocationTitle": {
-    "description": "Title of the dialog setting where a cave lies"
-  },
-  "explorerCaveLocationHelp": "Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.",
+  "explorerCaveLocationHelp": "For the automatic declination, unless a reference point has Swiss coordinates",
   "@explorerCaveLocationHelp": {
-    "description": "Explanation in the dialog setting where a cave lies"
+    "description": "Explanation under the latitude and longitude of a cave"
   },
   "explorerLatitude": "Latitude",
   "@explorerLatitude": {

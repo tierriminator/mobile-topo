@@ -13,6 +13,7 @@ import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
+import 'package:mobile_topo/views/cave_page.dart';
 import 'package:mobile_topo/views/explorer_view.dart';
 
 import 'pocket_topo_file_test.dart' show TopWriter, topFile;
@@ -241,5 +242,39 @@ void main() {
 
     expect(repository.saveCount, 0);
     expect(find.byType(SnackBar), findsNothing);
+  });
+
+  group('cave row', () {
+    testWidgets('tapping the cave opens its page, which renames it',
+        (tester) async {
+      final repository = await pumpExplorer(tester, []);
+
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CavePage), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.edit));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.byType(TextField)),
+          'Hölloch');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(repository.cave.name, 'Hölloch');
+      expect(find.text('Hölloch'), findsOneWidget);
+    });
+
+    testWidgets('tapping the arrow expands the cave', (tester) async {
+      await pumpExplorer(tester, []);
+      expect(find.text('Section'), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.chevron_right).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Section'), findsOneWidget);
+      expect(find.byType(CavePage), findsNothing);
+    });
   });
 }

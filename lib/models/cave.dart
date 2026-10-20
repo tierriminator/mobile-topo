@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'geo_position.dart';
 import 'magnetic_declination.dart';
 import 'sketch.dart';
@@ -222,6 +224,19 @@ class Cave {
         ],
         referencePoints: const [],
       ).totalLength;
+
+  /// Surveyed length of the whole cave, counted like [Survey.totalLength]
+  double get totalLength => combinedSurvey.totalLength;
+
+  /// Altitude difference between the highest and the lowest station
+  double get heightDifference {
+    final altitudes = combinedSurvey
+        .computeStationPositions()
+        .values
+        .map((p) => p.altitude);
+    if (altitudes.isEmpty) return 0;
+    return altitudes.reduce(math.max) - altitudes.reduce(math.min);
+  }
 
   /// Whether any stretch in this cave was measured on the given trip
   bool isTripUsed(String tripId) => allSections

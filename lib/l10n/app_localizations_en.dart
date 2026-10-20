@@ -203,20 +203,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerSectionName => 'Section name';
 
   @override
-  String get explorerRename => 'Rename';
+  String get caveRename => 'Rename';
 
   @override
-  String get explorerRenameCaveTitle => 'Rename Cave';
+  String get caveLength => 'Surveyed length';
 
   @override
-  String get explorerCaveLocation => 'Location';
-
-  @override
-  String get explorerCaveLocationTitle => 'Cave Location';
+  String get caveHeight => 'Height difference';
 
   @override
   String get explorerCaveLocationHelp =>
-      'Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.';
+      'For the automatic declination, unless a reference point has Swiss coordinates';
 
   @override
   String get explorerLatitude => 'Latitude';

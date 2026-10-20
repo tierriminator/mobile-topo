@@ -453,34 +453,28 @@ abstract class AppLocalizations {
   /// **'Section name'**
   String get explorerSectionName;
 
-  /// Menu item and dialog button to rename an item
+  /// Tooltip of the button editing the name of a cave
   ///
   /// In en, this message translates to:
   /// **'Rename'**
-  String get explorerRename;
+  String get caveRename;
 
-  /// Title of the dialog renaming a cave
+  /// Length of all survey shots of a cave
   ///
   /// In en, this message translates to:
-  /// **'Rename Cave'**
-  String get explorerRenameCaveTitle;
+  /// **'Surveyed length'**
+  String get caveLength;
 
-  /// Menu item setting where a cave lies
+  /// Altitude difference between the highest and the lowest station of a cave
   ///
   /// In en, this message translates to:
-  /// **'Location'**
-  String get explorerCaveLocation;
+  /// **'Height difference'**
+  String get caveHeight;
 
-  /// Title of the dialog setting where a cave lies
+  /// Explanation under the latitude and longitude of a cave
   ///
   /// In en, this message translates to:
-  /// **'Cave Location'**
-  String get explorerCaveLocationTitle;
-
-  /// Explanation in the dialog setting where a cave lies
-  ///
-  /// In en, this message translates to:
-  /// **'Used for the automatic declination of trips, unless a reference point has Swiss grid coordinates (LV95 or LV03). Without a location, the declination at the Hölloch is used. Leave empty to remove it.'**
+  /// **'For the automatic declination, unless a reference point has Swiss coordinates'**
   String get explorerCaveLocationHelp;
 
   /// Label for the latitude of a cave in WGS84 degrees
