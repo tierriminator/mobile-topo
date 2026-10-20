@@ -9,6 +9,7 @@ import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/views/section_page.dart';
+import 'package:mobile_topo/views/widgets/choice_sheet.dart';
 
 void main() {
   final day = DateTime(2026, 3, 1);
@@ -44,7 +45,7 @@ void main() {
   Future<Future<String?>> open(WidgetTester tester,
       {bool isSelected = false,
       VoidCallback? onSelect,
-      SectionExport? onExport,
+      TherionExport? onExport,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
     late Future<String?> result;

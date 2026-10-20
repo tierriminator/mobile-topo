@@ -6,6 +6,7 @@ import '../models/cave.dart';
 import '../models/coordinate_system.dart';
 import '../models/geo_position.dart';
 import '../models/settings.dart';
+import 'widgets/choice_sheet.dart';
 import 'widgets/coordinate_system_field.dart';
 
 /// What the cave page changes about a cave
@@ -13,11 +14,12 @@ typedef CaveEdit = ({String name, CoordinateSystem coordinateSystem});
 
 /// Opens the page for [cave] and returns its name and coordinate system as
 /// they are when the page is left, or null if they are unchanged or the
-/// cave was deleted. See [CavePage.onDelete] and
+/// cave was deleted. See [CavePage.onExport], [CavePage.onDelete] and
 /// [CavePage.onShowReferencePoints] for the callbacks.
 Future<CaveEdit?> editCave(
   BuildContext context,
   Cave cave, {
+  TherionExport? onExport,
   Future<bool> Function()? onDelete,
   VoidCallback? onShowReferencePoints,
 }) async {
@@ -25,6 +27,7 @@ Future<CaveEdit?> editCave(
     MaterialPageRoute(
       builder: (context) => CavePage(
         cave: cave,
+        onExport: onExport,
         onDelete: onDelete,
         onShowReferencePoints: onShowReferencePoints,
       ),
@@ -44,6 +47,10 @@ Future<CaveEdit?> editCave(
 class CavePage extends StatefulWidget {
   final Cave cave;
 
+  /// Exports the cave under its name as edited. Without it, the page offers
+  /// no export button.
+  final TherionExport? onExport;
+
   /// Deletes the cave and returns whether it was deleted; the page closes
   /// if so. Without it, the page offers no delete button.
   final Future<bool> Function()? onDelete;
@@ -55,6 +62,7 @@ class CavePage extends StatefulWidget {
   const CavePage({
     super.key,
     required this.cave,
+    this.onExport,
     this.onDelete,
     this.onShowReferencePoints,
   });
@@ -130,6 +138,13 @@ class _CavePageState extends State<CavePage> {
       tooltip: l10n.caveRename,
       onPressed: () => setState(() => _editingName = true),
     );
+  }
+
+  /// Asks for the format and exports the cave under the edited name
+  Future<void> _export() async {
+    final pocketTopoText = await chooseExportFormat(context);
+    if (pocketTopoText == null) return;
+    await widget.onExport!(_name, pocketTopoText: pocketTopoText);
   }
 
   Future<void> _delete() async {
@@ -272,8 +287,17 @@ class _CavePageState extends State<CavePage> {
             const Divider(height: 24),
             ..._coordinateSystemChoice(cave),
             ..._coordinates(l10n, cave),
-            if (widget.onDelete != null) ...[
-              const SizedBox(height: 32),
+            if (widget.onExport != null || widget.onDelete != null)
+              const Divider(height: 24),
+            if (widget.onExport != null)
+              OutlinedButton.icon(
+                onPressed: _export,
+                icon: const Icon(Icons.save_alt),
+                label: Text(l10n.exportAction),
+              ),
+            if (widget.onExport != null && widget.onDelete != null)
+              const SizedBox(height: 8),
+            if (widget.onDelete != null)
               OutlinedButton.icon(
                 onPressed: _delete,
                 icon: const Icon(Icons.delete),
@@ -283,7 +307,6 @@ class _CavePageState extends State<CavePage> {
                   side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-            ],
           ],
         ),
       ),

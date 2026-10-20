@@ -159,8 +159,15 @@ void main() {
     return repository;
   }
 
+  /// Expands the cave, which shows its sections
+  Future<void> expandCave(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.chevron_right).first);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> importFromMenu(WidgetTester tester) async {
-    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await expandCave(tester);
+    await tester.tap(find.byTooltip('Add Section'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import PocketTopo Files'));
     await tester.pumpAndSettle();
@@ -315,11 +322,57 @@ void main() {
       await pumpExplorer(tester, []);
       expect(find.text('Section'), findsNothing);
 
-      await tester.tap(find.byIcon(Icons.chevron_right).first);
+      await expandCave(tester);
+
+      expect(find.text('Sections'), findsOneWidget);
+      expect(find.text('Section'), findsOneWidget);
+      expect(find.text('Trips'), findsOneWidget);
+      expect(find.byType(CavePage), findsNothing);
+    });
+
+    testWidgets('the cave row has no menu, its page exports and deletes',
+        (tester) async {
+      await pumpExplorer(tester, []);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Delete'), 100,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('Export'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('tapping the sections node collapses and expands it',
+        (tester) async {
+      await pumpExplorer(tester, []);
+      await expandCave(tester);
+
+      await tester.tap(find.text('Sections'));
+      await tester.pumpAndSettle();
+      expect(find.text('Section'), findsNothing);
+
+      await tester.tap(find.text('Sections'));
+      await tester.pumpAndSettle();
+      expect(find.text('Section'), findsOneWidget);
+    });
+
+    testWidgets('the sections node adds an empty section', (tester) async {
+      final repository = await pumpExplorer(tester, []);
+      await expandCave(tester);
+      await tester.tap(find.byTooltip('Add Section'));
+      await tester.pumpAndSettle();
+      expect(find.text('Import PocketTopo Files'), findsOneWidget);
+
+      await tester.tap(find.text('New Section'));
+      await tester.pumpAndSettle();
+      // The name dialog suggests the same name
+      await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Section'), findsOneWidget);
-      expect(find.byType(CavePage), findsNothing);
+      expect(repository.cave.sections.map((s) => s.name),
+          ['Section', 'New Section']);
+      expect(find.text('New Section'), findsOneWidget);
     });
   });
 
@@ -343,10 +396,8 @@ void main() {
     testWidgets('the section row has no menu, its page has the actions',
         (tester) async {
       await pumpExplorer(tester, []);
-      await tester.tap(find.byIcon(Icons.chevron_right).first);
-      await tester.pumpAndSettle();
-      // Only the cave's menu is left
-      expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      await expandCave(tester);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
 
       await tester.tap(find.text('Section'));
       await tester.pumpAndSettle();

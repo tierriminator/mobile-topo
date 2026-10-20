@@ -408,9 +408,9 @@
   "@sectionIsSelected": {
     "description": "Disabled button on the page of the section the data, map and sketch views show"
   },
-  "sectionExport": "Export",
-  "@sectionExport": {
-    "description": "Button on the section page choosing a format to export the section in"
+  "exportAction": "Export",
+  "@exportAction": {
+    "description": "Button on the cave and section pages choosing a format to export in"
   },
   "exportFormat": "Export format",
   "@exportFormat": {
@@ -487,11 +487,27 @@
   },
   "explorerAddTrip": "Add Trip",
   "@explorerAddTrip": {
-    "description": "Menu item to add a new trip to a cave"
+    "description": "Tooltip of the button adding a new trip to a cave"
+  },
+  "explorerSections": "Sections",
+  "@explorerSections": {
+    "description": "Explorer node listing the sections of a cave"
+  },
+  "explorerNoSections": "No sections yet",
+  "@explorerNoSections": {
+    "description": "Shown under the sections node when a cave has no sections"
+  },
+  "explorerNewSectionHelp": "An empty section to measure into",
+  "@explorerNewSectionHelp": {
+    "description": "Explanation of the choice adding an empty section"
   },
   "explorerImportPocketTopo": "Import PocketTopo Files",
   "@explorerImportPocketTopo": {
-    "description": "Menu item to import PocketTopo .top files into a cave, each as a new section"
+    "description": "Choice importing PocketTopo .top files into a cave, each as a new section"
+  },
+  "explorerImportPocketTopoHelp": "Each .top file becomes a section, with its trips",
+  "@explorerImportPocketTopoHelp": {
+    "description": "Explanation of the choice importing PocketTopo files"
   },
   "importPocketTopoFailed": "{file} could not be imported: {error}",
   "@importPocketTopoFailed": {
@@ -507,14 +523,6 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  },
-  "explorerExportTherion": "Export Therion Survey (.th)",
-  "@explorerExportTherion": {
-    "description": "Menu item to save a cave's or section's survey data as a Therion .th file"
-  },
-  "explorerExportTherionText": "Export Therion Text (.txt)",
-  "@explorerExportTherionText": {
-    "description": "Menu item to save a cave's or section's data and sketches as the text PocketTopo exports for Therion, which xtherion imports"
   },
   "exportFailed": "The file could not be saved: {error}",
   "@exportFailed": {

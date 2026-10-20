@@ -322,7 +322,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sectionIsSelected => 'Geöffneter Abschnitt';
 
   @override
-  String get sectionExport => 'Exportieren';
+  String get exportAction => 'Exportieren';
 
   @override
   String get exportFormat => 'Exportformat';
@@ -391,7 +391,21 @@ class AppLocalizationsDe extends AppLocalizations {
   String get explorerAddTrip => 'Tour hinzufügen';
 
   @override
+  String get explorerSections => 'Abschnitte';
+
+  @override
+  String get explorerNoSections => 'Noch keine Abschnitte';
+
+  @override
+  String get explorerNewSectionHelp =>
+      'Ein leerer Abschnitt für neue Messungen';
+
+  @override
   String get explorerImportPocketTopo => 'PocketTopo-Dateien importieren';
+
+  @override
+  String get explorerImportPocketTopoHelp =>
+      'Jede .top-Datei wird ein Abschnitt, mit ihren Touren';
 
   @override
   String importPocketTopoFailed(String file, String error) {
@@ -409,12 +423,6 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get explorerExportTherion => 'Therion-Vermessung exportieren (.th)';
-
-  @override
-  String get explorerExportTherionText => 'Therion-Text exportieren (.txt)';
 
   @override
   String exportFailed(String error) {

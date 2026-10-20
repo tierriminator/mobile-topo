@@ -287,19 +287,22 @@ UI widgets:
 - **`data_view.dart`**: Table of stretches and reference points, handles DistoX measurements
 - **`map_view.dart`**: 2D overview of survey with pan/zoom
 - **`sketch_view.dart`**: Drawing canvas with outline/side view toggle
-- **`explorer_view.dart`**: Cave/section browser; imports PocketTopo
-  files, each as a new section of a cave, adding the trips the cave does
-  not have yet (same day, declination and comment); exports a cave for
-  Therion from its menu; opens a cave's page when the cave is tapped (its
-  arrow expands it) and a section's page when the section is; exports a
-  section and deletes it from its page, after asking, along with the
-  trips no other section uses unless the user keeps them
+- **`explorer_view.dart`**: Cave/section browser; an expanded cave shows
+  a sections node (expanded by default) and a trips node, each with a plus
+  button: the sections one adds an empty section or imports PocketTopo
+  files, each as a new section of the cave, adding the trips the cave
+  does not have yet (same day, declination and comment). Opens a cave's
+  page when the cave is tapped (its arrow expands it) and a section's page
+  when the section is; the pages export and delete them, a section after
+  asking, along with the trips no other section uses unless the user
+  keeps them
 - **`cave_page.dart`**: Cave overview page titled with the cave's
   editable name: surveyed length and height difference of the whole cave,
   its coordinate system, the coordinates the automatic declination uses
   in that system (the first reference
   point's, or the Hölloch's with a warning and a way to the reference
-  points), and deleting it
+  points), exporting the cave for Therion under the name as edited, and
+  deleting it
 - **`section_page.dart`**: Section overview page titled with the
   section's editable name: surveyed length, height difference, number of
   stations and of trips measured on, a button opening the section in the
@@ -317,6 +320,9 @@ UI widgets:
 - **`widgets/position_measurement_dialog.dart`**: Measures the device
   position for a reference point (from its row menu), averaging fixes
   until the user takes the position, which is stored as WGS84 degrees
+- **`widgets/choice_sheet.dart`**: Bottom sheet choosing one of a few
+  options, each with an icon and a line of help; also the Therion export
+  format choice of the cave and section pages
 - **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`
 

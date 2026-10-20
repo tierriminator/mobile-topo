@@ -9,6 +9,7 @@ import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/views/cave_page.dart';
+import 'package:mobile_topo/views/widgets/choice_sheet.dart';
 
 void main() {
   /// A cave of 10 m down a 30° slope and 4 m level, 14 m long and 5 m high,
@@ -43,6 +44,7 @@ void main() {
   /// [settings] and returns the pending result of editCave
   Future<Future<CaveEdit?>> open(WidgetTester tester,
       {Cave? cave,
+      TherionExport? onExport,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
     late Future<CaveEdit?> result;
@@ -55,6 +57,7 @@ void main() {
           builder: (context) => TextButton(
             onPressed: () => result = editCave(
                 context, cave ?? caveWith(const [entrance]),
+                onExport: onExport,
                 onDelete: onDelete),
             child: const Text('open'),
           ),
@@ -277,6 +280,29 @@ void main() {
     await editName(tester, ' ');
     await leave(tester);
     expect(await result, isNull);
+  });
+
+  testWidgets('exports under the edited name in the chosen format',
+      (tester) async {
+    final exports = <(String, bool)>[];
+    await open(tester,
+        onExport: (name, {required pocketTopoText}) async =>
+            exports.add((name, pocketTopoText)));
+    await editName(tester, 'Hölloch');
+    await tester.scrollUntilVisible(find.text('Export'), 100,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Export'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Therion text (.txt)'));
+    await tester.pumpAndSettle();
+
+    expect(exports, [('Hölloch', true)]);
+    expect(find.byType(CavePage), findsOneWidget);
+  });
+
+  testWidgets('without onExport there is no export button', (tester) async {
+    await open(tester);
+    expect(find.text('Export'), findsNothing);
   });
 
   testWidgets('deleting closes the page and discards edits', (tester) async {

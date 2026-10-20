@@ -4,18 +4,19 @@ import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/settings.dart';
+import 'widgets/choice_sheet.dart';
 
 /// Opens the page for [section] of [cave] and returns its name as it is
 /// when the page is left, or null if it is unchanged or the section was
-/// deleted. See [SectionPage.onSelect] and [SectionPage.onDelete] for the
-/// callbacks.
+/// deleted. See [SectionPage.onSelect], [SectionPage.onExport] and
+/// [SectionPage.onDelete] for the callbacks.
 Future<String?> editSection(
   BuildContext context,
   Cave cave,
   Section section, {
   bool isSelected = false,
   VoidCallback? onSelect,
-  SectionExport? onExport,
+  TherionExport? onExport,
   Future<bool> Function()? onDelete,
 }) async {
   final name = await Navigator.of(context).push<String>(
@@ -33,11 +34,6 @@ Future<String?> editSection(
   return name == section.name ? null : name;
 }
 
-/// Exports a section for Therion under [name]: as a survey file, or as the
-/// text PocketTopo exports for xtherion if [pocketTopoText] is set
-typedef SectionExport = Future<void> Function(String name,
-    {required bool pocketTopoText});
-
 /// Page giving an overview of a section, titled with its name, which it
 /// allows to change, opening it in the data, map and sketch views and
 /// exporting it. Leaving the page pops it with the name.
@@ -54,8 +50,8 @@ class SectionPage extends StatefulWidget {
   final VoidCallback? onSelect;
 
   /// Exports the section under its name as edited. Without it, the page
-  /// offers no export buttons.
-  final SectionExport? onExport;
+  /// offers no export button.
+  final TherionExport? onExport;
 
   /// Deletes the section and returns whether it was deleted; the page
   /// closes if so. Without it, the page offers no delete button.
@@ -148,37 +144,7 @@ class _SectionPageState extends State<SectionPage> {
 
   /// Asks for the format and exports the section under the edited name
   Future<void> _export() async {
-    final l10n = AppLocalizations.of(context)!;
-    final pocketTopoText = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(l10n.exportFormat,
-                  style: Theme.of(sheetContext).textTheme.titleMedium),
-            ),
-            for (final (value, icon, label, help) in [
-              (false, Icons.description, l10n.exportTherionSurvey,
-                  l10n.exportTherionSurveyHelp),
-              (true, Icons.draw, l10n.exportTherionText,
-                  l10n.exportTherionTextHelp),
-            ])
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                leading: Icon(icon),
-                title: Text(label),
-                subtitle: Text(help),
-                onTap: () => Navigator.of(sheetContext).pop(value),
-              ),
-          ],
-        ),
-      ),
-    );
+    final pocketTopoText = await chooseExportFormat(context);
     if (pocketTopoText == null) return;
     await widget.onExport!(_name, pocketTopoText: pocketTopoText);
   }
@@ -246,7 +212,7 @@ class _SectionPageState extends State<SectionPage> {
               OutlinedButton.icon(
                 onPressed: _export,
                 icon: const Icon(Icons.save_alt),
-                label: Text(l10n.sectionExport),
+                label: Text(l10n.exportAction),
               ),
             if (widget.onExport != null && widget.onDelete != null)
               const SizedBox(height: 8),

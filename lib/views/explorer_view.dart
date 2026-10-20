@@ -21,6 +21,7 @@ import '../models/trip.dart';
 import 'cave_page.dart';
 import 'section_page.dart';
 import 'trip_page.dart';
+import 'widgets/choice_sheet.dart';
 
 class ExplorerView extends StatefulWidget {
   const ExplorerView({super.key});
@@ -262,10 +263,7 @@ class ExplorerViewState extends State<ExplorerView> {
     await repository.saveCave(updatedCave);
     await _loadCaves();
 
-    // Expand the cave to show the new section
-    setState(() {
-      _expandedIds.add(cave.id);
-    });
+    _showSections(cave);
   }
 
   /// Imports the PocketTopo files the user picks, each as a new section of
@@ -319,9 +317,7 @@ class ExplorerViewState extends State<ExplorerView> {
       if (!mounted) return;
       context.read<SelectionState>().updateTrips(updatedCave);
       await _loadCaves();
-      setState(() {
-        _expandedIds.add(cave.id);
-      });
+      _showSections(cave);
     }
 
     final messages = [
@@ -358,36 +354,58 @@ class ExplorerViewState extends State<ExplorerView> {
     }
   }
 
-  /// Menu entries exporting for Therion, handled by [_onExportSelected]
-  List<PopupMenuEntry<String>> _exportMenuItems() {
+  /// Asks whether to add an empty section to [cave] or to import PocketTopo
+  /// files as new sections, and does so
+  Future<void> _addSection(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
-    return [
-      for (final (value, label) in [
-        ('export_therion', l10n.explorerExportTherion),
-        ('export_therion_text', l10n.explorerExportTherionText),
-      ])
-        PopupMenuItem(
-          value: value,
-          child: Row(
-            children: [
-              const Icon(Icons.save_alt, size: 20),
-              const SizedBox(width: 8),
-              Flexible(child: Text(label)),
-            ],
-          ),
+    final import = await showChoiceSheet(
+      context,
+      title: l10n.explorerAddSection,
+      choices: [
+        (
+          value: false,
+          icon: Icons.note_add,
+          label: l10n.explorerNewSection,
+          help: l10n.explorerNewSectionHelp,
         ),
-    ];
+        (
+          value: true,
+          icon: Icons.file_open,
+          label: l10n.explorerImportPocketTopo,
+          help: l10n.explorerImportPocketTopoHelp,
+        ),
+      ],
+    );
+    if (import == null || !mounted) return;
+    // The cave may have changed while the sheet was open
+    final current = _explorerState.findCave(cave.id) ?? cave;
+    if (import) {
+      await _importPocketTopo(current);
+    } else {
+      await _createNewSection(current);
+    }
   }
 
-  /// Handles a selected entry of [_exportMenuItems]
-  void _onExportSelected(
-      String value, Cave cave, List<Section> sections, String name) {
-    switch (value) {
-      case 'export_therion':
-        _exportTherion(cave, sections, name, pocketTopoText: false);
-      case 'export_therion_text':
-        _exportTherion(cave, sections, name, pocketTopoText: true);
-    }
+  /// Expansion key of a cave's sections node, which unlike the others
+  /// starts expanded
+  String _sectionsNodeId(Cave cave) => '${cave.id}/sections';
+
+  /// Sections nodes the user collapsed
+  final Set<String> _collapsedSectionNodes = {};
+
+  void _toggleSectionsNode(Cave cave) {
+    final id = _sectionsNodeId(cave);
+    setState(() {
+      if (!_collapsedSectionNodes.remove(id)) _collapsedSectionNodes.add(id);
+    });
+  }
+
+  /// Shows the sections of [cave], as after adding one
+  void _showSections(Cave cave) {
+    setState(() {
+      _expandedIds.add(cave.id);
+      _collapsedSectionNodes.remove(_sectionsNodeId(cave));
+    });
   }
 
   /// Expansion key of a cave's trips node
@@ -492,6 +510,12 @@ class ExplorerViewState extends State<ExplorerView> {
     final edited = await editCave(
       context,
       cave,
+      onExport: (name, {required pocketTopoText}) async {
+        final current = _explorerState.findCave(cave.id);
+        if (current == null) return;
+        await _exportTherion(current, current.allSections, name,
+            pocketTopoText: pocketTopoText);
+      },
       onDelete: () => _deleteCave(cave),
       onShowReferencePoints: cave.allSections.isEmpty
           ? null
@@ -536,6 +560,7 @@ class ExplorerViewState extends State<ExplorerView> {
 
     final (_, path, expandIds) = found;
     setState(() => _expandedIds.addAll(expandIds));
+    _showSections(cave);
     _selectSection(path, section);
     context.read<ViewNavigation>().showReferencePoints(ref?.id);
   }
@@ -761,9 +786,7 @@ class ExplorerViewState extends State<ExplorerView> {
   }
 
   Widget _buildCaveNode(Cave cave) {
-    final l10n = AppLocalizations.of(context)!;
     final isExpanded = _expandedIds.contains(cave.id);
-    final hasChildren = cave.areas.isNotEmpty || cave.sections.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -778,61 +801,44 @@ class ExplorerViewState extends State<ExplorerView> {
           hasChildren: true, // Always show expand arrow for caves
           onTap: () => _openCave(cave),
           onExpand: () => _toggleExpanded(cave.id),
-          trailing: _trailingMenu(
-            onSelected: (value) {
-              switch (value) {
-                case 'add_section':
-                  _createNewSection(cave);
-                case 'add_trip':
-                  _createTrip(cave);
-                case 'import_pocket_topo':
-                  _importPocketTopo(cave);
-                default:
-                  _onExportSelected(value, cave, cave.allSections, cave.name);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'add_section',
-                child: Row(
-                  children: [
-                    const Icon(Icons.description, size: 20),
-                    const SizedBox(width: 8),
-                    Text(l10n.explorerAddSection),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'add_trip',
-                child: Row(
-                  children: [
-                    const Icon(Icons.event, size: 20),
-                    const SizedBox(width: 8),
-                    Text(l10n.explorerAddTrip),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'import_pocket_topo',
-                child: Row(
-                  children: [
-                    const Icon(Icons.file_open, size: 20),
-                    const SizedBox(width: 8),
-                    Flexible(child: Text(l10n.explorerImportPocketTopo)),
-                  ],
-                ),
-              ),
-              ..._exportMenuItems(),
-            ],
+        ),
+        if (isExpanded) ...[
+          _buildSectionsNode(cave),
+          _buildTripsNode(cave),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSectionsNode(Cave cave) {
+    final l10n = AppLocalizations.of(context)!;
+    final isExpanded =
+        !_collapsedSectionNodes.contains(_sectionsNodeId(cave));
+    final path = ExplorerPath.cave(cave.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildTreeTile(
+          icon: Icons.folder_copy,
+          iconColor: Colors.blue,
+          label: l10n.explorerSections,
+          depth: 1,
+          isExpanded: isExpanded,
+          hasChildren: true,
+          onTap: () => _toggleSectionsNode(cave),
+          trailing: IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            style: _trailingButtonStyle,
+            onPressed: () => _addSection(cave),
+            tooltip: l10n.explorerAddSection,
           ),
         ),
         if (isExpanded) ...[
-          for (final area in cave.areas)
-            _buildAreaNode(area, ExplorerPath.cave(cave.id), 1),
+          for (final area in cave.areas) _buildAreaNode(area, path, 2),
           for (final section in cave.sections)
-            _buildSectionNode(section, ExplorerPath.cave(cave.id), 1),
-          if (!hasChildren) _buildPlaceholder(l10n.explorerEmpty, 1),
-          _buildTripsNode(cave),
+            _buildSectionNode(section, path, 2),
+          if (cave.isEmpty) _buildPlaceholder(l10n.explorerNoSections, 2),
         ],
       ],
     );
@@ -990,20 +996,6 @@ class ExplorerViewState extends State<ExplorerView> {
     return BoxDecoration(
       color: isSelected ? colors.primaryContainer : null,
       border: Border(bottom: BorderSide(color: colors.outlineVariant)),
-    );
-  }
-
-  /// Compact menu button at the end of a row
-  Widget _trailingMenu({
-    required List<PopupMenuEntry<String>> Function(BuildContext) itemBuilder,
-    required void Function(String) onSelected,
-  }) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 20),
-      padding: EdgeInsets.zero,
-      style: _trailingButtonStyle,
-      onSelected: onSelected,
-      itemBuilder: itemBuilder,
     );
   }
 

@@ -322,7 +322,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionIsSelected => 'Open section';
 
   @override
-  String get sectionExport => 'Export';
+  String get exportAction => 'Export';
 
   @override
   String get exportFormat => 'Export format';
@@ -390,7 +390,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get explorerAddTrip => 'Add Trip';
 
   @override
+  String get explorerSections => 'Sections';
+
+  @override
+  String get explorerNoSections => 'No sections yet';
+
+  @override
+  String get explorerNewSectionHelp => 'An empty section to measure into';
+
+  @override
   String get explorerImportPocketTopo => 'Import PocketTopo Files';
+
+  @override
+  String get explorerImportPocketTopoHelp =>
+      'Each .top file becomes a section, with its trips';
 
   @override
   String importPocketTopoFailed(String file, String error) {
@@ -407,12 +420,6 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get explorerExportTherion => 'Export Therion Survey (.th)';
-
-  @override
-  String get explorerExportTherionText => 'Export Therion Text (.txt)';
 
   @override
   String exportFailed(String error) {

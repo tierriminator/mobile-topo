@@ -679,11 +679,11 @@ abstract class AppLocalizations {
   /// **'Open section'**
   String get sectionIsSelected;
 
-  /// Button on the section page choosing a format to export the section in
+  /// Button on the cave and section pages choosing a format to export in
   ///
   /// In en, this message translates to:
   /// **'Export'**
-  String get sectionExport;
+  String get exportAction;
 
   /// Title of the dialog choosing the format of an export
   ///
@@ -781,17 +781,41 @@ abstract class AppLocalizations {
   /// **'No trips yet'**
   String get explorerNoTrips;
 
-  /// Menu item to add a new trip to a cave
+  /// Tooltip of the button adding a new trip to a cave
   ///
   /// In en, this message translates to:
   /// **'Add Trip'**
   String get explorerAddTrip;
 
-  /// Menu item to import PocketTopo .top files into a cave, each as a new section
+  /// Explorer node listing the sections of a cave
+  ///
+  /// In en, this message translates to:
+  /// **'Sections'**
+  String get explorerSections;
+
+  /// Shown under the sections node when a cave has no sections
+  ///
+  /// In en, this message translates to:
+  /// **'No sections yet'**
+  String get explorerNoSections;
+
+  /// Explanation of the choice adding an empty section
+  ///
+  /// In en, this message translates to:
+  /// **'An empty section to measure into'**
+  String get explorerNewSectionHelp;
+
+  /// Choice importing PocketTopo .top files into a cave, each as a new section
   ///
   /// In en, this message translates to:
   /// **'Import PocketTopo Files'**
   String get explorerImportPocketTopo;
+
+  /// Explanation of the choice importing PocketTopo files
+  ///
+  /// In en, this message translates to:
+  /// **'Each .top file becomes a section, with its trips'**
+  String get explorerImportPocketTopoHelp;
 
   /// Message shown when a PocketTopo file cannot be read
   ///
@@ -804,18 +828,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 measurement belongs to no station and was left out.} other{{count} measurements belong to no station and were left out.}}'**
   String importPocketTopoSkipped(int count);
-
-  /// Menu item to save a cave's or section's survey data as a Therion .th file
-  ///
-  /// In en, this message translates to:
-  /// **'Export Therion Survey (.th)'**
-  String get explorerExportTherion;
-
-  /// Menu item to save a cave's or section's data and sketches as the text PocketTopo exports for Therion, which xtherion imports
-  ///
-  /// In en, this message translates to:
-  /// **'Export Therion Text (.txt)'**
-  String get explorerExportTherionText;
 
   /// Message shown when an exported file cannot be saved
   ///
