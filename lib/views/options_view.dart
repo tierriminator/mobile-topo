@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../controllers/settings_controller.dart';
 import '../data/settings_repository.dart';
 import '../l10n/app_localizations.dart';
+import '../models/coordinate_system.dart';
+import '../models/geo_position.dart';
 import '../models/settings.dart';
 import '../services/distox_service.dart';
 import 'calibration_view.dart';
+import 'widgets/coordinate_system_field.dart';
 
 class OptionsView extends StatelessWidget {
   const OptionsView({super.key});
@@ -94,6 +97,15 @@ class OptionsView extends StatelessWidget {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showAngleUnitDialog(context, settings, l10n),
+          ),
+          ListTile(
+            leading: const Icon(Icons.public),
+            title: Text(l10n.optionsDefaultCoordinateSystem),
+            subtitle: Text(
+                coordinateSystemName(l10n, settings.defaultCoordinateSystem)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () =>
+                _showDefaultCoordinateSystemDialog(context, settings, l10n),
           ),
 
           const Divider(),
@@ -264,6 +276,43 @@ class OptionsView extends StatelessWidget {
     );
     if (value != null) {
       settings.angleUnit = value;
+      await repository.save(settings.settings);
+    }
+  }
+
+  void _showDefaultCoordinateSystemDialog(
+    BuildContext context,
+    SettingsController settings,
+    AppLocalizations l10n,
+  ) async {
+    final repository = context.read<SettingsRepository>();
+    var chosen = settings.defaultCoordinateSystem;
+    final value = await showDialog<CoordinateSystem>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.optionsDefaultCoordinateSystem),
+          content: CoordinateSystemField(
+            value: chosen,
+            // Without a cave to place, UTM starts where the default cave is
+            utmStart: Utm.containing(GeoPosition.hoelloch),
+            onChanged: (system) => setState(() => chosen = system),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, chosen),
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (value != null) {
+      settings.defaultCoordinateSystem = value;
       await repository.save(settings.settings);
     }
   }

@@ -591,6 +591,12 @@ abstract class AppLocalizations {
   /// **'Open settings'**
   String get locationOpenSettings;
 
+  /// Setting for the coordinate system new caves start with
+  ///
+  /// In en, this message translates to:
+  /// **'Default Coordinate System'**
+  String get optionsDefaultCoordinateSystem;
+
   /// Label for the coordinate system the reference points of a cave are given in
   ///
   /// In en, this message translates to:

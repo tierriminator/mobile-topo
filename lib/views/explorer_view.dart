@@ -198,6 +198,8 @@ class ExplorerViewState extends State<ExplorerView> {
   Future<void> _createNewCave() async {
     final l10n = AppLocalizations.of(context)!;
     final repository = context.read<CaveRepository>();
+    final coordinateSystem =
+        context.read<SettingsController>().defaultCoordinateSystem;
     final now = DateTime.now();
 
     // Show dialog to get cave name
@@ -215,6 +217,7 @@ class ExplorerViewState extends State<ExplorerView> {
     final cave = Cave(
       id: _uuid.v4(),
       name: name,
+      coordinateSystem: coordinateSystem,
       createdAt: now,
       modifiedAt: now,
     );

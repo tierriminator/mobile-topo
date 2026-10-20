@@ -352,6 +352,10 @@
   "@locationOpenSettings": {
     "description": "Button opening the system settings to allow the location"
   },
+  "optionsDefaultCoordinateSystem": "Default Coordinate System",
+  "@optionsDefaultCoordinateSystem": {
+    "description": "Setting for the coordinate system new caves start with"
+  },
   "caveCoordinateSystem": "Coordinate system",
   "@caveCoordinateSystem": {
     "description": "Label for the coordinate system the reference points of a cave are given in"

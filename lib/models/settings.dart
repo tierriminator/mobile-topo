@@ -1,4 +1,7 @@
 /// App settings for Mobile Topo
+library;
+
+import 'coordinate_system.dart';
 
 /// Unit lengths are shown and edited in. Lengths are always stored in meters.
 enum LengthUnit {
@@ -37,6 +40,9 @@ class Settings {
   final ShotDirection shotDirection;
   final LengthUnit lengthUnit;
   final AngleUnit angleUnit;
+
+  /// The coordinate system new caves start with
+  final CoordinateSystem defaultCoordinateSystem;
   final bool showGrid;
   final bool autoConnect;
   final String? lastConnectedDeviceAddress;
@@ -49,6 +55,7 @@ class Settings {
     this.shotDirection = ShotDirection.forward,
     this.lengthUnit = LengthUnit.meters,
     this.angleUnit = AngleUnit.degrees,
+    this.defaultCoordinateSystem = CoordinateSystem.swiss,
     this.showGrid = true,
     this.autoConnect = false,
     this.lastConnectedDeviceAddress,
@@ -62,6 +69,7 @@ class Settings {
     ShotDirection? shotDirection,
     LengthUnit? lengthUnit,
     AngleUnit? angleUnit,
+    CoordinateSystem? defaultCoordinateSystem,
     bool? showGrid,
     bool? autoConnect,
     String? lastConnectedDeviceAddress,
@@ -74,6 +82,8 @@ class Settings {
       shotDirection: shotDirection ?? this.shotDirection,
       lengthUnit: lengthUnit ?? this.lengthUnit,
       angleUnit: angleUnit ?? this.angleUnit,
+      defaultCoordinateSystem:
+          defaultCoordinateSystem ?? this.defaultCoordinateSystem,
       showGrid: showGrid ?? this.showGrid,
       autoConnect: autoConnect ?? this.autoConnect,
       lastConnectedDeviceAddress:
@@ -91,6 +101,7 @@ class Settings {
         'shotDirection': shotDirection.name,
         'lengthUnit': lengthUnit.name,
         'angleUnit': angleUnit.name,
+        'defaultCoordinateSystem': defaultCoordinateSystem.toJson(),
         'showGrid': showGrid,
         'autoConnect': autoConnect,
         'lastConnectedDeviceAddress': lastConnectedDeviceAddress,
@@ -113,6 +124,8 @@ class Settings {
           (e) => e.name == json['angleUnit'],
           orElse: () => AngleUnit.degrees,
         ),
+        defaultCoordinateSystem: CoordinateSystem.fromJson(
+            json['defaultCoordinateSystem'] as String?),
         showGrid: json['showGrid'] as bool? ?? true,
         autoConnect: json['autoConnect'] as bool? ?? true,
         lastConnectedDeviceAddress: json['lastConnectedDeviceAddress'] as String?,

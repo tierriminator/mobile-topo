@@ -12,6 +12,8 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/coordinate_system.dart';
+import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/views/cave_page.dart';
@@ -110,7 +112,8 @@ void main() {
   late ViewNavigation navigation;
 
   Future<_SingleCaveRepository> pumpExplorer(
-      WidgetTester tester, List<PlatformFile> picked) async {
+      WidgetTester tester, List<PlatformFile> picked,
+      {SettingsController? settings}) async {
     selection = SelectionState();
     navigation = ViewNavigation();
     FilePickerPlatform.instance = _FakeFilePicker(picked);
@@ -135,7 +138,7 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: selection),
         ChangeNotifierProvider.value(value: navigation),
-        ChangeNotifierProvider(create: (_) => SettingsController()),
+        ChangeNotifierProvider.value(value: settings ?? SettingsController()),
         Provider<CaveRepository>.value(value: repository),
         Provider<SettingsRepository>.value(value: _NoopSettingsRepository()),
       ],
@@ -285,6 +288,20 @@ void main() {
       expect(find.byType(CavePage), findsNothing);
       expect(selection.selectedSection?.id, 's');
       expect(navigation.takeReferencePoints(), isNotNull);
+    });
+
+    testWidgets('a new cave starts with the default coordinate system',
+        (tester) async {
+      final repository = await pumpExplorer(tester, [],
+          settings: SettingsController(
+              const Settings(defaultCoordinateSystem: Utm(33))));
+      await tester.tap(find.byTooltip('Add new'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(repository.cave.id, isNot('cave'));
+      expect(repository.cave.coordinateSystem, const Utm(33));
     });
 
     testWidgets('tapping the arrow expands the cave', (tester) async {

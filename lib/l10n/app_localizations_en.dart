@@ -280,6 +280,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get locationOpenSettings => 'Open settings';
 
   @override
+  String get optionsDefaultCoordinateSystem => 'Default Coordinate System';
+
+  @override
   String get caveCoordinateSystem => 'Coordinate system';
 
   @override

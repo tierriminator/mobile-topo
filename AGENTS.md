@@ -50,8 +50,9 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
   cave's coordinate system. Manual declinations are against map north, as in
   PocketTopo, and the Therion export writes them as `grid-angle`
 - **Coordinate systems**: each cave picks the system its reference points
-  are given in: Swiss grid (the default), UTM with zone and hemisphere, or
-  WGS84 longitude/latitude. Each reference point keeps its coordinates as
+  are given in: Swiss grid, UTM with zone and hemisphere, or
+  WGS84 longitude/latitude. New caves start with the one set in the
+  options (Swiss grid by default). Each reference point keeps its coordinates as
   entered along with the system they were entered in, so changing the
   cave's system changes no data. They are shown and edited converted to
   the cave's system, East and North in its unit (metres or degrees), and
@@ -296,7 +297,8 @@ UI widgets:
   in that system (the first reference
   point's, or the Hölloch's with a warning and a way to the reference
   points), and deleting it
-- **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
+- **`options_view.dart`**: Settings UI (smart mode, shot direction, units and the coordinate system for new caves, DistoX connection)
+- **`widgets/coordinate_system_field.dart`**: Picks a coordinate system, with zone and hemisphere for UTM; used on the cave page and in the options
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status
   text shared by the map and sketch views

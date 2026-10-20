@@ -6,6 +6,7 @@ import '../models/cave.dart';
 import '../models/coordinate_system.dart';
 import '../models/geo_position.dart';
 import '../models/settings.dart';
+import 'widgets/coordinate_system_field.dart';
 
 /// What the cave page changes about a cave
 typedef CaveEdit = ({String name, CoordinateSystem coordinateSystem});
@@ -170,61 +171,15 @@ class _CavePageState extends State<CavePage> {
     widget.onShowReferencePoints!();
   }
 
-  /// Choice of the coordinate system, with the zone and hemisphere for UTM
-  List<Widget> _coordinateSystemChoice(AppLocalizations l10n, Cave cave) {
-    final system = _coordinateSystem;
-    return [
-      DropdownButtonFormField<Type>(
-        initialValue: system.runtimeType,
-        decoration: InputDecoration(labelText: l10n.caveCoordinateSystem),
-        items: [
-          DropdownMenuItem(
-              value: SwissGrid, child: Text(l10n.coordinateSystemSwiss)),
-          DropdownMenuItem(value: Utm, child: Text(l10n.coordinateSystemUtm)),
-          DropdownMenuItem(
-              value: Wgs84, child: Text(l10n.coordinateSystemWgs84)),
-        ],
-        onChanged: (type) => setState(() {
-          _coordinateSystem = switch (type) {
-            const (Utm) => Utm.containing(cave.declinationPosition),
-            const (Wgs84) => CoordinateSystem.wgs84,
-            _ => CoordinateSystem.swiss,
-          };
-        }),
-      ),
-      if (system is Utm) ...[
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: system.zone,
-                decoration: InputDecoration(labelText: l10n.caveUtmZone),
-                items: [
-                  for (var zone = 1; zone <= 60; zone++)
-                    DropdownMenuItem(value: zone, child: Text('$zone')),
-                ],
-                onChanged: (zone) => setState(() =>
-                    _coordinateSystem = Utm(zone!, south: system.south)),
-              ),
-            ),
-            const SizedBox(width: 16),
-            SegmentedButton<bool>(
-              segments: [
-                ButtonSegment(value: false, label: Text(l10n.caveUtmNorth)),
-                ButtonSegment(value: true, label: Text(l10n.caveUtmSouth)),
-              ],
-              selected: {system.south},
-              onSelectionChanged: (selected) => setState(() =>
-                  _coordinateSystem =
-                      Utm(system.zone, south: selected.single)),
-            ),
-          ],
+  /// Choice of the coordinate system; UTM starts in the cave's zone
+  List<Widget> _coordinateSystemChoice(Cave cave) => [
+        CoordinateSystemField(
+          value: _coordinateSystem,
+          utmStart: Utm.containing(cave.declinationPosition),
+          onChanged: (system) => setState(() => _coordinateSystem = system),
         ),
-      ],
-      const SizedBox(height: 8),
-    ];
-  }
+        const SizedBox(height: 8),
+      ];
 
   /// A row with [label] and a coordinate in metres
   Widget _metres(String label, num metres) {
@@ -315,7 +270,7 @@ class _CavePageState extends State<CavePage> {
             _length(Icons.straighten, l10n.caveLength, cave.totalLength),
             _length(Icons.height, l10n.caveHeight, cave.heightDifference),
             const Divider(height: 24),
-            ..._coordinateSystemChoice(l10n, cave),
+            ..._coordinateSystemChoice(cave),
             ..._coordinates(l10n, cave),
             if (widget.onDelete != null) ...[
               const SizedBox(height: 32),

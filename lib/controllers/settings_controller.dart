@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../models/coordinate_system.dart';
 import '../models/settings.dart';
 
 /// Controller for app settings with change notification
@@ -38,6 +39,15 @@ class SettingsController extends ChangeNotifier {
   set angleUnit(AngleUnit value) {
     if (_settings.angleUnit != value) {
       _settings = _settings.copyWith(angleUnit: value);
+      notifyListeners();
+    }
+  }
+
+  CoordinateSystem get defaultCoordinateSystem =>
+      _settings.defaultCoordinateSystem;
+  set defaultCoordinateSystem(CoordinateSystem value) {
+    if (_settings.defaultCoordinateSystem != value) {
+      _settings = _settings.copyWith(defaultCoordinateSystem: value);
       notifyListeners();
     }
   }
