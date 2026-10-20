@@ -171,8 +171,8 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  /// Switches to the tab a station is to be shown in; the view there takes
-  /// the request
+  /// Switches to the tab a station or the reference points are to be shown
+  /// in; the view there takes the request
   void _onNavigation() {
     final index = switch (_viewNavigation.pendingTarget) {
       NavigationTarget.data => _dataIndex,

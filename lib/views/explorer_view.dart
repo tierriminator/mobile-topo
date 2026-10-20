@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../controllers/explorer_state.dart';
 import '../controllers/selection_state.dart';
 import '../controllers/settings_controller.dart';
+import '../controllers/view_navigation.dart';
 import '../data/cave_repository.dart';
 import '../data/pocket_topo_file.dart';
 import '../data/settings_repository.dart';
@@ -491,31 +492,54 @@ class ExplorerViewState extends State<ExplorerView> {
     return true;
   }
 
-  /// Opens the page of a cave and saves its changed name and location
+  /// Opens the page of a cave and saves its changed name
   Future<void> _openCave(Cave cave) async {
     final repository = context.read<CaveRepository>();
-    final selectionState = context.read<SelectionState>();
 
-    final edited =
-        await editCave(context, cave, onDelete: () => _deleteCave(cave));
-    if (edited == null || !mounted) return;
+    final name = await editCave(
+      context,
+      cave,
+      onDelete: () => _deleteCave(cave),
+      onShowReferencePoints: cave.allSections.isEmpty
+          ? null
+          : () => _showReferencePoints(cave.id),
+    );
+    if (name == null || !mounted) return;
 
     // The cave may have changed while the page was open
     final current = _explorerState.findCave(cave.id);
     if (current == null) return;
-    final updated = current.copyWith(
-      name: edited.name,
-      location: edited.location,
-      clearLocation: edited.location == null,
-      modifiedAt: DateTime.now(),
-    );
+    final renamed = current.copyWith(name: name, modifiedAt: DateTime.now());
     setState(() {
       _explorerState = _explorerState.copyWith(caves: [
-        for (final c in _explorerState.caves) c.id == cave.id ? updated : c,
+        for (final c in _explorerState.caves) c.id == cave.id ? renamed : c,
       ]);
     });
-    selectionState.updateLocation(updated);
-    await repository.saveCave(updated);
+    await repository.saveCave(renamed);
+  }
+
+  /// Shows the reference points of a cave in the data view, selecting the
+  /// section of its first reference point, or else the selected section if
+  /// it is in the cave, or else its first section
+  void _showReferencePoints(String caveId) {
+    final cave = _explorerState.findCave(caveId);
+    if (cave == null) return;
+    final sections = cave.allSections;
+    final ref = cave.firstReferencePoint;
+    final selected = context.read<SelectionState>().selectedSection;
+    final section = sections
+            .where((s) => s.survey.referencePoints.contains(ref))
+            .firstOrNull ??
+        sections.where((s) => s.id == selected?.id).firstOrNull ??
+        sections.firstOrNull;
+    if (section == null) return;
+    final found = _findSectionInCave(cave, section.id);
+    if (found == null) return;
+
+    final (_, path, expandIds) = found;
+    setState(() => _expandedIds.addAll(expandIds));
+    _selectSection(path, section);
+    context.read<ViewNavigation>().showReferencePoints(ref?.id);
   }
 
   /// Deletes a cave with everything in it after asking; returns whether it

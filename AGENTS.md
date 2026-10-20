@@ -43,8 +43,8 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 - **Automatic declination**: a trip's declination is either set by hand or
   computed (the default for new trips and PocketTopo's "auto" trips) from
   the trip date with the IGRF-14 magnetic model. It is computed at the
-  first reference point in Swiss grid coordinates, else at the location
-  set for the cave in the explorer, else at the Hölloch entrance
+  cave's first reference point if it is in Swiss grid coordinates, else at
+  the Hölloch entrance; the cave page warns about the latter
 - **Undo/Redo**: Separate undo stacks for data view, outline sketch, and side view sketch
 
 **Import/Export:**
@@ -126,9 +126,9 @@ Pure domain objects without serialization logic:
   made active
 
 - **`cave.dart`**: Explorer hierarchy
-  - `Cave`: Top-level container with areas, sections, trips and an optional
-    location; the trip most recently created or made active is the active
-    one. `declinationOf` gives a trip's declination, computing automatic
+  - `Cave`: Top-level container with areas, sections and trips; the trip
+    most recently created or made active is the active one. Its first
+    reference point gives its coordinates. `declinationOf` gives a trip's declination, computing automatic
     ones at `declinationPosition`; `combinedSurvey` applies it to each
     stretch's azimuth
   - `Area`: Organizational container (can nest)
@@ -173,8 +173,8 @@ State management classes using `ChangeNotifier`:
 - **`settings_controller.dart`**: App settings state with change notification
 - **`history.dart`**: Generic undo/redo stack for any type (max 50 items)
 - **`view_navigation.dart`**: Requests to show a station in another view
-  (PocketTopo's "-> Map" etc.); `MainScreen` switches the tab and the target
-  view takes the request
+  (PocketTopo's "-> Map" etc.) or the data view's reference points;
+  `MainScreen` switches the tab and the target view takes the request
 
 ### Services (`lib/services/`)
 
@@ -261,8 +261,11 @@ UI widgets:
   section for Therion from its menu; opens a cave's page when the cave is
   tapped (its arrow expands it); deletes a section after asking, along
   with the trips no other section uses unless the user keeps them
-- **`cave_page.dart`**: Cave overview page: surveyed length and height
-  difference of the whole cave, its name and location, and deleting it
+- **`cave_page.dart`**: Cave overview page titled with the cave's
+  editable name: surveyed length and height difference of the whole cave,
+  the coordinates the automatic declination uses (the first reference
+  point's, or the Hölloch's with a warning and a way to the reference
+  points), and deleting it
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units, DistoX connection)
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status

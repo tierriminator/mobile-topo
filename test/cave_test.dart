@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/controllers/selection_state.dart';
-import 'package:mobile_topo/data/cave_file.dart';
 import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/geo_position.dart';
 import 'package:mobile_topo/models/magnetic_declination.dart';
@@ -104,24 +103,26 @@ void main() {
             modifiedAt: now,
           ));
 
-      test('is computed at a reference point in Swiss grid coordinates', () {
-        final c = withReference(const [reference])
-            .copyWith(location: const GeoPosition(-33.9, 18.4));
+      test('is computed at the first reference point in Swiss grid', () {
+        const later = ReferencePoint(Point(2, 0), 0, 0, 0);
+        final c = withReference(const [reference, later]);
+        expect(c.firstReferencePoint, reference);
         expect(c.declinationPosition.latitude, closeTo(bern.latitude, 1e-4));
         expect(c.declinationOf(autoTrip),
             closeTo(MagneticDeclination.at(bern, autoTrip.date), 1e-3));
       });
 
-      test('is computed at the cave location without such a point', () {
+      test('is computed at the Hölloch if the first point is not in the grid',
+          () {
         const local = ReferencePoint(Point(1, 0), 0, 0, 0);
-        final c = withReference(const [local])
-            .copyWith(location: const GeoPosition(-33.9, 18.4));
-        expect(c.declinationPosition, const GeoPosition(-33.9, 18.4));
+        expect(withReference(const [local, reference]).declinationPosition,
+            GeoPosition.hoelloch);
       });
 
-      test('is computed at the Hölloch without a position', () {
-        expect(withReference(const []).declinationPosition,
-            GeoPosition.hoelloch);
+      test('is computed at the Hölloch without a reference point', () {
+        final c = withReference(const []);
+        expect(c.firstReferencePoint, isNull);
+        expect(c.declinationPosition, GeoPosition.hoelloch);
       });
 
       test('corrects azimuths instead of the manual declination', () {
@@ -132,23 +133,10 @@ void main() {
             closeTo(expected, 1e-9));
       });
 
-      test('copyWith can clear the location', () {
-        final c = cave().copyWith(location: bern);
-        expect(c.copyWith(name: 'x').location, bern);
-        expect(c.copyWith(clearLocation: true).location, isNull);
-      });
-
-      test('survives a JSON round trip of the trip and the cave file', () {
+      test('survives a JSON round trip of the trip', () {
         expect(Trip.fromJson(autoTrip.toJson()).autoDeclination, isTrue);
         expect(trip.toJson().containsKey('autoDeclination'), isFalse);
         expect(Trip.fromJson(trip.toJson()).autoDeclination, isFalse);
-
-        final file = CaveFile(
-            id: 'c', name: 'c', location: bern, createdAt: now, modifiedAt: now);
-        expect(CaveFile.fromJson(file.toJson()).location, bern);
-        final unlocated =
-            CaveFile(id: 'c', name: 'c', createdAt: now, modifiedAt: now);
-        expect(CaveFile.fromJson(unlocated.toJson()).location, isNull);
       });
     });
 

@@ -272,6 +272,29 @@ void main() {
           tester.widget<ToggleButtons>(find.byType(ToggleButtons)).isSelected,
           [false, true]);
     });
+
+    testWidgets('shows the reference points when asked, even with none',
+        (tester) async {
+      final s = section(
+        's',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 3, 0, 0)],
+          referencePoints: [],
+        ),
+      );
+      final navigation = ViewNavigation();
+      await pumpDataView(tester, SelectionState()..selectSection(cave([s]), s),
+          MeasurementService(SettingsController()),
+          navigation: navigation);
+
+      navigation.showReferencePoints();
+      await tester.pumpAndSettle();
+
+      expect(
+          tester.widget<ToggleButtons>(find.byType(ToggleButtons)).isSelected,
+          [false, true]);
+      expect(navigation.pendingTarget, isNull);
+    });
   });
 
   group('whole cave table', () {

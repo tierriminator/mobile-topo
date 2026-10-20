@@ -145,5 +145,11 @@ void main() {
     navigation.show(const Point(1, 1), NavigationTarget.data);
     await tester.pump();
     expect(find.byIcon(Icons.table_chart), findsOneWidget);
+
+    navigation.show(const Point(1, 1), NavigationTarget.map);
+    await tester.pump();
+    navigation.showReferencePoints();
+    await tester.pump();
+    expect(find.byIcon(Icons.table_chart), findsOneWidget);
   });
 }

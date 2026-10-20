@@ -64,14 +64,4 @@ class SelectionState extends ChangeNotifier {
     if (selected?.id != cave.id) return;
     _selectedCave = selected!.copyWith(trips: cave.trips);
     notifyListeners();
-  }
-
-  /// Take over the location of [cave] if it is the selected one
-  void updateLocation(Cave cave) {
-    final selected = _selectedCave;
-    if (selected?.id != cave.id) return;
-    _selectedCave = selected!.copyWith(
-        location: cave.location, clearLocation: cave.location == null);
-    notifyListeners();
-  }
-}
+  }}

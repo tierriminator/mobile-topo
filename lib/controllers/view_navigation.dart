@@ -12,13 +12,36 @@ enum NavigationTarget { data, map, outline, sideView }
 class ViewNavigation extends ChangeNotifier {
   ({Point station, NavigationTarget target})? _pending;
 
+  /// A pending request to show the reference points table of the data view,
+  /// with the reference point to select, if any
+  ({Point? station})? _referencePoints;
+
   /// The view a pending request is for, if any
-  NavigationTarget? get pendingTarget => _pending?.target;
+  NavigationTarget? get pendingTarget =>
+      _pending?.target ??
+      (_referencePoints == null ? null : NavigationTarget.data);
 
   /// Asks to show [station] in [target]
   void show(Point station, NavigationTarget target) {
     _pending = (station: station, target: target);
+    _referencePoints = null;
     notifyListeners();
+  }
+
+  /// Asks to show the reference points in the data view, selecting the one
+  /// of [station] if given
+  void showReferencePoints([Point? station]) {
+    _referencePoints = (station: station);
+    _pending = null;
+    notifyListeners();
+  }
+
+  /// Takes a pending request to show the reference points, so it is handled
+  /// only once
+  ({Point? station})? takeReferencePoints() {
+    final pending = _referencePoints;
+    _referencePoints = null;
+    return pending;
   }
 
   /// Takes the pending request if it is for one of [targets], so it is

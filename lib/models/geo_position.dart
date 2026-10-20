@@ -5,10 +5,15 @@ class GeoPosition {
 
   const GeoPosition(this.latitude, this.longitude);
 
-  /// The main entrance of the Hölloch, Muotathal, Switzerland: where the
-  /// automatic declination is computed for caves with no position of their
-  /// own
-  static const hoelloch = GeoPosition(46.97664, 8.78839);
+  /// Swiss grid (LV95) coordinates of the main entrance of the Hölloch,
+  /// Muotathal, Switzerland: where the automatic declination is computed
+  /// for caves with no position of their own
+  static const hoellochEast = 2702698;
+  static const hoellochNorth = 1203724;
+
+  /// The position of [hoellochEast] and [hoellochNorth]
+  static final GeoPosition hoelloch =
+      fromSwissGrid(hoellochEast, hoellochNorth)!;
 
   /// Whether this is a valid position, with latitude and longitude in range
   bool get isValid =>

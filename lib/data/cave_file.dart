@@ -1,5 +1,3 @@
-import '../models/geo_position.dart';
-
 /// Area structure for cave.json - contains section references, not full sections.
 class AreaRef {
   final String id;
@@ -52,7 +50,6 @@ class CaveFile {
   final String? description;
   final DateTime createdAt;
   final DateTime modifiedAt;
-  final GeoPosition? location;
   final List<AreaRef> areas;
   final List<String> rootSectionIds;
 
@@ -60,7 +57,6 @@ class CaveFile {
     required this.id,
     required this.name,
     this.description,
-    this.location,
     required this.createdAt,
     required this.modifiedAt,
     this.areas = const [],
@@ -71,10 +67,6 @@ class CaveFile {
         'id': id,
         'name': name,
         if (description != null) 'description': description,
-        if (location case final location?) ...{
-          'latitude': location.latitude,
-          'longitude': location.longitude,
-        },
         'createdAt': createdAt.toIso8601String(),
         'modifiedAt': modifiedAt.toIso8601String(),
         'areas': areas.map((a) => a.toJson()).toList(),
@@ -85,11 +77,6 @@ class CaveFile {
         id: json['id'] as String,
         name: json['name'] as String,
         description: json['description'] as String?,
-        location: switch ((json['latitude'], json['longitude'])) {
-          (final num latitude, final num longitude) =>
-            GeoPosition(latitude.toDouble(), longitude.toDouble()),
-          _ => null,
-        },
         createdAt: DateTime.parse(json['createdAt'] as String),
         modifiedAt: DateTime.parse(json['modifiedAt'] as String),
         areas: (json['areas'] as List?)

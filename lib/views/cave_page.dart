@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
@@ -7,33 +6,30 @@ import '../models/cave.dart';
 import '../models/geo_position.dart';
 import '../models/settings.dart';
 
-/// What the cave page changes about a cave
-typedef CaveEdit = ({String name, GeoPosition? location});
-
-/// Opens the page for [cave] and returns its name and location as they are
-/// when the page is left, or null if they are unchanged or the cave was
-/// deleted. The page offers deleting the cave if [onDelete] is given; see
-/// [CavePage.onDelete].
-Future<CaveEdit?> editCave(
+/// Opens the page for [cave] and returns its name as it is when the page is
+/// left, or null if it is unchanged or the cave was deleted. See
+/// [CavePage.onDelete] and [CavePage.onShowReferencePoints] for the
+/// callbacks.
+Future<String?> editCave(
   BuildContext context,
   Cave cave, {
   Future<bool> Function()? onDelete,
+  VoidCallback? onShowReferencePoints,
 }) async {
-  final edited = await Navigator.of(context).push<CaveEdit>(
+  final name = await Navigator.of(context).push<String>(
     MaterialPageRoute(
-      builder: (context) => CavePage(cave: cave, onDelete: onDelete),
+      builder: (context) => CavePage(
+        cave: cave,
+        onDelete: onDelete,
+        onShowReferencePoints: onShowReferencePoints,
+      ),
     ),
   );
-  if (edited == null ||
-      (edited.name == cave.name && edited.location == cave.location)) {
-    return null;
-  }
-  return edited;
+  return name == cave.name ? null : name;
 }
 
-/// Page giving an overview of a cave, titled with its name, to change the
-/// name and the location.
-/// Leaving the page pops it with the edited name and location.
+/// Page giving an overview of a cave, titled with its name, which it allows
+/// to change. Leaving the page pops it with the edited name.
 class CavePage extends StatefulWidget {
   final Cave cave;
 
@@ -41,7 +37,16 @@ class CavePage extends StatefulWidget {
   /// if so. Without it, the page offers no delete button.
   final Future<bool> Function()? onDelete;
 
-  const CavePage({super.key, required this.cave, this.onDelete});
+  /// Shows the cave's reference points once the page has closed. Offered
+  /// when the cave's coordinates are missing or cannot be used.
+  final VoidCallback? onShowReferencePoints;
+
+  const CavePage({
+    super.key,
+    required this.cave,
+    this.onDelete,
+    this.onShowReferencePoints,
+  });
 
   @override
   State<CavePage> createState() => _CavePageState();
@@ -55,64 +60,31 @@ class _CavePageState extends State<CavePage> {
 
   /// Whether the title shows a text field to edit the name
   bool _editingName = false;
-  late final TextEditingController _latitudeController;
-  late final TextEditingController _longitudeController;
 
   @override
   void initState() {
     super.initState();
     _settings = context.read<SettingsController>().settings;
-    final location = widget.cave.location;
     _nameController = TextEditingController(text: widget.cave.name);
-    _latitudeController =
-        TextEditingController(text: location?.latitude.toString() ?? '');
-    _longitudeController =
-        TextEditingController(text: location?.longitude.toString() ?? '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     super.dispose();
   }
 
-  /// Whether both location fields are empty, which removes the location
-  bool get _isLocationEmpty =>
-      _latitudeController.text.trim().isEmpty &&
-      _longitudeController.text.trim().isEmpty;
-
-  /// The entered location, or null if the fields do not give a valid one
-  GeoPosition? get _location {
-    final latitude = double.tryParse(_latitudeController.text.trim());
-    final longitude = double.tryParse(_longitudeController.text.trim());
-    if (latitude == null || longitude == null) return null;
-    final position = GeoPosition(latitude, longitude);
-    return position.isValid ? position : null;
-  }
-
-  bool get _isLocationInvalid => !_isLocationEmpty && _location == null;
-
-  /// The cave's name and location as edited. An empty name or an invalid
-  /// location keeps the cave's own.
-  CaveEdit get _edited {
+  /// The name as edited; an empty one keeps the cave's own
+  String get _name {
     final name = _nameController.text.trim();
-    return (
-      name: name.isEmpty ? widget.cave.name : name,
-      location: _isLocationEmpty
-          ? null
-          : _location ?? widget.cave.location,
-    );
+    return name.isEmpty ? widget.cave.name : name;
   }
 
   /// Ends editing the name; an empty one goes back to the cave's own
   void _finishEditingName() {
     setState(() {
       _editingName = false;
-      if (_nameController.text.trim().isEmpty) {
-        _nameController.text = widget.cave.name;
-      }
+      _nameController.text = _name;
     });
   }
 
@@ -126,7 +98,7 @@ class _CavePageState extends State<CavePage> {
         onSubmitted: (_) => _finishEditingName(),
       );
     }
-    return Text(_nameController.text.trim());
+    return Text(_name);
   }
 
   /// The button starting or ending editing the name, which stays in place
@@ -151,7 +123,8 @@ class _CavePageState extends State<CavePage> {
     if (deleted && mounted) Navigator.of(context).pop();
   }
 
-  Widget _figure(IconData icon, String label, double meters) {
+  /// A row with [label] and a length in the length unit
+  Widget _length(IconData? icon, String label, num meters) {
     final unit = _settings.lengthUnit;
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -164,19 +137,53 @@ class _CavePageState extends State<CavePage> {
     );
   }
 
-  Widget _coordinateField(TextEditingController controller, String label) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(labelText: label, suffixText: '°'),
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-        signed: true,
-      ),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^-?\d*\.?\d*')),
-      ],
-      onChanged: (_) => setState(() {}),
+  /// Closes the page, keeping the edits, and shows the reference points
+  void _showReferencePoints() {
+    Navigator.of(context).pop(_name);
+    widget.onShowReferencePoints!();
+  }
+
+  /// The coordinates the automatic declination uses: the cave's first
+  /// reference point if it is in Swiss grid coordinates, else the Hölloch's,
+  /// with a warning saying why
+  List<Widget> _coordinates(AppLocalizations l10n) {
+    final ref = widget.cave.firstReferencePoint;
+    final usable =
+        ref != null && GeoPosition.fromSwissGrid(ref.east, ref.north) != null;
+    final heading = ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.place),
+      title: Text(usable
+          ? l10n.caveCoordinates(ref.id.toString())
+          : l10n.caveDefaultCoordinates),
     );
+    if (usable) {
+      return [
+        heading,
+        _length(null, l10n.columnEast, ref.east),
+        _length(null, l10n.columnNorth, ref.north),
+        _length(null, l10n.caveAltitude, ref.altitude),
+      ];
+    }
+    return [
+      heading,
+      _length(null, l10n.columnEast, GeoPosition.hoellochEast),
+      _length(null, l10n.columnNorth, GeoPosition.hoellochNorth),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.warning_amber,
+            color: Theme.of(context).colorScheme.error),
+        title: Text(ref == null
+            ? l10n.caveNoReferencePoint
+            : l10n.caveNotSwissGrid(ref.id.toString())),
+        trailing: widget.onShowReferencePoints == null
+            ? null
+            : TextButton(
+                onPressed: _showReferencePoints,
+                child: Text(l10n.caveShowReferencePoints),
+              ),
+      ),
+    ];
   }
 
   @override
@@ -184,44 +191,20 @@ class _CavePageState extends State<CavePage> {
     final l10n = AppLocalizations.of(context)!;
     final cave = widget.cave;
 
-    return PopScope<CaveEdit>(
+    return PopScope<String>(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) Navigator.of(context).pop(_edited);
+        if (!didPop) Navigator.of(context).pop(_name);
       },
       child: Scaffold(
         appBar: AppBar(title: _title(l10n), actions: [_nameButton(l10n)]),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _figure(Icons.straighten, l10n.caveLength, cave.totalLength),
-            _figure(Icons.height, l10n.caveHeight, cave.heightDifference),
+            _length(Icons.straighten, l10n.caveLength, cave.totalLength),
+            _length(Icons.height, l10n.caveHeight, cave.heightDifference),
             const Divider(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _coordinateField(
-                      _latitudeController, l10n.explorerLatitude),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _coordinateField(
-                      _longitudeController, l10n.explorerLongitude),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _isLocationInvalid
-                  ? l10n.explorerLocationInvalid
-                  : l10n.explorerCaveLocationHelp,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: _isLocationInvalid
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
+            ..._coordinates(l10n),
             if (widget.onDelete != null) ...[
               const SizedBox(height: 32),
               OutlinedButton.icon(

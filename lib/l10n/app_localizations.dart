@@ -471,29 +471,41 @@ abstract class AppLocalizations {
   /// **'Height difference'**
   String get caveHeight;
 
-  /// Explanation under the latitude and longitude of a cave
+  /// Heading of the coordinates of a cave, taken from its first reference point
   ///
   /// In en, this message translates to:
-  /// **'For the automatic declination, unless a reference point has Swiss coordinates'**
-  String get explorerCaveLocationHelp;
+  /// **'Coordinates of {station}'**
+  String caveCoordinates(String station);
 
-  /// Label for the latitude of a cave in WGS84 degrees
+  /// Label for the altitude of a cave's first reference point
   ///
   /// In en, this message translates to:
-  /// **'Latitude'**
-  String get explorerLatitude;
+  /// **'Altitude'**
+  String get caveAltitude;
 
-  /// Label for the longitude of a cave in WGS84 degrees
+  /// Heading of the coordinates used for a cave whose own cannot be used
   ///
   /// In en, this message translates to:
-  /// **'Longitude'**
-  String get explorerLongitude;
+  /// **'Coordinates of the Hölloch (default)'**
+  String get caveDefaultCoordinates;
 
-  /// Error shown when the entered cave location is out of range or incomplete
+  /// Warning on the cave page when the cave has no reference point
   ///
   /// In en, this message translates to:
-  /// **'Enter a latitude from -90 to 90 and a longitude from -180 to 180, or leave both empty.'**
-  String get explorerLocationInvalid;
+  /// **'The cave has no reference point yet.'**
+  String get caveNoReferencePoint;
+
+  /// Warning on the cave page when the first reference point cannot be located
+  ///
+  /// In en, this message translates to:
+  /// **'Reference point {station} is not in the Swiss grid (LV95 or LV03).'**
+  String caveNotSwissGrid(String station);
+
+  /// Button on the cave page showing the reference points in the data view
+  ///
+  /// In en, this message translates to:
+  /// **'Reference points'**
+  String get caveShowReferencePoints;
 
   /// Title of the dialog confirming that a cave is deleted
   ///

@@ -212,18 +212,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get caveHeight => 'Height difference';
 
   @override
-  String get explorerCaveLocationHelp =>
-      'For the automatic declination, unless a reference point has Swiss coordinates';
+  String caveCoordinates(String station) {
+    return 'Coordinates of $station';
+  }
 
   @override
-  String get explorerLatitude => 'Latitude';
+  String get caveAltitude => 'Altitude';
 
   @override
-  String get explorerLongitude => 'Longitude';
+  String get caveDefaultCoordinates => 'Coordinates of the Hölloch (default)';
 
   @override
-  String get explorerLocationInvalid =>
-      'Enter a latitude from -90 to 90 and a longitude from -180 to 180, or leave both empty.';
+  String get caveNoReferencePoint => 'The cave has no reference point yet.';
+
+  @override
+  String caveNotSwissGrid(String station) {
+    return 'Reference point $station is not in the Swiss grid (LV95 or LV03).';
+  }
+
+  @override
+  String get caveShowReferencePoints => 'Reference points';
 
   @override
   String get explorerDeleteCaveTitle => 'Delete Cave';

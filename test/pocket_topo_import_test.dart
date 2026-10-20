@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile_topo/controllers/selection_state.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
+import 'package:mobile_topo/controllers/view_navigation.dart';
 import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
@@ -105,8 +106,13 @@ void main() {
   final now = DateTime.now();
   final existingTrip = Trip(id: 'existing', date: now, createdAt: now);
 
+  late SelectionState selection;
+  late ViewNavigation navigation;
+
   Future<_SingleCaveRepository> pumpExplorer(
       WidgetTester tester, List<PlatformFile> picked) async {
+    selection = SelectionState();
+    navigation = ViewNavigation();
     FilePickerPlatform.instance = _FakeFilePicker(picked);
     final repository = _SingleCaveRepository(Cave(
       id: 'cave',
@@ -127,7 +133,8 @@ void main() {
 
     await tester.pumpWidget(MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SelectionState()),
+        ChangeNotifierProvider.value(value: selection),
+        ChangeNotifierProvider.value(value: navigation),
         ChangeNotifierProvider(create: (_) => SettingsController()),
         Provider<CaveRepository>.value(value: repository),
         Provider<SettingsRepository>.value(value: _NoopSettingsRepository()),
@@ -264,6 +271,20 @@ void main() {
 
       expect(repository.cave.name, 'Hölloch');
       expect(find.text('Hölloch'), findsOneWidget);
+    });
+
+    testWidgets('the cave page leads to the reference points of a section',
+        (tester) async {
+      await pumpExplorer(tester, []);
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reference points'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CavePage), findsNothing);
+      expect(selection.selectedSection?.id, 's');
+      expect(navigation.takeReferencePoints(), isNotNull);
     });
 
     testWidgets('tapping the arrow expands the cave', (tester) async {

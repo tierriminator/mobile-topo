@@ -45,6 +45,11 @@ void main() {
       expect(position.longitude, closeTo(7.43864, 1e-4));
     });
 
+    test('places the Hölloch at its entrance', () {
+      expect(GeoPosition.hoelloch.latitude, closeTo(46.97664, 1e-4));
+      expect(GeoPosition.hoelloch.longitude, closeTo(8.78839, 1e-4));
+    });
+
     test('rejects coordinates outside Switzerland', () {
       expect(GeoPosition.fromSwissGrid(0, 0), isNull);
       expect(GeoPosition.fromSwissGrid(500000, 5200000), isNull);

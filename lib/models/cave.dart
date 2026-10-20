@@ -143,10 +143,6 @@ class Cave {
 
   /// Trips in the order they were created
   final List<Trip> trips;
-
-  /// Where the cave lies, as given by the user, for the automatic
-  /// declination; see [declinationPosition]
-  final GeoPosition? location;
   final DateTime createdAt;
   final DateTime modifiedAt;
 
@@ -157,21 +153,16 @@ class Cave {
     this.areas = const [],
     this.sections = const [],
     this.trips = const [],
-    this.location,
     required this.createdAt,
     required this.modifiedAt,
   });
 
-  /// A copy with the given fields replaced; [clearLocation] removes the
-  /// location
   Cave copyWith({
     String? name,
     String? description,
     List<Area>? areas,
     List<Section>? sections,
     List<Trip>? trips,
-    GeoPosition? location,
-    bool clearLocation = false,
     DateTime? modifiedAt,
   }) {
     return Cave(
@@ -181,7 +172,6 @@ class Cave {
       areas: areas ?? this.areas,
       sections: sections ?? this.sections,
       trips: trips ?? this.trips,
-      location: clearLocation ? null : location ?? this.location,
       createdAt: createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
     );
@@ -308,17 +298,19 @@ class Cave {
     ));
   }
 
-  /// Where the automatic declination is computed: at the first reference
-  /// point given in Swiss grid coordinates, else at the cave's [location],
-  /// else at the Hölloch
+  /// The first reference point of the cave's sections, which gives the
+  /// cave's coordinates
+  ReferencePoint? get firstReferencePoint => allSections
+      .expand((s) => s.survey.referencePoints)
+      .firstOrNull;
+
+  /// Where the automatic declination is computed: at the
+  /// [firstReferencePoint] if it is in Swiss grid coordinates, else at the
+  /// Hölloch
   GeoPosition get declinationPosition {
-    for (final section in allSections) {
-      for (final ref in section.survey.referencePoints) {
-        final position = GeoPosition.fromSwissGrid(ref.east, ref.north);
-        if (position != null) return position;
-      }
-    }
-    return location ?? GeoPosition.hoelloch;
+    final ref = firstReferencePoint;
+    return (ref == null ? null : GeoPosition.fromSwissGrid(ref.east, ref.north)) ??
+        GeoPosition.hoelloch;
   }
 
   /// The declination applied to the stretches of [trip]: computed from its

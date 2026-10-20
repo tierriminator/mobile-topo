@@ -50,6 +50,12 @@ class _DataViewState extends State<DataView> {
   /// here, as in PocketTopo: the shot leading to the station, or else its
   /// reference point, or else the first row measured from it
   void _onNavigation() {
+    final referencePoints = _viewNavigation.takeReferencePoints();
+    if (referencePoints != null) {
+      _showReferencePoints(referencePoints.station);
+      return;
+    }
+
     final request = _viewNavigation.take({NavigationTarget.data});
     final section = context.read<SelectionState>().selectedSection;
     if (request == null || section == null) return;
@@ -67,7 +73,27 @@ class _DataViewState extends State<DataView> {
       index = survey.stretches.indexWhere((s) => s.from == station);
     }
     if (index < 0) return;
+    _showRow(mode, index);
+  }
 
+  /// Shows the reference points table, selecting the row of [station] if
+  /// it has one
+  void _showReferencePoints(Point? station) {
+    final section = context.read<SelectionState>().selectedSection;
+    final index = station == null || section == null
+        ? -1
+        : _caveSurvey(section.survey)
+            .referencePoints
+            .indexWhere((p) => p.id == station);
+    if (index >= 0) {
+      _showRow(DataViewMode.referencePoints, index);
+    } else {
+      setState(() => _mode = DataViewMode.referencePoints);
+    }
+  }
+
+  /// Shows the table of [mode] and selects its row at [index]
+  void _showRow(DataViewMode mode, int index) {
     // Selections are not shown while editing cells
     setState(() {
       _mode = mode;

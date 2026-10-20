@@ -5,42 +5,44 @@ import 'package:provider/provider.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
-import 'package:mobile_topo/models/geo_position.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/views/cave_page.dart';
 
 void main() {
-  // 10 m down a 30° slope and 4 m level: 14 m long, 5 m high
-  final cave = Cave(
-    id: 'cave',
-    name: 'Cave',
-    sections: [
-      Section(
-        id: 's',
-        name: 'Section',
-        survey: const Survey(
-          stretches: [
-            MeasuredDistance(Point(1, 0), Point(1, 1), 10, 0, -30),
-            MeasuredDistance(Point(1, 1), Point(1, 2), 4, 90, 0),
-          ],
-          referencePoints: [],
-        ),
+  /// A cave of 10 m down a 30° slope and 4 m level, 14 m long and 5 m high,
+  /// with [referencePoints]
+  Cave caveWith(List<ReferencePoint> referencePoints) => Cave(
+        id: 'cave',
+        name: 'Cave',
+        sections: [
+          Section(
+            id: 's',
+            name: 'Section',
+            survey: Survey(
+              stretches: const [
+                MeasuredDistance(Point(1, 0), Point(1, 1), 10, 0, -30),
+                MeasuredDistance(Point(1, 1), Point(1, 2), 4, 90, 0),
+              ],
+              referencePoints: referencePoints,
+            ),
+            createdAt: DateTime(2026),
+            modifiedAt: DateTime(2026),
+          ),
+        ],
         createdAt: DateTime(2026),
         modifiedAt: DateTime(2026),
-      ),
-    ],
-    location: const GeoPosition(46.9, 8.8),
-    createdAt: DateTime(2026),
-    modifiedAt: DateTime(2026),
-  );
+      );
 
-  /// Opens the page for [cave] with [settings] and returns the pending
-  /// result of editCave
-  Future<Future<CaveEdit?>> open(WidgetTester tester,
-      {Future<bool> Function()? onDelete,
+  const entrance = ReferencePoint(Point(1, 0), 2709400, 1204300, 650);
+
+  /// Opens the page for [cave], by default one with the [entrance], with
+  /// [settings] and returns the pending result of editCave
+  Future<Future<String?>> open(WidgetTester tester,
+      {Cave? cave,
+      Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
-    late Future<CaveEdit?> result;
+    late Future<String?> result;
     await tester.pumpWidget(ChangeNotifierProvider(
       create: (_) => SettingsController(settings),
       child: MaterialApp(
@@ -48,8 +50,9 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () =>
-                result = editCave(context, cave, onDelete: onDelete),
+            onPressed: () => result = editCave(
+                context, cave ?? caveWith(const [entrance]),
+                onDelete: onDelete),
             child: const Text('open'),
           ),
         ),
@@ -64,8 +67,6 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
   }
-
-  Finder field(String label) => find.widgetWithText(TextField, label);
 
   /// Taps the edit button of the title and enters [name]
   Future<void> editName(WidgetTester tester, String name) async {
@@ -83,7 +84,7 @@ void main() {
     expect(
         find.descendant(of: find.byType(AppBar), matching: find.text('Cave')),
         findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(2));
+    expect(find.byType(TextField), findsNothing);
 
     await editName(tester, 'Hölloch');
     await tester.tap(find.byIcon(Icons.check));
@@ -113,44 +114,90 @@ void main() {
     expect(find.text('16.4 ft'), findsOneWidget);
   });
 
+  group('coordinates', () {
+    testWidgets('are those of the first reference point', (tester) async {
+      const later = ReferencePoint(Point(1, 2), 2600000, 1200000, 500);
+      await open(tester, cave: caveWith(const [entrance, later]));
+      expect(find.text('Coordinates of 1.0'), findsOneWidget);
+      expect(find.text('2709400.0 m'), findsOneWidget);
+      expect(find.text('1204300.0 m'), findsOneWidget);
+      expect(find.text('650.0 m'), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber), findsNothing);
+    });
+
+    testWidgets('are not editable', (tester) async {
+      await open(tester);
+      expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('missing are warned about, showing the Hölloch\'s',
+        (tester) async {
+      await open(tester, cave: caveWith(const []));
+      expect(find.text('Coordinates of the Hölloch (default)'),
+          findsOneWidget);
+      expect(find.text('2702698.0 m'), findsOneWidget);
+      expect(find.text('1203724.0 m'), findsOneWidget);
+      expect(find.text('The cave has no reference point yet.'),
+          findsOneWidget);
+    });
+
+    testWidgets('outside the Swiss grid are warned about', (tester) async {
+      await open(tester,
+          cave: caveWith(const [ReferencePoint(Point(1, 0), 0, 0, 0)]));
+      expect(find.text('Coordinates of the Hölloch (default)'),
+          findsOneWidget);
+      expect(find.textContaining('Reference point 1.0 is not in the Swiss'),
+          findsOneWidget);
+    });
+
+    testWidgets('a warning leads to the reference points', (tester) async {
+      var shown = 0;
+      late Future<String?> result;
+      await tester.pumpWidget(ChangeNotifierProvider(
+        create: (_) => SettingsController(),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => result = editCave(context, caveWith(const []),
+                  onShowReferencePoints: () => shown++),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await editName(tester, 'Hölloch');
+
+      await tester.tap(find.text('Reference points'));
+      await tester.pumpAndSettle();
+
+      expect(shown, 1);
+      expect(find.byType(CavePage), findsNothing);
+      // The page keeps its edits when leaving this way
+      expect(await result, 'Hölloch');
+    });
+
+    testWidgets('usable ones offer no way to the reference points',
+        (tester) async {
+      await open(tester);
+      expect(find.text('Reference points'), findsNothing);
+    });
+  });
+
   testWidgets('leaving the page unchanged returns null', (tester) async {
     final result = await open(tester);
     await leave(tester);
     expect(await result, isNull);
   });
 
-  testWidgets('returns the edited name and location', (tester) async {
+  testWidgets('returns the edited name', (tester) async {
     final result = await open(tester);
     await editName(tester, ' Hölloch ');
-    await tester.enterText(field('Latitude'), '46.97');
-    await tester.enterText(field('Longitude'), '8.79');
     await leave(tester);
-
-    final edited = await result;
-    expect(edited?.name, 'Hölloch');
-    expect(edited?.location, const GeoPosition(46.97, 8.79));
-  });
-
-  testWidgets('emptying the location fields removes it', (tester) async {
-    final result = await open(tester);
-    await tester.enterText(field('Latitude'), '');
-    await tester.enterText(field('Longitude'), '');
-    await leave(tester);
-
-    final edited = await result;
-    expect(edited, isNotNull);
-    expect(edited?.location, isNull);
-  });
-
-  testWidgets('an invalid location is shown and not taken', (tester) async {
-    final result = await open(tester);
-    await tester.enterText(field('Latitude'), '95');
-    await tester.pump();
-    expect(find.textContaining('Enter a latitude from -90 to 90'),
-        findsOneWidget);
-    await leave(tester);
-
-    expect(await result, isNull);
+    expect(await result, 'Hölloch');
   });
 
   testWidgets('an empty name keeps the old one', (tester) async {
