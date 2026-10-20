@@ -149,16 +149,17 @@ Android installs an update only if it is signed with the same key as the
 installed app, so every release must use the same key. **Back up the keystore
 and its passwords**: without them, existing installs can never be updated.
 
-Generate the key once, outside the repository:
+Generate the key once, outside the repository, in a folder only you can read:
 
 ```bash
-keytool -genkey -v -keystore ~/mobile-topo-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+mkdir -m 700 ~/.keystores
+keytool -genkey -v -keystore ~/.keystores/mobile-topo-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
 ```
 
 For local release builds, create `android/key.properties` (git-ignored):
 
 ```properties
-storeFile=/Users/<you>/mobile-topo-upload.jks
+storeFile=/Users/<you>/.keystores/mobile-topo-upload.jks
 storePassword=<keystore password>
 keyAlias=upload
 keyPassword=<key password>
@@ -172,7 +173,7 @@ The workflow sets these from the following repository secrets:
 
 | Secret | Value |
 |--------|-------|
-| `ANDROID_KEYSTORE_BASE64` | `base64 -i ~/mobile-topo-upload.jks` |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i ~/.keystores/mobile-topo-upload.jks` |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
 | `ANDROID_KEY_ALIAS` | `upload` |
 | `ANDROID_KEY_PASSWORD` | Key password |
