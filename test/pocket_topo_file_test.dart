@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/data/pocket_topo_file.dart';
+import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/cross_section.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
@@ -453,30 +454,81 @@ void main() {
       ]);
     });
 
-    test('places drawings relative to the first reference point', () {
-      final result = read(topFile(
-        shotCount: 1,
-        shots: (w) => w.shot(TopWriter.majorMinor(1, 0),
-            TopWriter.majorMinor(1, 1), 10000, 0x4000, 0),
-        referenceCount: 1,
-        references: (w) =>
-            w.reference(TopWriter.majorMinor(1, 0), 100000, 200000, 300000),
-        outline: (w) {
-          w.mapping();
-          w.polygon([(0, 0), (10000, 0)], 1);
-          w.byte(0);
-        },
-        sideView: (w) {
-          w.mapping();
-          w.polygon([(0, 0), (10000, 0)], 1);
-          w.byte(0);
-        },
-      ));
+    /// A file with a shot east from [from] to the next station and a line
+    /// along it in both drawings
+    PocketTopoImport fileWithLine(int from, {(int, int, int)? reference}) =>
+        read(topFile(
+          shotCount: 1,
+          shots: (w) => w.shot(from, from + 1, 10000, 0x4000, 0),
+          referenceCount: reference == null ? 0 : 1,
+          references: (w) {
+            if (reference case (final east, final north, final altitude)) {
+              w.reference(from, east, north, altitude);
+            }
+          },
+          outline: (w) {
+            w.mapping();
+            w.polygon([(0, 0), (10000, 0)], 1);
+            w.byte(0);
+          },
+          sideView: (w) {
+            w.mapping();
+            w.polygon([(0, 0), (10000, 0)], 1);
+            w.byte(0);
+          },
+        ));
 
-      expect(result.outlineSketch.strokes.single.points,
+    /// [cave] with the survey and trips of [file] as a new section
+    Cave withSection(Cave cave, PocketTopoImport file) => cave
+        .copyWith(trips: [...cave.trips, ...file.trips]).addSection(Section(
+      id: 'section${cave.sections.length}',
+      name: '',
+      survey: file.survey,
+      createdAt: DateTime(2024),
+      modifiedAt: DateTime(2024),
+    ));
+
+    final emptyCave = Cave(
+        id: 'cave',
+        name: '',
+        createdAt: DateTime(2024),
+        modifiedAt: DateTime(2024));
+
+    test('places drawings relative to the first reference point', () {
+      final file = fileWithLine(TopWriter.majorMinor(1, 0),
+          reference: (100000, 200000, 300000));
+      final (outline, sideView) =
+          file.sketchesIn(withSection(emptyCave, file));
+
+      expect(outline.strokes.single.points,
           const [Offset(100, -200), Offset(110, -200)]);
-      expect(result.sideViewSketch.strokes.single.points,
+      expect(sideView.strokes.single.points,
           const [Offset(0, -300), Offset(10, -300)]);
+    });
+
+    test('places drawings of a file continuing from another one', () {
+      final first = fileWithLine(TopWriter.majorMinor(1, 0),
+          reference: (100000, 200000, 300000));
+      final second = fileWithLine(TopWriter.majorMinor(1, 1));
+      final cave = withSection(withSection(emptyCave, first), second);
+      final (outline, sideView) = second.sketchesIn(cave);
+
+      expect(outline.strokes.single.points,
+          const [Offset(110, -200), Offset(120, -200)]);
+      expect(sideView.strokes.single.points,
+          const [Offset(10, -300), Offset(20, -300)]);
+    });
+
+    test('places drawings of a file not connected to the cave on its own',
+        () {
+      final first = fileWithLine(TopWriter.majorMinor(1, 0),
+          reference: (100000, 200000, 300000));
+      final second = fileWithLine(TopWriter.majorMinor(2, 0));
+      final cave = withSection(withSection(emptyCave, first), second);
+      final (outline, _) = second.sketchesIn(cave);
+
+      expect(outline.strokes.single.points,
+          const [Offset(0, 0), Offset(10, 0)]);
     });
   });
 }

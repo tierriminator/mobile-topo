@@ -21,6 +21,13 @@ class PocketTopoImport {
   /// The file's stretches and reference points. Repeated measurements of a
   /// survey shot are averaged into one stretch.
   final Survey survey;
+
+  /// The station the drawings are relative to: the first of the survey's
+  /// origins, or null if the survey has no stations
+  final Point? origin;
+
+  /// The drawings relative to the [origin], with the y axis pointing down;
+  /// [sketchesIn] places them in a cave
   final Sketch outlineSketch;
   final Sketch sideViewSketch;
 
@@ -30,10 +37,60 @@ class PocketTopoImport {
   const PocketTopoImport({
     required this.trips,
     required this.survey,
+    required this.origin,
     required this.outlineSketch,
     required this.sideViewSketch,
     required this.skippedShots,
   });
+
+  /// The outline and side view drawings in the world coordinates of [cave],
+  /// which holds this import's survey and trips: moved to where the
+  /// [origin] lies in the whole cave, as PocketTopo draws relative to it
+  /// with the stations of other files placed too. An origin not connected
+  /// to the cave's reference points lies where the file alone puts it.
+  (Sketch, Sketch) sketchesIn(Cave cave) {
+    final origin = this.origin;
+    if (origin == null) return (outlineSketch, sideViewSketch);
+    final (outlineOrigin, sideViewOrigin) =
+        _originIn(cave.combinedSurvey, origin) ??
+            _originIn(cave.corrected(survey), origin)!;
+    return (
+      _shifted(outlineSketch, outlineOrigin),
+      _shifted(sideViewSketch, sideViewOrigin),
+    );
+  }
+
+  /// Where [origin] lies in the outline and in the side view of [survey],
+  /// or null if the survey does not place it
+  static (Offset, Offset)? _originIn(Survey survey, Point origin) {
+    final positions = survey.computeStationPositions();
+    final position = positions[origin];
+    if (position == null) return null;
+    final sideView = SideView.of(survey, positions).stationPositions;
+    return (
+      Offset(position.east, -position.north),
+      sideView[origin] ?? Offset(0, -position.altitude),
+    );
+  }
+
+  /// [sketch] moved by [offset]
+  static Sketch _shifted(Sketch sketch, Offset offset) => Sketch(
+        strokes: [
+          for (final s in sketch.strokes)
+            Stroke(
+              points: [for (final p in s.points) p + offset],
+              color: s.color,
+            ),
+        ],
+        crossSections: [
+          for (final c in sketch.crossSections)
+            CrossSection(
+              station: c.station,
+              position: c.position + offset,
+              kind: c.kind,
+            ),
+        ],
+      );
 
   /// This import with each trip that matches one of [existing], or an
   /// earlier trip of the file, replaced by that trip: [trips] keeps only the
@@ -62,6 +119,7 @@ class PocketTopoImport {
             null => s,
           },
       ]),
+      origin: origin,
       outlineSketch: outlineSketch,
       sideViewSketch: sideViewSketch,
       skippedShots: skippedShots,
@@ -102,34 +160,6 @@ class _Shot {
 
   const _Shot(this.from, this.to, this.distance, this.azimuth,
       this.inclination, this.flipped, this.tripId, this.comment);
-}
-
-/// A drawing as stored in the file: positions relative to the first
-/// station, with the y axis pointing down
-class _Drawing {
-  final List<Stroke> strokes;
-  final List<CrossSection> crossSections;
-
-  const _Drawing(this.strokes, this.crossSections);
-
-  /// The drawing moved by [offset] into world coordinates
-  Sketch shiftedBy(Offset offset) => Sketch(
-        strokes: [
-          for (final s in strokes)
-            Stroke(
-              points: [for (final p in s.points) p + offset],
-              color: s.color,
-            ),
-        ],
-        crossSections: [
-          for (final c in crossSections)
-            CrossSection(
-              station: c.station,
-              position: c.position + offset,
-              kind: c.kind,
-            ),
-        ],
-      );
 }
 
 class _TopReader {
@@ -176,13 +206,13 @@ class _TopReader {
 
     final (stretches, skipped) = _stretches(shots);
     final survey = Survey(stretches: stretches, referencePoints: references);
-    final (outlineOrigin, sideViewOrigin) = _origins(survey, trips);
 
     return PocketTopoImport(
       trips: trips,
       survey: survey,
-      outlineSketch: outline.shiftedBy(outlineOrigin),
-      sideViewSketch: sideView.shiftedBy(sideViewOrigin),
+      origin: survey.origins.firstOrNull?.id,
+      outlineSketch: outline,
+      sideViewSketch: sideView,
       skippedShots: skipped,
     );
   }
@@ -319,7 +349,9 @@ class _TopReader {
     return Offset(x, y);
   }
 
-  _Drawing _drawing() {
+  /// A drawing with positions relative to the first station, the y axis
+  /// pointing down
+  Sketch _drawing() {
     _mapping();
     final strokes = <Stroke>[];
     final crossSections = <CrossSection>[];
@@ -353,7 +385,7 @@ class _TopReader {
           throw FormatException('Unknown PocketTopo drawing element: $element');
       }
     }
-    return _Drawing(strokes, crossSections);
+    return Sketch(strokes: strokes, crossSections: crossSections);
   }
 
   /// The stretches of [shots]: PocketTopo keeps every measurement of a
@@ -428,25 +460,6 @@ class _TopReader {
       tripId: first.tripId,
       comment: shots.map((s) => s.comment).nonNulls.firstOrNull,
       flipped: first.flipped,
-    );
-  }
-
-  /// Where the station the drawings are relative to lies in the outline and
-  /// in the side view: the first of the survey's origins
-  static (Offset, Offset) _origins(Survey survey, List<Trip> trips) {
-    final origin = survey.origins.firstOrNull?.id;
-    if (origin == null) return (Offset.zero, Offset.zero);
-
-    final now = DateTime.now();
-    final corrected =
-        Cave(id: '', name: '', trips: trips, createdAt: now, modifiedAt: now)
-            .corrected(survey);
-    final positions = corrected.computeStationPositions();
-    final position = positions[origin]!;
-    final sideView = SideView.of(corrected, positions).stationPositions;
-    return (
-      Offset(position.east, -position.north),
-      sideView[origin] ?? Offset(0, -position.altitude),
     );
   }
 }

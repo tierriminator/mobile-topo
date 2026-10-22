@@ -257,8 +257,9 @@ class ExplorerViewState extends State<ExplorerView> {
   }
 
   /// Imports the PocketTopo files the user picks, each as a new section of
-  /// [cave] named after the file, in the order of their names. Their trips
-  /// are added to the cave unless it already has the same trip.
+  /// [cave] named after the file, in the order of their names, with the
+  /// drawings placed by the stations of the whole cave. Their trips are
+  /// added to the cave unless it already has the same trip.
   Future<void> _importPocketTopo(Cave cave) async {
     final l10n = AppLocalizations.of(context)!;
     final repository = context.read<CaveRepository>();
@@ -273,6 +274,7 @@ class ExplorerViewState extends State<ExplorerView> {
     var updatedCave = cave;
     var skipped = 0;
     final failures = <String>[];
+    final sections = <(Section, PocketTopoImport)>[];
     for (final file in files) {
       final PocketTopoImport imported;
       try {
@@ -291,15 +293,23 @@ class ExplorerViewState extends State<ExplorerView> {
         name: name.isEmpty ? l10n.explorerNewSection : name,
         // The file's coordinates are taken to be in the cave's system
         survey: imported.survey.withReferenceSystem(cave.coordinateSystem),
-        outlineSketch: imported.outlineSketch,
-        sideViewSketch: imported.sideViewSketch,
         createdAt: now,
         modifiedAt: now,
       );
       updatedCave = updatedCave
           .copyWith(trips: [...updatedCave.trips, ...imported.trips])
           .addSection(section);
+      sections.add((section, imported));
       skipped += imported.skippedShots;
+    }
+
+    // The drawings are placed once all files are in, as a file's stations
+    // may continue from those of a file imported after it
+    final placed = updatedCave;
+    for (final (section, imported) in sections) {
+      final (outline, sideView) = imported.sketchesIn(placed);
+      updatedCave = updatedCave.replaceSection(
+          section.copyWith(outlineSketch: outline, sideViewSketch: sideView));
     }
 
     if (!identical(updatedCave, cave)) {
