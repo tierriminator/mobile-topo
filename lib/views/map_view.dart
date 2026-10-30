@@ -5,9 +5,11 @@ import '../controllers/selection_state.dart';
 import '../controllers/settings_controller.dart';
 import '../controllers/view_navigation.dart';
 import '../l10n/app_localizations.dart';
+import '../models/cave.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
 import 'widgets/station_markers.dart';
+import 'widgets/survey_key.dart';
 import 'widgets/view_transform.dart';
 
 class MapView extends StatefulWidget {
@@ -18,6 +20,26 @@ class MapView extends StatefulWidget {
 }
 
 class _MapViewState extends State<MapView> {
+  /// The survey data everything below was computed from
+  SurveyKey? _surveyKey;
+
+  /// The whole cave's survey, ready for computing positions
+  Survey? _caveSurvey;
+
+  /// The selected section's stations
+  Set<Point> _sectionStations = {};
+
+  /// Surveyed length and height difference of the whole cave
+  double _length = 0, _depth = 0;
+
+  /// The stations drawn and where they are in the plan: of the rest of the
+  /// cave and of the selected section
+  List<(Point, Offset)> _caveStations = [], _sectionStationPositions = [];
+
+  /// The survey shots drawn, from and to in the plan: of the rest of the
+  /// cave and of the selected section
+  List<(Offset, Offset)> _caveShots = [], _sectionShots = [];
+
   Map<Point, StationPosition> _positions = {};
 
   /// For each station, the first station it is equivalent to
@@ -69,32 +91,74 @@ class _MapViewState extends State<MapView> {
     });
   }
 
-  void _updateFromSection(String? sectionId, Survey? caveSurvey,
-      Set<Point> sectionStations) {
-    if (sectionId == null || caveSurvey == null) {
-      if (_currentSectionId != null) {
-        _positions = {};
-        _equivalentStations = {};
-        _shownStations = {};
-        _currentSectionId = null;
-      }
+  void _updateFromSection(Cave? cave, Section? section) {
+    // Computing positions takes a while for large caves, so it is only done
+    // when the survey data has changed
+    final key = SurveyKey(cave, section);
+    if (key == _surveyKey) return;
+    _surveyKey = key;
+
+    if (section == null || cave == null) {
+      _caveSurvey = null;
+      _sectionStations = {};
+      _caveStations = [];
+      _sectionStationPositions = [];
+      _caveShots = [];
+      _sectionShots = [];
+      _positions = {};
+      _equivalentStations = {};
+      _shownStations = {};
+      _currentSectionId = null;
       return;
     }
 
-    // Always recompute positions (survey data may have changed)
+    final caveSurvey = cave.combinedSurvey;
+    _caveSurvey = caveSurvey;
+    _sectionStations = section.survey.stations;
     _positions = caveSurvey.computeStationPositions();
     _equivalentStations = caveSurvey.equivalentStations;
-    _shownStations = {
+    final shownStations = _shownStations = {
       for (final station in caveSurvey.distinctStations)
         if (_positions.containsKey(station)) station,
     };
+    // A station drawn for an equivalent one in the section belongs to it too
+    final drawnSectionStations = {
+      for (final station in _sectionStations)
+        _equivalentStations[station] ?? station,
+    };
+    _caveStations = [
+      for (final station in shownStations)
+        if (!drawnSectionStations.contains(station))
+          (station, _positions[station]!.plan),
+    ];
+    _sectionStationPositions = [
+      for (final station in shownStations)
+        if (drawnSectionStations.contains(station))
+          (station, _positions[station]!.plan),
+    ];
+    _caveShots = _shots([
+      for (final s in cave.allSections)
+        if (s.id != section.id) ...s.survey.stretches,
+    ]);
+    _sectionShots = _shots(section.survey.stretches);
+    _length = caveSurvey.totalLength;
+    _depth = caveSurvey.computeDepth(_positions);
 
     // Only recenter when switching to a different section
-    if (sectionId != _currentSectionId) {
-      _currentSectionId = sectionId;
-      _centerView(sectionStations);
+    if (section.id != _currentSectionId) {
+      _currentSectionId = section.id;
+      _centerView(_sectionStations);
     }
   }
+
+  /// The survey shots of [stretches] whose stations both have a position,
+  /// from and to in the plan
+  List<(Offset, Offset)> _shots(List<MeasuredDistance> stretches) => [
+        for (final stretch in stretches)
+          if ((_positions[stretch.from], _positions[stretch.to])
+              case (final from?, final to?))
+            (from.plan, to.plan),
+      ];
 
   /// Centers on the selected section, or on the whole cave if none of the
   /// section's stations have a position.
@@ -180,14 +244,11 @@ class _MapViewState extends State<MapView> {
     final l10n = AppLocalizations.of(context)!;
     final selectionState = context.watch<SelectionState>();
     final section = selectionState.selectedSection;
-    final cave = selectionState.selectedCave;
-    final caveSurvey = cave?.combinedSurvey;
-    final sectionStations = section?.survey.stations ?? const <Point>{};
 
-    // Update positions when section changes
-    _updateFromSection(section?.id, caveSurvey, sectionStations);
+    // Update positions when the survey data changes
+    _updateFromSection(selectionState.selectedCave, section);
 
-    if (section == null || caveSurvey == null) {
+    if (section == null || _caveSurvey == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -210,16 +271,14 @@ class _MapViewState extends State<MapView> {
     }
 
     final lengthUnit = context.watch<SettingsController>().lengthUnit;
-    final depth = caveSurvey.computeDepth(_positions);
-    final length = caveSurvey.totalLength;
 
     String statusText;
     if (_positions[_selectedStation] case final pos?) {
       statusText = stationStatus(l10n, pos, lengthUnit);
     } else {
       statusText = l10n.mapStatusOverview(
-        lengthUnit.fromMeters(length).toStringAsFixed(1),
-        lengthUnit.fromMeters(depth).toStringAsFixed(1),
+        lengthUnit.fromMeters(_length).toStringAsFixed(1),
+        lengthUnit.fromMeters(_depth).toStringAsFixed(1),
         lengthUnit.symbol,
         _transform.scaleLabel(
             context.watch<ScreenDensity>().logicalPixelsPerMm),
@@ -269,16 +328,10 @@ class _MapViewState extends State<MapView> {
                         child: ClipRect(
                           child: CustomPaint(
                             painter: _MapPainter(
-                              caveSurvey: caveSurvey,
-                              sectionSurvey: section.survey,
-                              // A station drawn for an equivalent one in
-                              // the section belongs to it too
-                              sectionStations: {
-                                for (final station in sectionStations)
-                                  _equivalentStations[station] ?? station,
-                              },
-                              positions: _positions,
-                              shownStations: _shownStations,
+                              caveShots: _caveShots,
+                              sectionShots: _sectionShots,
+                              caveStations: _caveStations,
+                              sectionStations: _sectionStationPositions,
                               transform: _transform,
                               selectedStation: _selectedStation,
                             ),
@@ -311,87 +364,71 @@ class _MapViewState extends State<MapView> {
 
 /// Draws the whole cave in black, with the selected section in red on top.
 class _MapPainter extends CustomPainter {
-  final Survey caveSurvey;
-  final Survey sectionSurvey;
-  final Set<Point> sectionStations;
-  final Map<Point, StationPosition> positions;
-  final Set<Point> shownStations;
+  /// Survey shots and stations in the plan, of the rest of the cave and of
+  /// the selected section
+  final List<(Offset, Offset)> caveShots, sectionShots;
+  final List<(Point, Offset)> caveStations, sectionStations;
   final ViewTransform transform;
   final Point? selectedStation;
 
   _MapPainter({
-    required this.caveSurvey,
-    required this.sectionSurvey,
+    required this.caveShots,
+    required this.sectionShots,
+    required this.caveStations,
     required this.sectionStations,
-    required this.positions,
-    required this.shownStations,
     required this.transform,
     this.selectedStation,
   });
 
-  Offset _toScreen(StationPosition pos, Size size) =>
-      transform.worldToScreen(pos.plan, size);
+  void _drawShots(Canvas canvas, Size size, List<(Offset, Offset)> shots,
+      Color color) {
+    paintLines(
+      canvas,
+      [
+        for (final (from, to) in shots)
+          (
+            transform.worldToScreen(from, size),
+            transform.worldToScreen(to, size)
+          ),
+      ],
+      Paint()
+        ..color = color
+        ..strokeWidth = 2.0,
+    );
+  }
 
-  void _drawStretches(
-      Canvas canvas, Size size, Iterable<MeasuredDistance> stretches, Paint paint) {
-    for (final stretch in stretches) {
-      final fromPos = positions[stretch.from];
-      final toPos = positions[stretch.to];
-
-      if (fromPos != null && toPos != null) {
-        final from = _toScreen(fromPos, size);
-        final to = _toScreen(toPos, size);
-        canvas.drawLine(from, to, paint);
-      }
-    }
+  void _drawStations(Canvas canvas, Size size, List<(Point, Offset)> stations,
+      Color color) {
+    paintStations(
+      canvas,
+      size,
+      [
+        for (final (station, position) in stations)
+          (station, transform.worldToScreen(position, size)),
+      ],
+      color: color,
+      selected: selectedStation,
+    );
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final caveLinePaint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    final sectionLinePaint = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
     // Draw survey shots: the rest of the cave first, the section on top
-    final sectionStretches = Set<MeasuredDistance>.identity()
-      ..addAll(sectionSurvey.stretches);
-    _drawStretches(
-      canvas,
-      size,
-      caveSurvey.stretches.where((s) => !sectionStretches.contains(s)),
-      caveLinePaint,
-    );
-    _drawStretches(canvas, size, sectionSurvey.stretches, sectionLinePaint);
+    _drawShots(canvas, size, caveShots, Colors.black);
+    _drawShots(canvas, size, sectionShots, Colors.red);
 
     // Draw stations, again with the section's stations on top
-    final orderedStations = shownStations.toList()
-      ..sort((a, b) {
-        final aInSection = sectionStations.contains(a) ? 1 : 0;
-        final bInSection = sectionStations.contains(b) ? 1 : 0;
-        return aInSection - bInSection;
-      });
-    for (final station in orderedStations) {
-      paintStation(
-        canvas,
-        _toScreen(positions[station]!, size),
-        station,
-        color: sectionStations.contains(station) ? Colors.red : Colors.black,
-        selected: station == selectedStation,
-      );
-    }
+    _drawStations(canvas, size, caveStations, Colors.black);
+    _drawStations(canvas, size, sectionStations, Colors.red);
   }
 
   @override
   bool shouldRepaint(covariant _MapPainter oldDelegate) {
     return oldDelegate.transform != transform ||
         oldDelegate.selectedStation != selectedStation ||
-        oldDelegate.positions != positions ||
-        oldDelegate.sectionSurvey != sectionSurvey;
+        oldDelegate.caveShots != caveShots ||
+        oldDelegate.sectionShots != sectionShots ||
+        oldDelegate.caveStations != caveStations ||
+        oldDelegate.sectionStations != sectionStations;
   }
 }

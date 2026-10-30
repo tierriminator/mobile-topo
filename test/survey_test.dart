@@ -48,6 +48,43 @@ void main() {
     expect(positions[const Point(7, 11)]!.east, closeTo(5, 1e-9));
   });
 
+  test('a long series listed last shot first gets all positions', () {
+    // Each shot can only be placed after the one listed after it
+    const count = 20000;
+    final survey = Survey(
+      stretches: [
+        for (var i = count; i > 0; i--)
+          MeasuredDistance(Point(1, i - 1), Point(1, i), 1, 90, 0),
+      ],
+      referencePoints: const [ReferencePoint(Point(1, 0), 0, 0, 0)],
+    );
+
+    final positions = survey.computeStationPositions();
+
+    expect(positions, hasLength(count + 1));
+    expect(positions[const Point(1, count)]!.east, closeTo(count, 1e-6));
+  });
+
+  test('in a loop, a station is placed by the shot first in data order', () {
+    // 1.2 is reached from 1.1 before the shot from 1.0 comes up, which
+    // misses it by a metre
+    const survey = Survey(
+      stretches: [
+        MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0),
+        MeasuredDistance(Point(1, 1), Point(1, 2), 5, 0, 0),
+        MeasuredDistance(Point(1, 0), Point(1, 2), 6, 45, 0),
+        MeasuredDistance(Point(1, 2), Point(1, 3), 5, 270, 0),
+      ],
+      referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
+    );
+
+    final positions = survey.computeStationPositions();
+
+    expect(positions[const Point(1, 2)]!.east, closeTo(5, 1e-9));
+    expect(positions[const Point(1, 2)]!.north, closeTo(5, 1e-9));
+    expect(positions[const Point(1, 3)]!.east, closeTo(0, 1e-9));
+  });
+
   test('Survey.totalLength sums survey shots but not cross sections', () {
     const survey = Survey(
       stretches: [

@@ -259,4 +259,47 @@ void main() {
       expect(find.text('-10'), findsOneWidget);
     });
   });
+
+  group('large tables', () {
+    const rows = 10000;
+    final key = GlobalKey<StretchesTableState>();
+
+    Future<void> pumpLargeTable(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: StretchesTable(
+              key: key,
+              data: [
+                for (var i = 0; i < rows; i++)
+                  MeasuredDistance(Point(1, i), Point(1, i + 1), 5, 90, 0),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('show the end, building only the rows in view',
+        (tester) async {
+      await pumpLargeTable(tester);
+
+      expect(find.text('1.$rows'), findsOneWidget);
+      expect(find.text('1.1'), findsNothing);
+      expect(tester.widgetList(find.byType(Table)).length, lessThan(100));
+    });
+
+    testWidgets('scroll to a selected row out of view', (tester) async {
+      await pumpLargeTable(tester);
+
+      key.currentState!.selectRow(42);
+      await tester.pumpAndSettle();
+
+      expect(find.text('1.42'), findsWidgets);
+      expect(rowHighlighted(tester), isTrue);
+    });
+  });
 }

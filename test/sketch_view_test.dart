@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' show PointMode;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +31,32 @@ class _RecordingCaveRepository implements CaveRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// The number of lines [canvas] paints, one by one or in one go
+int _linesPainted(RenderObject canvas) {
+  var lines = 0;
+  expect(canvas, paints..everything((method, arguments) {
+    if (method == #drawLine) lines++;
+    if (method == #drawRawPoints && arguments[0] == PointMode.lines) {
+      lines += (arguments[1] as Float32List).length ~/ 4;
+    }
+    return true;
+  }));
+  return lines;
+}
+
+/// The number of station dots [canvas] paints, one by one or in one go
+int _dotsPainted(RenderObject canvas) {
+  var dots = 0;
+  expect(canvas, paints..everything((method, arguments) {
+    if (method == #drawCircle) dots++;
+    if (method == #drawRawPoints && arguments[0] == PointMode.points) {
+      dots += (arguments[1] as Float32List).length ~/ 2;
+    }
+    return true;
+  }));
+  return dots;
 }
 
 /// A cave holding the given sections
@@ -229,8 +258,8 @@ void main() {
         settings: SettingsController(const Settings(showGrid: false)));
 
     // The shot, the splay at 1.1 and one line in the cross section
-    expect(tester.renderObject(find.byType(CustomPaint).last),
-        paintsExactlyCountTimes(#drawLine, 3));
+    expect(_linesPainted(tester.renderObject(find.byType(CustomPaint).last)),
+        3);
   });
 
   testWidgets('only the side view offers horizontal cross sections',
@@ -318,8 +347,7 @@ void main() {
         settings: SettingsController(const Settings(showGrid: false)));
     final canvas = find.byType(CustomPaint).last;
 
-    expect(tester.renderObject(canvas),
-        paintsExactlyCountTimes(#drawLine, 1));
+    expect(_linesPainted(tester.renderObject(canvas)), 1);
 
     await tester.tap(find.byType(PopupMenuButton<VoidCallback>));
     await tester.pumpAndSettle();
@@ -327,8 +355,7 @@ void main() {
         find.widgetWithText(CheckedPopupMenuItem<VoidCallback>, 'Show All'));
     await tester.pumpAndSettle();
 
-    expect(tester.renderObject(canvas),
-        paintsExactlyCountTimes(#drawLine, 2));
+    expect(_linesPainted(tester.renderObject(canvas)), 2);
   });
 
   group('Show All draws stations shared with the section only once', () {
@@ -345,8 +372,8 @@ void main() {
           find.widgetWithText(CheckedPopupMenuItem<VoidCallback>, 'Show All'));
       await tester.pumpAndSettle();
 
-      expect(tester.renderObject(find.byType(CustomPaint).last),
-          paintsExactlyCountTimes(#drawCircle, count));
+      expect(_dotsPainted(tester.renderObject(find.byType(CustomPaint).last)),
+          count);
     }
 
     testWidgets('with the new series started in the section', (tester) async {

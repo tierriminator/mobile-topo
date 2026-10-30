@@ -315,7 +315,11 @@ UI widgets:
 - **`widgets/coordinate_system_field.dart`**: Picks a coordinate system, with zone and hemisphere for UTM; used on the cave page and in the options
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status
-  text shared by the map and sketch views
+  text shared by the map and sketch views; stations and lines are drawn in
+  batches and station IDs laid out once, so large caves pan smoothly
+- **`widgets/survey_key.dart`**: `SurveyKey` tells the map and sketch views
+  whether the survey data changed, so they only recompute positions then,
+  not on every rebuild
 - **`trip_page.dart`**: Trip edit page opened from the explorer
 - **`widgets/trip_picker.dart`**: Picks a trip by day from a calendar, then
   from a list if several trips share the day; used to change a shot's trip

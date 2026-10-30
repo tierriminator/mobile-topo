@@ -17,6 +17,7 @@ import '../models/sketch.dart';
 import '../models/survey.dart';
 import '../services/screen_density.dart';
 import 'widgets/station_markers.dart';
+import 'widgets/survey_key.dart';
 import 'widgets/view_transform.dart';
 
 enum SketchViewMode { outline, sideView }
@@ -29,6 +30,9 @@ class SketchView extends StatefulWidget {
 }
 
 class _SketchViewState extends State<SketchView> {
+  // The survey data the positions and drawings below were computed from
+  SurveyKey? _surveyKey;
+
   // Positions of the section's stations
   Map<Point, StationPosition> _positions = {};
 
@@ -129,6 +133,15 @@ class _SketchViewState extends State<SketchView> {
   }
 
   void _updateFromSection(Section? section, Cave? cave) {
+    // Computing positions takes a while for large caves, so it is only done
+    // when the survey data has changed, not when only a sketch has
+    final key = SurveyKey(cave, section);
+    if (key != _surveyKey) {
+      _surveyKey = key;
+      _crossSectionsSketch = null;
+      if (section != null) _computeDrawings(section, cave);
+    }
+
     if (section == null) {
       if (_currentSectionId != null) {
         _positions = {};
@@ -146,10 +159,24 @@ class _SketchViewState extends State<SketchView> {
       return;
     }
 
-    // Always recompute positions (survey data may have changed). They are
-    // computed over the whole cave, so a section without its own reference
-    // point is placed relative to the sections it continues from; only the
-    // section's own stations are drawn.
+    // Only reset sketches and recenter when switching to a different section
+    if (section.id != _currentSectionId) {
+      _outlineSketch = section.outlineSketch;
+      _sideViewSketch = section.sideViewSketch;
+      _outlineHistory.clear();
+      _sideViewHistory.clear();
+      _selectedStation = null;
+      _pendingCrossSection = null;
+      _currentSectionId = section.id;
+      _centerViews();
+    }
+  }
+
+  /// Computes where the survey data of [section] is drawn. Positions are
+  /// computed over the whole cave, so a section without its own reference
+  /// point is placed relative to the sections it continues from; only the
+  /// section's own stations are drawn.
+  void _computeDrawings(Section section, Cave? cave) {
     final caveSurvey = cave?.combinedSurvey ?? section.survey;
     final sectionSurvey = cave?.corrected(section.survey) ?? section.survey;
     final stations = sectionSurvey.stations;
@@ -192,18 +219,6 @@ class _SketchViewState extends State<SketchView> {
     );
     _sectionSurvey = sectionSurvey;
     _caveSurvey = caveSurvey;
-
-    // Only reset sketches and recenter when switching to a different section
-    if (section.id != _currentSectionId) {
-      _outlineSketch = section.outlineSketch;
-      _sideViewSketch = section.sideViewSketch;
-      _outlineHistory.clear();
-      _sideViewHistory.clear();
-      _selectedStation = null;
-      _pendingCrossSection = null;
-      _currentSectionId = section.id;
-      _centerViews();
-    }
   }
 
   /// The end of a splay or cross section shot in the plan view
@@ -248,12 +263,23 @@ class _SketchViewState extends State<SketchView> {
     setState(() => _selectedStation = tapped);
   }
 
+  // The cross sections as drawn, for the sketch they were computed for; it
+  // is cleared when the survey data changes
+  List<_CrossSectionDrawing> _crossSections = const [];
+  Sketch? _crossSectionsSketch;
+
   /// The cross sections of the current sketch as drawn: the station copy
   /// and the ends of the station's cross section measurements
-  List<_CrossSectionDrawing> get _crossSectionDrawings => [
-        for (final c in _currentSketch.crossSections)
-          _crossSectionDrawing(c),
+  List<_CrossSectionDrawing> get _crossSectionDrawings {
+    final sketch = _currentSketch;
+    if (!identical(sketch, _crossSectionsSketch)) {
+      _crossSectionsSketch = sketch;
+      _crossSections = [
+        for (final c in sketch.crossSections) _crossSectionDrawing(c),
       ];
+    }
+    return _crossSections;
+  }
 
   _CrossSectionDrawing _crossSectionDrawing(CrossSection crossSection) {
     final station = crossSection.station;
@@ -897,35 +923,38 @@ class _SketchPainter extends CustomPainter {
     required Color color,
     required Color splayColor,
   }) {
-    final shotPaint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
+    List<(Offset, Offset)> onScreen(List<(Offset, Offset)> lines) => [
+          for (final (from, to) in lines)
+            (_worldToScreen(from, size), _worldToScreen(to, size)),
+        ];
 
-    final splayPaint = Paint()
-      ..color = splayColor
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
+    paintLines(
+      canvas,
+      onScreen(drawing.splays),
+      Paint()
+        ..color = splayColor
+        ..strokeWidth = 1.0,
+    );
+    paintLines(
+      canvas,
+      onScreen(drawing.shots),
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.5,
+    );
 
-    for (final (from, to) in drawing.splays) {
-      canvas.drawLine(
-          _worldToScreen(from, size), _worldToScreen(to, size), splayPaint);
-    }
-    for (final (from, to) in drawing.shots) {
-      canvas.drawLine(
-          _worldToScreen(from, size), _worldToScreen(to, size), shotPaint);
-    }
-
-    for (final entry in drawing.stations.entries) {
-      paintStation(
-        canvas,
-        _worldToScreen(entry.value, size),
-        entry.key,
-        color: color,
-        selected: entry.key == selectedStation,
-        radius: 3,
-      );
-    }
+    paintStations(
+      canvas,
+      size,
+      [
+        for (final MapEntry(key: station, value: position)
+            in drawing.stations.entries)
+          (station, _worldToScreen(position, size)),
+      ],
+      color: color,
+      selected: selectedStation,
+      radius: 3,
+    );
   }
 
   @override

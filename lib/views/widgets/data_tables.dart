@@ -110,6 +110,25 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     });
   }
 
+  /// Scrolls the row [selectRow] marked to the middle of the view. A row out
+  /// of view is not built, so it first jumps to about where the row is: as
+  /// rows are equally high, that is its share of the table's height.
+  void _scrollToTarget(int index, {bool jump = true}) {
+    final target = _scrollTargetKey.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(target, alignment: 0.5);
+      return;
+    }
+    if (!jump || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final height = position.maxScrollExtent + position.viewportDimension;
+    _scrollController.jumpTo(
+        (height * index / widget.data.length - position.viewportDimension / 2)
+            .clamp(0, position.maxScrollExtent));
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollToTarget(index, jump: false));
+  }
+
   @override
   void didUpdateWidget(W oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -145,10 +164,7 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
       _editingCol = null;
       _scrollTargetRow = index;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final target = _scrollTargetKey.currentContext;
-      if (target != null) Scrollable.ensureVisible(target, alignment: 0.5);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToTarget(index));
   }
 
   void clearSelection() {
@@ -234,28 +250,30 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           ],
         ),
         const Divider(height: 1, thickness: 1),
-        // Scrollable data rows
+        // Scrollable data rows. Large caves have thousands of rows, so only
+        // those in view are built, each as a table of its own; the columns
+        // line up as their widths do not depend on the cells. The rows are
+        // all as high as the first, so the list knows where each one is
+        // without laying out those before it.
         Expanded(
-          child: SingleChildScrollView(
+          child: CustomScrollView(
             controller: _scrollController,
-            child: Column(
-              children: [
-                Table(
-                  columnWidths: columnWidths,
-                  border: const TableBorder(
-                    verticalInside: BorderSide(),
-                    horizontalInside: BorderSide(),
+            slivers: [
+              if (widget.data.isNotEmpty)
+                SliverPrototypeExtentList(
+                  prototypeItem: _buildRowTable(
+                      context, l10n, columnWidths, 0,
+                      prototype: true),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) =>
+                        _buildRowTable(context, l10n, columnWidths, i),
+                    childCount: widget.data.length,
                   ),
-                  children: [
-                    for (var i = 0; i < widget.data.length; i++)
-                      _buildRow(context, l10n, i, widget.data[i]),
-                  ],
                 ),
-                // Add row button
-                if (widget.onAdd != null)
-                  _buildAddRow(context),
-              ],
-            ),
+              // Add row button
+              if (widget.onAdd != null)
+                SliverToBoxAdapter(child: _buildAddRow(context)),
+            ],
           ),
         ),
         if (widget.editMode && _checkedRows.isNotEmpty)
@@ -342,12 +360,41 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     );
   }
 
+  /// Whether the row being built is the prototype, which is never edited
+  bool _buildingPrototype = false;
+
+  /// The row at [index] as a table of its own. A [prototype], only laid out
+  /// to measure the row height, has no cell being edited, which would take
+  /// the focus, and leaves out the key marking the row [selectRow] scrolls
+  /// to, which must only be in the tree once.
+  Widget _buildRowTable(BuildContext context, AppLocalizations l10n,
+      Map<int, TableColumnWidth> columnWidths, int index,
+      {bool prototype = false}) {
+    _buildingPrototype = prototype;
+    try {
+      return Table(
+        columnWidths: columnWidths,
+        border: TableBorder(
+          top: index > 0 ? const BorderSide() : BorderSide.none,
+          verticalInside: const BorderSide(),
+        ),
+        children: [
+          _buildRow(context, l10n, index, widget.data[index],
+              prototype: prototype),
+        ],
+      );
+    } finally {
+      _buildingPrototype = false;
+    }
+  }
+
   TableRow _buildRow(
     BuildContext context,
     AppLocalizations l10n,
     int index,
-    T item,
-  ) {
+    T item, {
+    bool prototype = false,
+  }) {
     // Edit mode highlights checked rows instead of the selection
     final isRowSelected = widget.editMode
         ? _checkedRows.contains(index)
@@ -377,7 +424,9 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
           ),
         for (var col = 0; col < cells.length; col++)
           _wrapCell(context, l10n, index, col, item, cells[col],
-              isCommentColumn: !widget.editMode && col == cells.length - 1),
+              isCommentColumn: !widget.editMode && col == cells.length - 1,
+              isScrollTarget:
+                  !prototype && index == _scrollTargetRow && col == 0),
       ],
     );
   }
@@ -410,11 +459,12 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     T item,
     Widget child, {
     required bool isCommentColumn,
+    required bool isScrollTarget,
   }) {
     if (isReadOnly(row)) {
       child = Opacity(opacity: 0.5, child: child);
     }
-    if (row == _scrollTargetRow && col == 0) {
+    if (isScrollTarget) {
       child = KeyedSubtree(key: _scrollTargetKey, child: child);
     }
 
@@ -527,7 +577,8 @@ abstract class EditableDataTableState<T, W extends EditableDataTable<T>>
     );
   }
 
-  bool isEditing(int row, int col) => _editingRow == row && _editingCol == col;
+  bool isEditing(int row, int col) =>
+      !_buildingPrototype && _editingRow == row && _editingCol == col;
 
   /// Whether the cells of a row are shown as text fields
   bool isEditable(int row) => widget.editMode && !isReadOnly(row);

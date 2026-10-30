@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math' as math;
 
 import 'coordinate_system.dart';
@@ -274,46 +275,69 @@ class Survey {
 
   /// Computes positions of all stations from [origins] and stretches.
   /// Returns a map from Point to StationPosition.
+  ///
+  /// The stretches are gone through in data order, again and again until no
+  /// station gets a position, each survey shot placing its unplaced station
+  /// from its placed one. Where loops give a station more than one position,
+  /// this decides which. Only the shots at a station just placed are gone
+  /// through again, so large surveys take no more than a few passes' time.
   Map<Point, StationPosition> computeStationPositions() {
     final positions = <Point, StationPosition>{};
 
+    // Survey shots by index at each station they connect
+    final shotsAt = <Point, List<int>>{};
+    for (var i = 0; i < stretches.length; i++) {
+      final stretch = stretches[i];
+      final to = stretch.to;
+      if (to == null) continue;
+      (shotsAt[stretch.from] ??= []).add(i);
+      (shotsAt[to] ??= []).add(i);
+    }
+
+    // Shots to go through in the current pass and in the next one. A shot
+    // at a station placed by an earlier shot of the same pass comes later
+    // in it, one at a station placed by a later shot only in the next pass.
+    var pass = SplayTreeSet<int>();
+    var nextPass = SplayTreeSet<int>();
+    void place(StationPosition position, int placedBy) {
+      positions[position.id] = position;
+      for (final i in shotsAt[position.id] ?? const <int>[]) {
+        if (i != placedBy) (i > placedBy ? pass : nextPass).add(i);
+      }
+    }
+
     // Start with reference points
     for (final ref in origins) {
-      positions[ref.id] = StationPosition(
-        ref.id,
-        ref.east.toDouble(),
-        ref.north.toDouble(),
-        ref.altitude.toDouble(),
+      place(
+        StationPosition(
+          ref.id,
+          ref.east.toDouble(),
+          ref.north.toDouble(),
+          ref.altitude.toDouble(),
+        ),
+        -1,
       );
     }
 
-    // Iterate until no new positions are computed
-    bool changed = true;
-    while (changed) {
-      changed = false;
-      for (final stretch in stretches) {
-        // Skip splay shots (no destination)
-        final to = stretch.to;
-        if (to == null) continue;
+    while (pass.isNotEmpty) {
+      final i = pass.first;
+      pass.remove(i);
+      final stretch = stretches[i];
+      final to = stretch.to!;
 
-        // Try to compute position from 'from' station
-        if (positions.containsKey(stretch.from) &&
-            !positions.containsKey(to)) {
-          final fromPos = positions[stretch.from]!;
-          final toPos = _computeToPosition(fromPos, stretch, to);
-          positions[to] = toPos;
-          changed = true;
-        }
-
-        // Try to compute position from 'to' station (backward shot)
-        if (positions.containsKey(to) &&
-            !positions.containsKey(stretch.from)) {
-          final toPos = positions[to]!;
-          final fromPos = _computeFromPosition(toPos, stretch);
-          positions[stretch.from] = fromPos;
-          changed = true;
-        }
+      // Try to compute position from 'from' station
+      final fromPos = positions[stretch.from];
+      if (fromPos != null && !positions.containsKey(to)) {
+        place(_computeToPosition(fromPos, stretch, to), i);
       }
+
+      // Try to compute position from 'to' station (backward shot)
+      final toPos = positions[to];
+      if (toPos != null && !positions.containsKey(stretch.from)) {
+        place(_computeFromPosition(toPos, stretch), i);
+      }
+
+      if (pass.isEmpty) (pass, nextPass) = (nextPass, pass);
     }
 
     return positions;
