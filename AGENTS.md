@@ -9,6 +9,13 @@ and the platform directories all live directly at the top level, so `flutter`
 and `dart` commands work from anywhere in the repo. All paths in this document
 are relative to the git root.
 
+## Branches
+
+Fixes for the current release line go directly to `main`. New features go to
+the branch of the next minor release, `release/<major>.<minor>.0` (for
+example `release/1.1.0`), which merges into `main` once `main` is out of its
+pre-releases. See "Branches" in `README.md`.
+
 ## Project Goal
 
 This project aims to re-implement **PocketTopo** in Flutter for modern mobile devices (iOS/Android). PocketTopo is cave surveying software originally written for Windows Mobile by Beat Heeb.

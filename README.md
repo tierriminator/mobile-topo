@@ -143,6 +143,14 @@ anywhere in the repository.
 Android releases are signed APKs published as GitHub releases by
 `.github/workflows/release.yml`.
 
+### Branches
+
+`main` holds the current release line and takes its fixes directly. New
+features go to a branch for the next minor release, named
+`release/<major>.<minor>.0` (for example `release/1.1.0`). It merges into
+`main` only once `main` is stable, out of its pre-releases, and the release is
+published from `main` after the merge.
+
 ### Release key
 
 Android installs an update only if it is signed with the same key as the
