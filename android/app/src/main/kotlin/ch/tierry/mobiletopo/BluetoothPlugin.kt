@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -27,11 +29,12 @@ import java.io.OutputStream
 import java.util.UUID
 
 /**
- * Flutter plugin for Classic Bluetooth SPP on Android.
+ * Flutter plugin for Bluetooth on Android.
  *
  * Mirrors the channel contract of macos/Runner/BluetoothPlugin.swift so a single
- * Dart-side [BluetoothChannel] can drive both platforms. The DistoX is a Classic
- * Bluetooth (RFCOMM) device, so BLE APIs are deliberately not used here.
+ * Dart-side [BluetoothChannel] can drive every platform. The DistoX2 is a
+ * Classic Bluetooth (RFCOMM) device, reached through a [BluetoothSocket]; the
+ * DistoX BLE uses Bluetooth Low Energy, reached through [BleConnection].
  */
 class BluetoothPlugin :
     FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
@@ -47,6 +50,12 @@ class BluetoothPlugin :
 
         /** Native connect timeout; the Dart side applies a slightly longer one. */
         const val CONNECT_TIMEOUT_MS = 5000L
+
+        /** BLE connect timeout, which also covers finding the DistoX service. */
+        const val BLE_CONNECT_TIMEOUT_MS = 10000L
+
+        /** How long a BLE scan runs, about as long as Classic discovery. */
+        const val BLE_SCAN_MS = 12000L
     }
 
     private var methodChannel: MethodChannel? = null
@@ -64,7 +73,17 @@ class BluetoothPlugin :
     private var outputStream: OutputStream? = null
     private var readThread: Thread? = null
 
+    private var ble: BleConnection? = null
+
     private var discoveryReceiver: BroadcastReceiver? = null
+    private var leScanCallback: ScanCallback? = null
+    private val leScanEnd = Runnable {
+        stopLeScan()
+        scanFinished()
+    }
+
+    /** Classic discovery and BLE scan still running; discovery is complete once both are done. */
+    private var scansRunning = 0
 
     private var pendingPermissionResult: MethodChannel.Result? = null
     private var pendingEnableResult: MethodChannel.Result? = null
@@ -83,6 +102,12 @@ class BluetoothPlugin :
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         applicationContext = binding.applicationContext
+        ble = BleConnection(
+            binding.applicationContext,
+            main,
+            onData = { dataSink?.success(it) },
+            onDisconnected = { emitState("disconnected") },
+        )
 
         methodChannel = MethodChannel(binding.binaryMessenger, "mobile_topo/bluetooth").also {
             it.setMethodCallHandler(this)
@@ -124,6 +149,7 @@ class BluetoothPlugin :
         methodChannel = null
         dataChannel = null
         stateChannel = null
+        ble = null
         applicationContext = null
     }
 
@@ -176,6 +202,8 @@ class BluetoothPlugin :
                 val address = call.argument<String>("address")
                 if (address == null) {
                     result.error("INVALID_ARGS", "Missing address", null)
+                } else if (call.argument<Boolean>("ble") == true) {
+                    connectBle(address, result)
                 } else {
                     connect(address, result)
                 }
@@ -188,8 +216,11 @@ class BluetoothPlugin :
 
             "send" -> {
                 val data = call.argument<ByteArray>("data")
+                val link = ble
                 if (data == null) {
                     result.error("INVALID_ARGS", "Missing data", null)
+                } else if (link != null && link.isConnected) {
+                    link.send(data) { result.success(it) }
                 } else {
                     result.success(send(data))
                 }
@@ -329,10 +360,17 @@ class BluetoothPlugin :
                 } catch (e: SecurityException) {
                     null
                 } ?: return@mapNotNull null
-                mapOf("name" to name, "address" to device.address)
+                deviceMap(name, device)
             }
         )
     }
+
+    private fun deviceMap(name: String, device: BluetoothDevice): Map<String, Any> =
+        mapOf(
+            "name" to name,
+            "address" to device.address,
+            "ble" to (device.type == BluetoothDevice.DEVICE_TYPE_LE),
+        )
 
     private fun startDiscovery() {
         val adapter = bluetoothAdapter ?: return
@@ -348,7 +386,7 @@ class BluetoothPlugin :
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
                     BluetoothDevice.ACTION_FOUND -> {
-                        val device: BluetoothDevice? =
+                        val device: BluetoothDevice =
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 intent.getParcelableExtra(
                                     BluetoothDevice.EXTRA_DEVICE,
@@ -357,24 +395,21 @@ class BluetoothPlugin :
                             } else {
                                 @Suppress("DEPRECATION")
                                 intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                            }
+                            } ?: return
                         val name = try {
-                            device?.name
+                            device.name
                         } catch (e: SecurityException) {
                             null
                         } ?: return
-                        val address = device?.address ?: return
-                        main.post {
-                            methodChannel?.invokeMethod(
-                                "onDeviceDiscovered",
-                                mapOf("name" to name, "address" to address)
-                            )
+                        val map = try {
+                            deviceMap(name, device)
+                        } catch (e: SecurityException) {
+                            return
                         }
+                        main.post { methodChannel?.invokeMethod("onDeviceDiscovered", map) }
                     }
 
-                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                        main.post { methodChannel?.invokeMethod("onDiscoveryComplete", null) }
-                    }
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> main.post { scanFinished() }
                 }
             }
         }
@@ -386,14 +421,80 @@ class BluetoothPlugin :
         context.registerReceiver(receiver, filter)
         discoveryReceiver = receiver
 
-        try {
+        scansRunning = 2
+        val started = try {
             adapter.startDiscovery()
         } catch (e: SecurityException) {
             Log.w(TAG, "startDiscovery denied", e)
+            false
+        }
+        if (!started) scanFinished()
+        startLeScan(adapter)
+    }
+
+    /** Scan for the DistoX BLE, which Classic discovery may not report. */
+    private fun startLeScan(adapter: BluetoothAdapter) {
+        val scanner = adapter.bluetoothLeScanner
+        if (scanner == null) {
+            scanFinished()
+            return
+        }
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                val device = result.device
+                val name = try {
+                    device.name
+                } catch (e: SecurityException) {
+                    null
+                } ?: result.scanRecord?.deviceName ?: return
+                if (!name.startsWith("Disto")) return
+                val map = mapOf("name" to name, "address" to device.address, "ble" to true)
+                main.post { methodChannel?.invokeMethod("onDeviceDiscovered", map) }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                Log.w(TAG, "BLE scan failed ($errorCode)")
+                main.post {
+                    if (leScanCallback === this) {
+                        leScanCallback = null
+                        main.removeCallbacks(leScanEnd)
+                        scanFinished()
+                    }
+                }
+            }
+        }
+        try {
+            scanner.startScan(callback)
+            leScanCallback = callback
+            main.postDelayed(leScanEnd, BLE_SCAN_MS)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "BLE scan denied", e)
+            scanFinished()
         }
     }
 
+    private fun stopLeScan() {
+        main.removeCallbacks(leScanEnd)
+        val callback = leScanCallback ?: return
+        leScanCallback = null
+        try {
+            bluetoothAdapter?.bluetoothLeScanner?.stopScan(callback)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "stopping BLE scan denied", e)
+        } catch (e: IllegalStateException) {
+            // Bluetooth went off; the scan is over anyway.
+        }
+    }
+
+    private fun scanFinished() {
+        if (scansRunning == 0) return
+        scansRunning--
+        if (scansRunning == 0) methodChannel?.invokeMethod("onDiscoveryComplete", null)
+    }
+
     private fun stopDiscovery() {
+        stopLeScan()
+        scansRunning = 0
         val context = applicationContext
         discoveryReceiver?.let { receiver ->
             try {
@@ -477,6 +578,44 @@ class BluetoothPlugin :
         }, CONNECT_TIMEOUT_MS)
     }
 
+    private fun connectBle(address: String, result: MethodChannel.Result) {
+        disconnect()
+
+        val adapter = bluetoothAdapter
+        val link = ble
+        if (adapter == null || link == null || !hasPermissions()) {
+            result.success(false)
+            return
+        }
+
+        emitState("connecting")
+
+        // Scanning slows down connecting; ending the scans still reports
+        // discovery as complete.
+        if (leScanCallback != null) {
+            stopLeScan()
+            scanFinished()
+        }
+        try {
+            adapter.cancelDiscovery()
+        } catch (e: SecurityException) {
+            Log.w(TAG, "cancelDiscovery denied", e)
+        }
+
+        val device = try {
+            adapter.getRemoteDevice(address)
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "invalid address $address", e)
+            emitState("disconnected")
+            result.success(false)
+            return
+        }
+        link.connect(device, BLE_CONNECT_TIMEOUT_MS) { success ->
+            emitState(if (success) "connected" else "disconnected")
+            result.success(success)
+        }
+    }
+
     private fun startReadLoop(input: InputStream) {
         val thread = Thread({
             val buffer = ByteArray(1024)
@@ -506,10 +645,11 @@ class BluetoothPlugin :
     }
 
     private fun disconnect() {
-        val wasConnected = socket != null
+        val wasConnected = socket != null || ble?.isConnected == true
         readThread?.interrupt()
         readThread = null
         closeSocket()
+        ble?.close()
         if (wasConnected) {
             emitState("disconnected")
         }

@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The DistoX is a Classic Bluetooth (RFCOMM/SPP) device, not BLE. -->
+    <!-- The DistoX2 is a Classic Bluetooth (RFCOMM/SPP) device, the DistoX BLE
+         a Bluetooth Low Energy one. Both need the same permissions. -->
 
     <!-- Android 11 and below: install-time permissions. -->
     <uses-permission android:name="android.permission.BLUETOOTH"
@@ -18,6 +19,7 @@
         android:usesPermissionFlags="neverForLocation" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <application
         android:label="Mobile Topo"
