@@ -29,12 +29,18 @@ This project aims to re-implement **PocketTopo** in Flutter for modern mobile de
 
 **Core Functionality:**
 - **DistoX integration**: Bluetooth connection to receive measurements; supports "smart mode" (auto-detect 3 identical shots as a survey shot)
-  - The DistoX speaks **Bluetooth Classic SPP (RFCOMM)**, not BLE. BLE packages
-    (`flutter_blue_plus` and friends) cannot talk to it — do not suggest them.
-  - Available on **Android and macOS only**. iOS cannot reach classic SPP
-    devices without Apple MFi enrollment, which the DistoX does not have, so
-    this is permanently out of reach rather than unimplemented. See
-    "Platform support" in `README.md`.
+  - The **DistoX2** speaks **Bluetooth Classic SPP (RFCOMM)**, not BLE, so it
+    works on **Android and macOS only**. iOS cannot reach classic SPP
+    devices without Apple MFi enrollment, which the DistoX2 does not have, so
+    this is permanently out of reach rather than unimplemented.
+  - The **DistoX BLE** speaks **Bluetooth Low Energy**
+    (`docs/distox6/Disto xble comm protocol.pdf`): the DistoX2 protocol
+    wrapped, a shot's two packets in one notification and commands framed
+    by `data:`. It works on Android, macOS and iOS.
+    See "Platform support" in `README.md`.
+  - Bluetooth is written in-house for both kinds; there is no Bluetooth
+    package. A device's `ble` flag picks the link, and is stored with the
+    last connected device for auto-connect
 - **Station IDs**: Format `a.b` where `a` is typically the series/corridor number and `b` is the point number
 - **Cross-sections**: Multiple measurements at arbitrary angles per station for passage dimensions
 - **Trips**: Metadata per survey session (date, declination correction, comment).
@@ -210,9 +216,17 @@ Business logic and external device communication:
 
 - **`distox_service.dart`**: DistoX Bluetooth connection management
   - `DistoXService`: Handles discovery, connection, auto-reconnect
-  - `DistoXDevice`: Represents a discovered DistoX device
+  - `DistoXDevice`: Represents a discovered DistoX device, a DistoX BLE if `ble`
   - `DistoXConnectionState`: Connection state enum
   - Delegates all platform work to `BluetoothAdapter`; see `bluetooth_channel.dart`
+
+- **`distox_framing.dart`**: How DistoX2 packets travel over each link
+  - `ClassicFraming`: 8-byte packets from the RFCOMM byte stream, commands as they are
+  - `BleFraming`: the DistoX BLE's notifications split into DistoX2 packets
+    (memory replies made DistoX2 ones), one wrapped acknowledgement per
+    shot, commands wrapped in `data:`, memory read and written four bytes
+    at a time
+  - Everything above the framing speaks DistoX2 packets only
 
 - **`distox_protocol.dart`**: DistoX binary protocol implementation
   - `DistoXProtocol`: Parses 8-byte measurement packets, builds commands
@@ -221,16 +235,24 @@ Business logic and external device communication:
   - Handles sequence bit tracking and duplicate detection
 
 - **`bluetooth_adapter.dart`**: Platform-agnostic Bluetooth interface
-  - `BluetoothAdapter`: The seam every platform implements; `main.dart` picks one
-  - Implementations: `bluetooth_adapter_android.dart`, `bluetooth_adapter_macos.dart`
+  - `BluetoothAdapter`: The seam tests fake
+  - Implementation: `PlatformBluetoothAdapter` in `bluetooth_adapter_platform.dart`,
+    the same on Android, macOS and iOS
 
-- **`bluetooth_channel.dart`**: Platform channel shared by Android and macOS
-  - `BluetoothChannel`: Method/event channel interface to native RFCOMM code
-  - Native sides: `android/.../BluetoothPlugin.kt` (`BluetoothSocket`) and
-    `macos/Runner/BluetoothPlugin.swift` (`IOBluetooth`). There is no
-    third-party Bluetooth package — classic SPP support is written in-house.
+- **`bluetooth_channel.dart`**: Platform channel shared by Android, macOS and iOS
+  - `BluetoothChannel`: Method/event channel interface to native Bluetooth code;
+    devices carry a `ble` flag, each BLE notification is one data event
+  - Native sides: `android/.../BluetoothPlugin.kt` (`BluetoothSocket`, and
+    `BleConnection.kt` with `BluetoothGatt`), `macos/Runner/BluetoothPlugin.swift`
+    (`IOBluetooth` and CoreBluetooth) and `ios/Runner/BluetoothPlugin.swift`
+    (CoreBluetooth only). Both Apple plugins use `darwin/BleCentral.swift`,
+    which has no Flutter dependency and is referenced from both Xcode
+    projects. There is no third-party Bluetooth package — it is all
+    written in-house.
+  - Discovery runs a Classic inquiry and a BLE scan together where both
+    exist, and completes once both have ended
   - `requestEnable`/`ensurePermissions` are Android-only; they degrade
-    gracefully on macOS via `MissingPluginException`
+    gracefully on macOS and iOS via `MissingPluginException`
 
 - **`measurement_service.dart`**: Measurement processing and smart mode
   - `MeasurementService`: Routes DistoX measurements to survey data

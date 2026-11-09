@@ -6,32 +6,37 @@ surveying software for modern mobile devices.
 ## Platform support
 
 DistoX connectivity is **not uniform across platforms**, and this is a hardware
-constraint rather than something the app can work around.
+constraint rather than something the app can work around. There are two kinds
+of DistoX: the **DistoX2** speaks Bluetooth Classic, the **DistoX BLE**
+Bluetooth Low Energy (protocol in `docs/distox6/`).
 
-| Platform | UI, sketching, import/export | DistoX connection |
-|----------|------------------------------|-------------------|
-| Android  | ✅                            | ✅ Classic Bluetooth SPP (RFCOMM) |
-| macOS    | ✅                            | ✅ IOBluetooth RFCOMM |
-| iOS      | ✅                            | ❌ **Not possible** |
-| Linux / Windows / Web | ✅ (untested)    | ❌ Not implemented |
+| Platform | UI, sketching, import/export | DistoX2 (Classic SPP) | DistoX BLE |
+|----------|------------------------------|-----------------------|------------|
+| Android  | ✅                            | ✅ RFCOMM socket       | ✅ GATT |
+| macOS    | ✅                            | ✅ IOBluetooth RFCOMM  | ✅ CoreBluetooth |
+| iOS      | ✅                            | ❌ **Not possible**    | ✅ CoreBluetooth |
+| Linux / Windows / Web | ✅ (untested)    | ❌ Not implemented     | ❌ Not implemented |
 
-### Why the DistoX cannot work on iOS
+### Why the DistoX2 cannot work on iOS
 
-The DistoX communicates over **Bluetooth Classic** using the Serial Port
+The DistoX2 communicates over **Bluetooth Classic** using the Serial Port
 Profile (SPP / RFCOMM). It is not a Bluetooth Low Energy device, so BLE APIs
 cannot talk to it on any platform.
 
 iOS does not expose Bluetooth Classic SPP to third-party apps. Reaching a
 classic serial device requires Apple's External Accessory framework, which only
-works with hardware enrolled in Apple's MFi licensing program. The DistoX is not
-an MFi device, so no amount of app-side work can establish the connection. This
-is the same reason [TopoDroid](https://github.com/marcocorvi/topodroid) is
+works with hardware enrolled in Apple's MFi licensing program. The DistoX2 is
+not an MFi device, so no amount of app-side work can establish the connection.
+This is the same reason [TopoDroid](https://github.com/marcocorvi/topodroid) is
 Android-only.
 
 macOS is unaffected because `IOBluetooth` exposes RFCOMM to any app.
 
-**Practical consequence:** use Android (or macOS) for surveying in the cave.
-iOS is limited to viewing, sketching, and exporting data captured elsewhere.
+The DistoX BLE needs none of this: CoreBluetooth reaches Bluetooth Low Energy
+devices on iOS as on macOS.
+
+**Practical consequence:** with a DistoX2, use Android (or macOS) for surveying
+in the cave; on iOS only a DistoX BLE connects.
 
 ## Development setup
 
@@ -84,8 +89,10 @@ AGP 9.1.0, KGP 2.4.0, Kotlin DSL (`.kts`).
 ### 4. Apple targets (macOS / iOS)
 
 **Full Xcode is required** — the Command Line Tools alone are not enough,
-because the macOS target contains a native Swift plugin
-(`macos/Runner/BluetoothPlugin.swift`). Install Xcode from the App Store, then:
+because both targets contain a native Swift plugin
+(`macos/Runner/BluetoothPlugin.swift`, `ios/Runner/BluetoothPlugin.swift`, and
+`darwin/BleCentral.swift`, which both projects compile). Install Xcode from the
+App Store, then:
 
 ```bash
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
@@ -225,6 +232,9 @@ MVC, with `provider` for dependency injection. See `AGENTS.md` at the repository
 root for a full breakdown of models, controllers, services, and the data layer.
 
 Bluetooth is abstracted behind `BluetoothAdapter`
-(`lib/services/bluetooth_adapter.dart`), with one implementation per platform
-talking to a native RFCOMM plugin over a shared platform-channel contract
-(`mobile_topo/bluetooth`). `main.dart` selects the implementation at startup.
+(`lib/services/bluetooth_adapter.dart`), implemented by
+`PlatformBluetoothAdapter`, which talks to each platform's native Bluetooth
+plugin (RFCOMM and BLE) over a shared platform-channel contract
+(`mobile_topo/bluetooth`). The DistoX BLE wraps the DistoX2 protocol;
+`lib/services/distox_framing.dart` unwraps it, so everything above speaks
+DistoX2 packets.

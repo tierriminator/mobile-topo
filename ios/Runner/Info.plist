@@ -31,6 +31,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Mobile Topo needs Bluetooth to connect to DistoX cave surveying devices.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Mobile Topo uses your location to measure the coordinates of reference points.</string>
 	<key>UIApplicationSceneManifest</key>
