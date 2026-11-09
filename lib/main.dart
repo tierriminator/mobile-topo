@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'controllers/selection_state.dart';
@@ -10,9 +8,7 @@ import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'models/cave.dart';
-import 'services/bluetooth_adapter.dart';
-import 'services/bluetooth_adapter_android.dart';
-import 'services/bluetooth_adapter_macos.dart';
+import 'services/bluetooth_adapter_platform.dart';
 import 'services/calibration_service.dart';
 import 'services/distox_service.dart';
 import 'services/location_service.dart';
@@ -25,15 +21,6 @@ import 'views/explorer_view.dart';
 import 'views/options_view.dart';
 import 'views/widgets/trip_bar.dart';
 
-/// Create the appropriate BluetoothAdapter for the current platform
-BluetoothAdapter createBluetoothAdapter() {
-  if (Platform.isMacOS) {
-    return MacOSBluetoothAdapter();
-  } else {
-    return AndroidBluetoothAdapter();
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -45,8 +32,8 @@ void main() async {
   // Physical size of logical pixels, for true map scales
   final screenDensity = await ScreenDensity.load();
 
-  // Create platform-specific Bluetooth adapter
-  final bluetoothAdapter = createBluetoothAdapter();
+  // The app's own Bluetooth plugin of the platform
+  final bluetoothAdapter = PlatformBluetoothAdapter();
 
   // Create DistoX, Measurement, and Calibration services
   final distoXService = DistoXService(settingsController, bluetoothAdapter);
@@ -61,7 +48,8 @@ void main() async {
 
   // Set up callback to save device address on successful connection
   distoXService.onConnectionSuccess = (device) {
-    settingsController.setLastConnectedDevice(device.address, device.name);
+    settingsController.setLastConnectedDevice(device.address, device.name,
+        ble: device.ble);
     settingsRepository.save(settingsController.settings);
   };
 
@@ -70,6 +58,7 @@ void main() async {
     distoXService.tryAutoConnect(
       settingsController.lastConnectedDeviceAddress,
       settingsController.lastConnectedDeviceName,
+      ble: settingsController.lastConnectedDeviceBle,
     );
   }
 

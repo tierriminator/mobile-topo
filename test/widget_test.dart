@@ -52,7 +52,7 @@ class MockBluetoothAdapter implements BluetoothAdapter {
   Future<void> stopDiscovery() async {}
 
   @override
-  Future<void> connect(String address) async {
+  Future<void> connect(DistoXDevice device) async {
     throw Exception('Mock adapter cannot connect');
   }
 

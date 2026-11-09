@@ -70,14 +70,18 @@ class SettingsController extends ChangeNotifier {
 
   String? get lastConnectedDeviceAddress => _settings.lastConnectedDeviceAddress;
   String? get lastConnectedDeviceName => _settings.lastConnectedDeviceName;
+  bool get lastConnectedDeviceBle => _settings.lastConnectedDeviceBle;
 
   /// Store the last connected device for auto-connect
-  void setLastConnectedDevice(String? address, String? name) {
+  void setLastConnectedDevice(String? address, String? name,
+      {bool ble = false}) {
     if (_settings.lastConnectedDeviceAddress != address ||
-        _settings.lastConnectedDeviceName != name) {
+        _settings.lastConnectedDeviceName != name ||
+        _settings.lastConnectedDeviceBle != ble) {
       _settings = _settings.copyWith(
         lastConnectedDeviceAddress: address,
         lastConnectedDeviceName: name,
+        lastConnectedDeviceBle: ble,
       );
       notifyListeners();
     }

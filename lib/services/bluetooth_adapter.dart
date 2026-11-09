@@ -5,9 +5,8 @@ import 'distox_service.dart';
 
 /// Abstract interface for platform-specific Bluetooth operations.
 ///
-/// Implementations exist for:
-/// - Android: Uses flutter_bluetooth_serial
-/// - macOS: Uses IOBluetooth via platform channel
+/// `PlatformBluetoothAdapter` implements it for Android, macOS and iOS with
+/// the app's own native plugins.
 abstract class BluetoothAdapter {
   /// Check if Bluetooth is available on this device
   Future<bool> isAvailable();
@@ -21,15 +20,16 @@ abstract class BluetoothAdapter {
   /// Get list of paired/bonded DistoX devices
   Future<List<DistoXDevice>> getBondedDevices();
 
-  /// Start scanning for DistoX devices
+  /// Start scanning for DistoX devices, over Bluetooth Classic and Low
+  /// Energy where the platform has them
   Stream<DistoXDevice> startDiscovery();
 
   /// Stop scanning
   Future<void> stopDiscovery();
 
-  /// Connect to a device by address.
+  /// Connect to [device], over Bluetooth Low Energy if it is a DistoX BLE.
   /// Throws on failure.
-  Future<void> connect(String address);
+  Future<void> connect(DistoXDevice device);
 
   /// Disconnect from current device
   Future<void> disconnect();

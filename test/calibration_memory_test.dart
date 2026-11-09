@@ -100,7 +100,7 @@ class _FakeDistoX implements BluetoothAdapter {
   @override
   Future<void> stopDiscovery() async {}
   @override
-  Future<void> connect(String address) async {}
+  Future<void> connect(DistoXDevice device) async {}
   @override
   Future<void> disconnect() async {}
   @override

@@ -3,14 +3,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// Platform channel interface for Classic Bluetooth operations.
+/// Platform channel interface for Bluetooth operations.
 ///
-/// Backed by a native RFCOMM/SPP plugin on each supported platform:
-/// `macos/Runner/BluetoothPlugin.swift` (IOBluetooth) and
-/// `android/.../BluetoothPlugin.kt` (BluetoothSocket).
+/// Backed by a native plugin on each supported platform, speaking Classic
+/// RFCOMM/SPP to the DistoX2 and Bluetooth Low Energy to the DistoX BLE:
+/// `android/.../BluetoothPlugin.kt` (BluetoothSocket and BluetoothGatt),
+/// `macos/Runner/BluetoothPlugin.swift` (IOBluetooth and CoreBluetooth) and
+/// `ios/Runner/BluetoothPlugin.swift` (CoreBluetooth only). The Apple ones
+/// share `darwin/BleCentral.swift` for BLE.
+///
+/// Devices carry a `ble` flag telling which of the two they use. Each BLE
+/// notification arrives on the data stream as one event.
 ///
 /// [requestEnable] and [ensurePermissions] are only implemented on Android;
-/// on macOS they resolve to the current adapter power state.
+/// elsewhere they resolve to the current adapter power state.
 class BluetoothChannel {
   static const MethodChannel _channel = MethodChannel('mobile_topo/bluetooth');
   static const EventChannel _dataChannel =
@@ -51,6 +57,7 @@ class BluetoothChannel {
           _discoveredController.add(BluetoothChannelDevice(
             name: map['name'] as String? ?? 'Unknown',
             address: address,
+            ble: map['ble'] as bool? ?? false,
           ));
         }
       case 'onDiscoveryComplete':
@@ -142,6 +149,7 @@ class BluetoothChannel {
         return BluetoothChannelDevice(
           name: map['name'] as String? ?? 'Unknown',
           address: map['address'] as String,
+          ble: map['ble'] as bool? ?? false,
         );
       }).toList();
     } on PlatformException catch (e) {
@@ -168,11 +176,12 @@ class BluetoothChannel {
     }
   }
 
-  /// Connect to a device by address
-  Future<bool> connect(String address) async {
+  /// Connect to a device by address, over Bluetooth Low Energy if [ble]
+  Future<bool> connect(String address, {bool ble = false}) async {
     try {
       final result = await _channel.invokeMethod<bool>('connect', {
         'address': address,
+        'ble': ble,
       });
       if (result == true) {
         _currentState = BluetoothChannelState.connected;
@@ -236,11 +245,16 @@ class BluetoothChannelDevice {
   final String name;
   final String address;
 
+  /// Whether the device is reached over Bluetooth Low Energy
+  final bool ble;
+
   BluetoothChannelDevice({
     required this.name,
     required this.address,
+    this.ble = false,
   });
 
   @override
-  String toString() => 'BluetoothChannelDevice($name, $address)';
+  String toString() =>
+      'BluetoothChannelDevice($name, $address${ble ? ', BLE' : ''})';
 }

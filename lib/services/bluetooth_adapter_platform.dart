@@ -5,18 +5,19 @@ import 'bluetooth_adapter.dart';
 import 'bluetooth_channel.dart';
 import 'distox_service.dart';
 
-/// Android implementation of BluetoothAdapter.
+/// BluetoothAdapter of Android, macOS and iOS.
 ///
-/// Talks to the app's own RFCOMM plugin
-/// (`android/.../BluetoothPlugin.kt`) over the shared `mobile_topo/bluetooth`
-/// platform channel. The DistoX is a Classic Bluetooth SPP device, so BLE
-/// packages cannot be used here.
-class AndroidBluetoothAdapter implements BluetoothAdapter {
+/// Talks to the app's own Bluetooth plugin over the shared
+/// `mobile_topo/bluetooth` platform channel: `android/.../BluetoothPlugin.kt`,
+/// `macos/Runner/BluetoothPlugin.swift` and `ios/Runner/BluetoothPlugin.swift`.
+/// The DistoX2 is a Classic Bluetooth SPP device, which iOS cannot reach;
+/// the DistoX BLE uses Bluetooth Low Energy, which all three can.
+class PlatformBluetoothAdapter implements BluetoothAdapter {
   final _connectionStateController = StreamController<bool>.broadcast();
 
   StreamSubscription<BluetoothChannelState>? _stateSubscription;
 
-  AndroidBluetoothAdapter() {
+  PlatformBluetoothAdapter() {
     _stateSubscription =
         BluetoothChannel.instance.connectionState.listen((state) {
       _connectionStateController.add(state == BluetoothChannelState.connected);
@@ -44,6 +45,7 @@ class AndroidBluetoothAdapter implements BluetoothAdapter {
               name: d.name,
               address: d.address,
               isBonded: true,
+              ble: d.ble,
             ))
         .toList();
   }
@@ -75,6 +77,7 @@ class AndroidBluetoothAdapter implements BluetoothAdapter {
             name: device.name,
             address: device.address,
             isBonded: false,
+            ble: device.ble,
           ));
         }
       });
@@ -99,15 +102,16 @@ class AndroidBluetoothAdapter implements BluetoothAdapter {
   Future<void> stopDiscovery() => BluetoothChannel.instance.stopDiscovery();
 
   @override
-  Future<void> connect(String address) async {
+  Future<void> connect(DistoXDevice device) async {
     if (!await BluetoothChannel.instance.ensurePermissions()) {
       throw Exception('Bluetooth permission denied');
     }
 
-    // Dart-side fallback slightly longer than the 5s native timeout.
+    // Dart-side fallback slightly longer than the native timeout, which
+    // gives BLE time to find the device's service too
     final success = await BluetoothChannel.instance
-        .connect(address)
-        .timeout(const Duration(seconds: 7));
+        .connect(device.address, ble: device.ble)
+        .timeout(Duration(seconds: device.ble ? 12 : 7));
     if (!success) {
       throw Exception('Connection failed');
     }

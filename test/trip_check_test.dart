@@ -28,7 +28,7 @@ class _ConnectingBluetoothAdapter implements BluetoothAdapter {
   final _data = StreamController<Uint8List>.broadcast();
 
   @override
-  Future<void> connect(String address) async {}
+  Future<void> connect(DistoXDevice device) async {}
 
   @override
   Future<void> send(Uint8List bytes) async {}

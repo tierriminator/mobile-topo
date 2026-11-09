@@ -47,6 +47,9 @@ class Settings {
   final bool autoConnect;
   final String? lastConnectedDeviceAddress;
   final String? lastConnectedDeviceName;
+
+  /// Whether the last connected device is a DistoX BLE
+  final bool lastConnectedDeviceBle;
   final String? lastSelectedCaveId;
   final String? lastSelectedSectionId;
 
@@ -60,6 +63,7 @@ class Settings {
     this.autoConnect = false,
     this.lastConnectedDeviceAddress,
     this.lastConnectedDeviceName,
+    this.lastConnectedDeviceBle = false,
     this.lastSelectedCaveId,
     this.lastSelectedSectionId,
   });
@@ -74,6 +78,7 @@ class Settings {
     bool? autoConnect,
     String? lastConnectedDeviceAddress,
     String? lastConnectedDeviceName,
+    bool? lastConnectedDeviceBle,
     String? lastSelectedCaveId,
     String? lastSelectedSectionId,
   }) {
@@ -90,6 +95,8 @@ class Settings {
           lastConnectedDeviceAddress ?? this.lastConnectedDeviceAddress,
       lastConnectedDeviceName:
           lastConnectedDeviceName ?? this.lastConnectedDeviceName,
+      lastConnectedDeviceBle:
+          lastConnectedDeviceBle ?? this.lastConnectedDeviceBle,
       lastSelectedCaveId: lastSelectedCaveId ?? this.lastSelectedCaveId,
       lastSelectedSectionId:
           lastSelectedSectionId ?? this.lastSelectedSectionId,
@@ -106,6 +113,7 @@ class Settings {
         'autoConnect': autoConnect,
         'lastConnectedDeviceAddress': lastConnectedDeviceAddress,
         'lastConnectedDeviceName': lastConnectedDeviceName,
+        'lastConnectedDeviceBle': lastConnectedDeviceBle,
         'lastSelectedCaveId': lastSelectedCaveId,
         'lastSelectedSectionId': lastSelectedSectionId,
       };
@@ -130,6 +138,8 @@ class Settings {
         autoConnect: json['autoConnect'] as bool? ?? true,
         lastConnectedDeviceAddress: json['lastConnectedDeviceAddress'] as String?,
         lastConnectedDeviceName: json['lastConnectedDeviceName'] as String?,
+        lastConnectedDeviceBle:
+            json['lastConnectedDeviceBle'] as bool? ?? false,
         lastSelectedCaveId: json['lastSelectedCaveId'] as String?,
         lastSelectedSectionId: json['lastSelectedSectionId'] as String?,
       );
