@@ -2,7 +2,9 @@ import Cocoa
 import FlutterMacOS
 import IOBluetooth
 
-/// Flutter plugin for Classic Bluetooth SPP on macOS
+/// Flutter plugin for Bluetooth on macOS: Classic SPP with IOBluetooth for
+/// the DistoX2, Bluetooth Low Energy with the shared `BleCentral` for the
+/// DistoX BLE
 class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate {
     private var channel: FlutterMethodChannel?
     private var dataChannel: FlutterEventChannel?
@@ -15,11 +17,36 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
     private var connectedDevice: IOBluetoothDevice?
     private var inquiry: IOBluetoothDeviceInquiry?
 
+    private let ble = BleCentral()
+
+    /// Classic inquiry and BLE scan still running; discovery is complete
+    /// once both are done
+    private var scansRunning = 0
+
+    /// Seconds a BLE scan runs, about as long as a Classic inquiry
+    private let bleScanDuration: TimeInterval = 10
+
+    /// Seconds to connect over BLE, which also finds the DistoX service
+    private let bleConnectTimeout: TimeInterval = 10
+
     // Standard SPP UUID
     private let sppUUID = IOBluetoothSDPUUID(uuid16: 0x1101)
 
     static func register(with registrar: FlutterPluginRegistrar) {
         let instance = BluetoothPlugin()
+
+        instance.ble.onDeviceFound = { [weak instance] name, identifier in
+            instance?.channel?.invokeMethod("onDeviceDiscovered", arguments: [
+                "name": name,
+                "address": identifier,
+                "ble": true
+            ])
+        }
+        instance.ble.onScanComplete = { [weak instance] in instance?.scanFinished() }
+        instance.ble.onData = { [weak instance] data in
+            instance?.dataSink?(FlutterStandardTypedData(bytes: data))
+        }
+        instance.ble.onDisconnected = { [weak instance] in instance?.stateSink?("disconnected") }
 
         instance.channel = FlutterMethodChannel(
             name: "mobile_topo/bluetooth",
@@ -67,7 +94,11 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
                 result(FlutterError(code: "INVALID_ARGS", message: "Missing address", details: nil))
                 return
             }
-            connect(address: address, result: result)
+            if args["ble"] as? Bool == true {
+                connectBle(identifier: address, result: result)
+            } else {
+                connect(address: address, result: result)
+            }
 
         case "disconnect":
             disconnect()
@@ -79,8 +110,11 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
                 result(FlutterError(code: "INVALID_ARGS", message: "Missing data", details: nil))
                 return
             }
-            let success = send(data: data.data)
-            result(success)
+            if ble.isConnected {
+                ble.send(data.data) { result($0) }
+            } else {
+                result(send(data: data.data))
+            }
 
         default:
             result(FlutterMethodNotImplemented)
@@ -101,7 +135,8 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
 
             return [
                 "name": name,
-                "address": address
+                "address": address,
+                "ble": false
             ]
         }
     }
@@ -110,12 +145,35 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
         inquiry?.stop()
         inquiry = IOBluetoothDeviceInquiry(delegate: self)
         inquiry?.updateNewDeviceNames = true
-        inquiry?.start()
+        scansRunning = 2
+        if inquiry?.start() != kIOReturnSuccess {
+            scanFinished()
+        }
+        ble.startScan(duration: bleScanDuration)
     }
 
     private func stopDiscovery() {
         inquiry?.stop()
         inquiry = nil
+        ble.stopScan()
+        scansRunning = 0
+    }
+
+    private func scanFinished() {
+        guard scansRunning > 0 else { return }
+        scansRunning -= 1
+        if scansRunning == 0 {
+            channel?.invokeMethod("onDiscoveryComplete", arguments: nil)
+        }
+    }
+
+    private func connectBle(identifier: String, result: @escaping FlutterResult) {
+        disconnect()
+        stateSink?("connecting")
+        ble.connect(identifier: identifier, timeout: bleConnectTimeout) { [weak self] success in
+            self?.stateSink?(success ? "connected" : "disconnected")
+            result(success)
+        }
     }
 
     private func connect(address: String, result: @escaping FlutterResult) {
@@ -208,6 +266,7 @@ class BluetoothPlugin: NSObject, FlutterPlugin, IOBluetoothRFCOMMChannelDelegate
         rfcommChannel = nil
         connectedDevice?.closeConnection()
         connectedDevice = nil
+        ble.disconnect()
         stateSink?("disconnected")
     }
 
@@ -323,12 +382,14 @@ extension BluetoothPlugin: IOBluetoothDeviceInquiryDelegate {
             // Send discovered device through method channel
             channel?.invokeMethod("onDeviceDiscovered", arguments: [
                 "name": name,
-                "address": address
+                "address": address,
+                "ble": false
             ])
         }
     }
 
     func deviceInquiryComplete(_ sender: IOBluetoothDeviceInquiry!, error: IOReturn, aborted: Bool) {
-        channel?.invokeMethod("onDiscoveryComplete", arguments: nil)
+        guard sender === inquiry else { return }
+        scanFinished()
     }
 }

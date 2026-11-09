@@ -29,6 +29,7 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		B1BT00012024BT000003C045 /* BluetoothPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1BT00002024BT000003C045 /* BluetoothPlugin.swift */; };
+		B1BT00032024BT000003C045 /* BleCentral.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1BT00022024BT000003C045 /* BleCentral.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +83,7 @@
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		B1BT00002024BT000003C045 /* BluetoothPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothPlugin.swift; sourceTree = "<group>"; };
+		B1BT00022024BT000003C045 /* BleCentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BleCentral.swift; path = ../darwin/BleCentral.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -168,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
+				B1BT00022024BT000003C045 /* BleCentral.swift */,
 				B1BT00002024BT000003C045 /* BluetoothPlugin.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
@@ -351,6 +354,7 @@
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
 				B1BT00012024BT000003C045 /* BluetoothPlugin.swift in Sources */,
+				B1BT00032024BT000003C045 /* BleCentral.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
