@@ -12,6 +12,10 @@ import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/services/screen_density.dart';
 import 'package:mobile_topo/views/map_view.dart';
 
+/// The map's canvas, which fills the space between the bars
+final _canvas = find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.size == Size.infinite);
+
 /// Shows the map of a cave whose selected section has a single shot from
 /// 1.0 to 1.1, 5 m east, followed by [otherSections]
 Future<void> _pumpMapView(WidgetTester tester,
@@ -61,7 +65,7 @@ void main() {
 
     // Each scroll step zooms in by 10%; 80 steps go far past the former
     // limit of 200 px/m
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     for (var i = 0; i < 80; i++) {
       await tester.sendEventToBinding(PointerScrollEvent(
         position: center,
@@ -71,6 +75,21 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('1:0.'), findsOneWidget);
+  });
+
+  testWidgets('the zoom buttons zoom in and out', (tester) async {
+    await _pumpMapView(tester);
+    // 20 px/m at 6.3 px/mm
+    expect(find.textContaining('1:315'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zoom in'));
+    await tester.pump();
+    expect(find.textContaining('1:158'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zoom out'));
+    await tester.tap(find.byTooltip('Zoom out'));
+    await tester.pump();
+    expect(find.textContaining('1:630'), findsOneWidget);
   });
 
   testWidgets('a station shown from another view is centred and selected',
@@ -84,7 +103,7 @@ void main() {
     expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
     expect(navigation.pendingTarget, isNull);
     // Now in the centre, where tapping keeps it selected
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     await tester.tapAt(center);
     await tester.pump();
     expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
@@ -95,7 +114,7 @@ void main() {
     final navigation = ViewNavigation();
     await _pumpMapView(tester, navigation: navigation);
     // Centred between the stations at 0 m and 5 m east, at 20 px per metre
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
 
     await tester.longPressAt(center + const Offset(50, 0));
     await tester.pumpAndSettle();
@@ -122,7 +141,7 @@ void main() {
     );
     await _pumpMapView(tester, otherSections: [continuation]);
     // Still centred on the selected section, so 1.2 is 150 px right
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
 
     await tester.longPressAt(center + const Offset(150, 0));
     await tester.pumpAndSettle();

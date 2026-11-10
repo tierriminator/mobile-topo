@@ -39,6 +39,8 @@
   "navigateToOutline": "Im Grundriss zeigen",
   "navigateToSideView": "Im Seitenriss zeigen",
   "sketchShowAll": "Alles zeigen",
+  "zoomIn": "Vergrössern",
+  "zoomOut": "Verkleinern",
   "sketchCrossSectionVertical": "Vertikaler Querschnitt",
   "sketchCrossSectionHorizontal": "Horizontaler Querschnitt",
   "sketchPlaceCrossSection": "Antippen, wo der Querschnitt von {station} liegen soll",

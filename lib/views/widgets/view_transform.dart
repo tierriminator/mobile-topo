@@ -49,6 +49,11 @@ class ViewTransform {
     );
   }
 
+  /// Zoomed by [factor], keeping the world point in the canvas centre in
+  /// place, as by the zoom buttons
+  ViewTransform zoomedAtCenter(Size size, double factor) =>
+      zoomedAt(size.center(Offset.zero), size, factor);
+
   /// Zoomed by one mouse wheel step towards the cursor
   ViewTransform scrolled(PointerScrollEvent event, Size size) => zoomedAt(
         event.localPosition,

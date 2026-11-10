@@ -172,6 +172,14 @@
   "@sketchShowAll": {
     "description": "Outline menu option to also show the survey data of the rest of the cave"
   },
+  "zoomIn": "Zoom in",
+  "@zoomIn": {
+    "description": "Tooltip of the button zooming the map or sketch in"
+  },
+  "zoomOut": "Zoom out",
+  "@zoomOut": {
+    "description": "Tooltip of the button zooming the map or sketch out"
+  },
   "sketchCrossSectionVertical": "Vertical Cross Section",
   "@sketchCrossSectionVertical": {
     "description": "Station menu: place a cross section seen along the passage (PocketTopo's 'XSection |')"

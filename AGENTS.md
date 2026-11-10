@@ -345,6 +345,9 @@ UI widgets:
 - **`widgets/survey_key.dart`**: `SurveyKey` tells the map and sketch views
   whether the survey data changed, so they only recompute positions then,
   not on every rebuild
+- **`widgets/zoom_buttons.dart`**: + and − buttons over the map and sketch
+  canvases, zooming by a factor of two around the canvas centre for use
+  without pinching, as with a stylus
 - **`trip_page.dart`**: Trip edit page opened from the explorer
 - **`widgets/trip_picker.dart`**: Picks a trip by day from a calendar, then
   from a list if several trips share the day; used to change a shot's trip

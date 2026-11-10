@@ -144,6 +144,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sketchShowAll => 'Show All';
 
   @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get zoomOut => 'Zoom out';
+
+  @override
   String get sketchCrossSectionVertical => 'Vertical Cross Section';
 
   @override
