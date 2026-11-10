@@ -30,7 +30,11 @@ class AndroidBluetoothAdapter implements BluetoothAdapter {
   Future<bool> isEnabled() => BluetoothChannel.instance.isPoweredOn();
 
   @override
-  Future<bool> requestEnable() => BluetoothChannel.instance.requestEnable();
+  Future<bool> requestEnable() async {
+    // Android 12+ needs BLUETOOTH_CONNECT to ask for Bluetooth to be enabled.
+    if (!await BluetoothChannel.instance.ensurePermissions()) return false;
+    return BluetoothChannel.instance.requestEnable();
+  }
 
   @override
   Future<List<DistoXDevice>> getBondedDevices() async {
@@ -102,6 +106,9 @@ class AndroidBluetoothAdapter implements BluetoothAdapter {
   Future<void> connect(String address) async {
     if (!await BluetoothChannel.instance.ensurePermissions()) {
       throw Exception('Bluetooth permission denied');
+    }
+    if (!await BluetoothChannel.instance.isPoweredOn()) {
+      throw Exception('Bluetooth is disabled');
     }
 
     // Dart-side fallback slightly longer than the 5s native timeout.
