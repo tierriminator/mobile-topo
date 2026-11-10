@@ -161,8 +161,33 @@ Pure domain objects without serialization logic:
   - `Survey`: Collection of stretches and reference points with position computation
 
 - **`trip.dart`**: `Trip` with ID, date, declination correction or
-  automatic declination, comment, creation time and the time it was last
-  made active
+  automatic declination, comment, creation time, the time it was last
+  made active and its reserved series
+
+- **`series_range.dart`**: `SeriesRange`, a range of series numbers a
+  trip reserves. Closed ranges reserve their series for the trip; the
+  last range may be open ended, which reserves nothing and only keeps the
+  trip's series from going below its start. While the trip is active,
+  "Start Here" gives a new series the first number of its closed ranges,
+  in order, that no station of the cave uses; then, with an open range,
+  or without any ranges, the first series after the highest in use that
+  no other trip's closed range holds, but not below the open range's
+  start. With only closed ranges used up, it refuses
+  (`Survey.nextSeriesStart`). A series belongs to the trip of the
+  "Start Here" dummy shot that started it, the earliest by date if
+  several did (`MeasuredDistance.startsSeries`, `Cave.seriesTrips`); a
+  dummy shot to a later station of a series, or into one an earlier trip
+  measured in, only ties in. Measuring in another trip's series is
+  fine; only starting series is bound by the ranges
+
+- **`series_problem.dart`**: `SeriesProblem`, what is wrong with a trip's
+  reserved series (`Cave.seriesProblemOf`): a range ending before it
+  starts, an open range not last, closed ranges overlapping each other or
+  another trip's, a closed range holding a series another trip started,
+  or a series the trip started that its ranges do not allow or another
+  trip's closed range holds. Edits and imports may cause them, so they
+  are shown, not prevented: on the trip page, in a warning bar for the
+  active trip and as an error sign on the trip in the explorer
 
 - **`cave.dart`**: Explorer hierarchy
   - `Cave`: Top-level container with areas, sections, trips and the
@@ -345,7 +370,9 @@ UI widgets:
 - **`widgets/survey_key.dart`**: `SurveyKey` tells the map and sketch views
   whether the survey data changed, so they only recompute positions then,
   not on every rebuild
-- **`trip_page.dart`**: Trip edit page opened from the explorer
+- **`trip_page.dart`**: Trip edit page opened from the explorer, also
+  editing the trip's reserved series ranges and showing the series the
+  next new series gets
 - **`widgets/trip_picker.dart`**: Picks a trip by day from a calendar, then
   from a list if several trips share the day; used to change a shot's trip
   in the data view
@@ -355,8 +382,9 @@ UI widgets:
 - **`widgets/choice_sheet.dart`**: Bottom sheet choosing one of a few
   options, each with an icon and a line of help; also the Therion export
   format choice of the cave and section pages
-- **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
-  both driven by `MainScreen` in `main.dart`
+- **`widgets/trip_bar.dart`**: Trip warning bar, the reserved series
+  warning bar, which opens the active trip, and the
+  trip check dialog, all driven by `MainScreen` in `main.dart`
 
 ### Localization (`lib/l10n/`)
 

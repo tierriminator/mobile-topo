@@ -462,6 +462,9 @@ class ExplorerViewState extends State<ExplorerView> {
       .firstOrNull;
 
   /// Opens a trip for editing and saves the changes
+  Future<void> openTrip(Trip trip) => _editTrip(trip);
+
+  /// Opens a trip for editing and saves the changes
   Future<void> _editTrip(Trip trip) async {
     final repository = context.read<CaveRepository>();
     final opened = _caveOfTrip(trip);
@@ -875,6 +878,8 @@ class ExplorerViewState extends State<ExplorerView> {
     final l10n = AppLocalizations.of(context)!;
     final nodeId = _tripsNodeId(cave);
     final isExpanded = _expandedIds.contains(nodeId);
+    // Computed once for all trips' problems
+    final seriesTrips = isExpanded ? cave.seriesTrips : const <num, String>{};
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -896,7 +901,8 @@ class ExplorerViewState extends State<ExplorerView> {
         ),
         if (isExpanded) ...[
           // Newest first
-          for (final trip in cave.trips.reversed) _buildTripNode(cave, trip),
+          for (final trip in cave.trips.reversed)
+            _buildTripNode(cave, trip, seriesTrips),
           if (cave.trips.isEmpty) _buildPlaceholder(l10n.explorerNoTrips, 2),
         ],
       ],
@@ -904,12 +910,15 @@ class ExplorerViewState extends State<ExplorerView> {
   }
 
   /// A trip; tapping it opens it for editing. The active trip, which new
-  /// measurements are assigned to, is marked as such. Swiping it left
+  /// measurements are assigned to, is marked as such, and a trip whose
+  /// reserved series have a problem, given [seriesTrips] as
+  /// [Cave.seriesTrips] gives them, shows an error sign. Swiping it left
   /// reveals a delete button, swiping it far deletes it right away.
-  Widget _buildTripNode(Cave cave, Trip trip) {
+  Widget _buildTripNode(Cave cave, Trip trip, Map<num, String> seriesTrips) {
     final l10n = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
     final label = tripLabel(context, trip);
+    final problem = cave.seriesProblemOf(trip, seriesTrips);
 
     return Slidable(
       key: ValueKey(trip.id),
@@ -940,6 +949,15 @@ class ExplorerViewState extends State<ExplorerView> {
         isExpanded: false,
         hasChildren: false,
         onTap: () => _editTrip(trip),
+        trailing: problem == null
+            ? null
+            : Tooltip(
+                message: seriesProblemText(context, problem),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(Icons.error, size: 20, color: colors.error),
+                ),
+              ),
       ),
     );
   }

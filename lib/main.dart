@@ -10,6 +10,7 @@ import 'data/local_cave_repository.dart';
 import 'data/settings_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'models/cave.dart';
+import 'models/trip.dart';
 import 'services/bluetooth_adapter.dart';
 import 'services/bluetooth_adapter_android.dart';
 import 'services/bluetooth_adapter_macos.dart';
@@ -248,6 +249,12 @@ class _MainScreenState extends State<MainScreen> {
     await _explorerKey.currentState?.createTrip(cave.id);
   }
 
+  /// Opens the page of [trip] in the explorer
+  Future<void> _openTrip(Trip trip) async {
+    setState(() => _selectedIndex = _explorerIndex);
+    await _explorerKey.currentState?.openTrip(trip);
+  }
+
   void _onTripBarTapped(Cave cave) {
     if (cave.activeTrip == null) {
       _newTrip(cave);
@@ -281,6 +288,13 @@ class _MainScreenState extends State<MainScreen> {
                 cave: cave,
                 onTap: () => _onTripBarTapped(cave),
               ),
+            if (cave?.activeTrip case final trip?)
+              if (cave!.seriesProblemOf(trip) case final problem?)
+                ReservedSeriesBar(
+                  trip: trip,
+                  problem: problem,
+                  onTap: () => _openTrip(trip),
+                ),
           ],
         ),
       ),
