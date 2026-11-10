@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'coordinate_system.dart';
+import 'series_range.dart';
 
 class Point implements Comparable<Point> {
   final num corridorId, pointId;
@@ -97,18 +98,27 @@ class MeasuredDistance {
   /// The station this row stands for: the station a survey shot leads to,
   /// or the station of a cross section. A shot whose From station is numbered
   /// higher than its To station counts as a backward shot, measured from the
-  /// new station back to the previous one.
+  /// new station back to the previous one, unless it is a "Start Here"
+  /// dummy shot: one of zero length to another series, which leads to the
+  /// new series whatever its number.
   Point get station {
     final to = this.to;
     if (to == null) return from;
-    return from.compareTo(to) > 0 ? from : to;
+    return isBackward ? from : to;
+  }
+
+  /// Whether this is a "Start Here" dummy shot: one of zero length to
+  /// another series, which it starts
+  bool get startsSeries {
+    final to = this.to;
+    return to != null && distance == 0 && from.corridorId != to.corridorId;
   }
 
   /// Whether this is a survey shot measured from the new station back to
   /// the previous one
   bool get isBackward {
     final to = this.to;
-    return to != null && from.compareTo(to) > 0;
+    return to != null && !startsSeries && from.compareTo(to) > 0;
   }
 
   /// A survey shot switched between forward and backward by exchanging From
@@ -478,13 +488,44 @@ class Survey {
     return null;
   }
 
-  /// First station of a new series: the series after the highest one in use
-  Point get nextSeriesStart {
-    var maxSeries = 0;
+  /// The highest series in use, or 0 without stations
+  num get maxSeries {
+    num max = 0;
     for (final station in stations) {
-      maxSeries = math.max(maxSeries, station.corridorId.toInt());
+      max = math.max(max, station.corridorId);
     }
-    return Point(maxSeries + 1, 0);
+    return max;
+  }
+
+  /// First station of a new series, or null if no series is free. With
+  /// [reserved] series, the first series of its closed ranges, taken in
+  /// order, that is not in use; then, if the last range is open, a series
+  /// chosen as without reserved series but no lower than its start.
+  /// Without reserved series, the first series after the highest in use
+  /// that is not in [blocked], the closed ranges other trips reserve.
+  Point? nextSeriesStart({
+    List<SeriesRange> reserved = const [],
+    List<SeriesRange> blocked = const [],
+  }) {
+    final used = <num>{for (final station in stations) station.corridorId};
+    var from = maxSeries.toInt() + 1;
+    for (final range in reserved) {
+      final last = range.last;
+      if (last == null) {
+        from = math.max(from, range.first);
+        break;
+      }
+      for (var series = range.first; series <= last; series++) {
+        if (!used.contains(series)) return Point(series, 0);
+      }
+    }
+    if (reserved.isNotEmpty && !reserved.last.isOpen) return null;
+    // Blocked ranges are closed, so a free series always follows
+    var series = from;
+    while (blocked.any((r) => r.contains(series))) {
+      series++;
+    }
+    return Point(series, 0);
   }
 
   /// Total surveyed length: the sum of all survey shots between two stations.

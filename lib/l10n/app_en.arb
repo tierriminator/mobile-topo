@@ -582,6 +582,116 @@
   "@tripCommentHint": {
     "description": "Hint for the comment of a trip"
   },
+  "tripReservedSeries": "Reserved series",
+  "@tripReservedSeries": {
+    "description": "Heading of the series number ranges a trip numbers its new series from"
+  },
+  "tripReservedSeriesHelp": "While this trip is active, “Start here” gives a new series the first free number of these ranges, in order. A range reserves its series: it cannot overlap the ranges of other trips nor hold series they started. Leave the end of the last range empty to continue from there like without ranges, after the highest series in use and clear of the series other trips reserve, but never below its start.",
+  "@tripReservedSeriesHelp": {
+    "description": "Explanation of a trip's reserved series"
+  },
+  "tripReservedSeriesFrom": "From",
+  "@tripReservedSeriesFrom": {
+    "description": "Label of the first series of a reserved range"
+  },
+  "tripReservedSeriesTo": "To",
+  "@tripReservedSeriesTo": {
+    "description": "Label of the last series of a reserved range"
+  },
+  "tripReservedSeriesOpen": "open",
+  "@tripReservedSeriesOpen": {
+    "description": "Hint in the empty last series of a reserved range, which then has no end"
+  },
+  "tripReservedSeriesAdd": "Add range",
+  "@tripReservedSeriesAdd": {
+    "description": "Button adding a reserved series range to a trip"
+  },
+  "tripReservedSeriesRemove": "Remove range",
+  "@tripReservedSeriesRemove": {
+    "description": "Tooltip of the button removing a reserved series range"
+  },
+  "tripReservedSeriesFirstMissing": "Enter a series",
+  "@tripReservedSeriesFirstMissing": {
+    "description": "Error shown when a reserved range has no first series"
+  },
+  "seriesProblemEndsBeforeStart": "The range {range} ends before it starts",
+  "@seriesProblemEndsBeforeStart": {
+    "description": "Problem of a trip's reserved series: a range ending before it starts",
+    "placeholders": {
+      "range": {"type": "String"}
+    }
+  },
+  "seriesProblemOpenNotLast": "Only the last range can be open, not {range}",
+  "@seriesProblemOpenNotLast": {
+    "description": "Problem of a trip's reserved series: an open range other than the last",
+    "placeholders": {
+      "range": {"type": "String"}
+    }
+  },
+  "seriesProblemRangesOverlap": "The ranges {range} and {other} overlap",
+  "@seriesProblemRangesOverlap": {
+    "description": "Problem of a trip's reserved series: two of its closed ranges share a series",
+    "placeholders": {
+      "range": {"type": "String"},
+      "other": {"type": "String"}
+    }
+  },
+  "seriesProblemOverlapsOtherTrip": "The range {range} overlaps {other}, reserved by {trip}",
+  "@seriesProblemOverlapsOtherTrip": {
+    "description": "Problem of a trip's reserved series: a closed range shares a series with another trip's",
+    "placeholders": {
+      "range": {"type": "String"},
+      "other": {"type": "String"},
+      "trip": {"type": "String"}
+    }
+  },
+  "seriesProblemHoldsOtherSeries": "The range {range} holds series {series}, started on {trip}",
+  "@seriesProblemHoldsOtherSeries": {
+    "description": "Problem of a trip's reserved series: a closed range holds a series another trip started",
+    "placeholders": {
+      "range": {"type": "String"},
+      "series": {"type": "String"},
+      "trip": {"type": "String"}
+    }
+  },
+  "seriesProblemOutsideRanges": "Series {series} was started outside the reserved series",
+  "@seriesProblemOutsideRanges": {
+    "description": "Problem of a trip's reserved series: the trip started a series they do not allow",
+    "placeholders": {
+      "series": {"type": "String"}
+    }
+  },
+  "seriesProblemReservedByOther": "Series {series} was started in the series {trip} reserves",
+  "@seriesProblemReservedByOther": {
+    "description": "Problem of a trip's reserved series: the trip started a series another trip reserves",
+    "placeholders": {
+      "series": {"type": "String"},
+      "trip": {"type": "String"}
+    }
+  },
+  "tripNextSeries": "Next new series: {series}",
+  "@tripNextSeries": {
+    "description": "The series number “Start here” gives the next new series while the trip is active",
+    "placeholders": {
+      "series": {"type": "String"}
+    }
+  },
+  "tripNextSeriesNone": "No series left for a new series",
+  "@tripNextSeriesNone": {
+    "description": "Shown instead of the next new series when the trip's reserved series are used up"
+  },
+  "startHereReservedSeriesUsedUp": "The reserved series of the active trip are used up. Add a range on its page.",
+  "@startHereReservedSeriesUsedUp": {
+    "description": "Shown when Start here finds no free series in the active trip's reserved series"
+  },
+  "tripBarSeriesProblem": "{trip}: {problem}",
+  "@tripBarSeriesProblem": {
+    "description": "Trip bar error when the active trip's reserved series have a problem, given as one of the seriesProblem texts",
+    "placeholders": {
+      "trip": {"type": "String"},
+      "problem": {"type": "String"}
+    }
+  },
   "trip": "Trip",
   "@trip": {
     "description": "Context menu item showing a row's trip"

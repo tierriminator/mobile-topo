@@ -1,7 +1,68 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_topo/models/series_range.dart';
 import 'package:mobile_topo/models/survey.dart';
 
 void main() {
+  group('Survey.nextSeriesStart', () {
+    // Series 1, 3 and 11 are in use
+    const survey = Survey(stretches: [
+      MeasuredDistance(Point(1, 0), Point(1, 1), 5, 0, 0),
+      MeasuredDistance(Point(1, 1), Point(3, 0), 5, 0, 0),
+      MeasuredDistance(Point(3, 0), Point(11, 0), 5, 0, 0),
+    ], referencePoints: []);
+
+    test('without reserved series follows the highest in use', () {
+      expect(survey.nextSeriesStart(), const Point(12, 0));
+    });
+
+    test('takes the first free series of the reserved ranges', () {
+      expect(survey.nextSeriesStart(reserved: const [SeriesRange(3, 5)]),
+          const Point(4, 0));
+      expect(
+          survey.nextSeriesStart(
+              reserved: const [SeriesRange(3, 3), SeriesRange(1, 2)]),
+          const Point(2, 0));
+    });
+
+    test('an open range follows the highest in use, but not below it', () {
+      expect(survey.nextSeriesStart(reserved: const [SeriesRange(2)]),
+          const Point(12, 0));
+      expect(survey.nextSeriesStart(reserved: const [SeriesRange(20)]),
+          const Point(20, 0));
+    });
+
+    test('an open range comes after the closed ranges before it', () {
+      expect(
+          survey.nextSeriesStart(
+              reserved: const [SeriesRange(3, 4), SeriesRange(20)]),
+          const Point(4, 0));
+      expect(
+          survey.nextSeriesStart(
+              reserved: const [SeriesRange(3, 3), SeriesRange(20)]),
+          const Point(20, 0));
+    });
+
+    test('an open range skips the series others reserve', () {
+      expect(
+          survey.nextSeriesStart(
+              reserved: const [SeriesRange(12)],
+              blocked: const [SeriesRange(12, 14)]),
+          const Point(15, 0));
+    });
+
+    test('finds none once the reserved ranges are used up', () {
+      expect(
+          survey.nextSeriesStart(
+              reserved: const [SeriesRange(1, 1), SeriesRange(3, 3)]),
+          isNull);
+    });
+
+    test('without reserved series skips the series others reserve', () {
+      expect(survey.nextSeriesStart(blocked: const [SeriesRange(12, 14)]),
+          const Point(15, 0));
+    });
+  });
+
   group('Point.compareTo', () {
     test('orders by series, then by point', () {
       expect(const Point(1, 2).compareTo(const Point(1, 1)), greaterThan(0));
@@ -28,6 +89,15 @@ void main() {
 
     test('is the new series of a Start Here dummy shot', () {
       expect(station(const Point(1, 5), const Point(3, 0)), const Point(3, 0));
+    });
+
+    test('is the new series of a dummy shot to a lower series', () {
+      const dummy = MeasuredDistance(Point(20, 5), Point(10, 0), 0, 0, 0);
+      expect(dummy.station, const Point(10, 0));
+      expect(dummy.isBackward, isFalse);
+      // A measured shot between series still counts as backward
+      expect(station(const Point(20, 5), const Point(10, 0)),
+          const Point(20, 5));
     });
   });
 

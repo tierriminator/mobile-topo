@@ -5,6 +5,8 @@ import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/geo_position.dart';
 import 'package:mobile_topo/models/magnetic_declination.dart';
+import 'package:mobile_topo/models/series_problem.dart';
+import 'package:mobile_topo/models/series_range.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 
@@ -66,6 +68,117 @@ void main() {
           ['root', 'a1']);
       expect(cave().removeSection('root').allSections.map((s) => s.id),
           ['a1', 'a2']);
+    });
+  });
+
+  group('reserved series', () {
+    // Trip a surveys series 1 and starts series 2; trip b, a day later and
+    // listed first, starts series 10 and 11 and also a dummy shot into
+    // series 2, which stays a's as a is earlier
+    final a = Trip(id: 'a', date: DateTime(2026, 1, 1), createdAt: now);
+    final b = Trip(id: 'b', date: DateTime(2026, 1, 2), createdAt: now);
+    MeasuredDistance shot(Point from, Point to, String trip,
+            [num distance = 5]) =>
+        MeasuredDistance(from, to, distance, 0, 0, tripId: trip);
+    Cave surveyed({List<SeriesRange> aReserves = const [],
+            List<SeriesRange> bReserves = const []}) =>
+        cave()
+            .copyWith(trips: [
+              b.copyWith(reservedSeries: bReserves),
+              a.copyWith(reservedSeries: aReserves),
+            ])
+            .replaceSection(section('root', [
+              shot(const Point(1, 1), const Point(10, 0), 'b', 0),
+              shot(const Point(10, 0), const Point(10, 1), 'b'),
+              shot(const Point(10, 1), const Point(11, 0), 'b', 0),
+              shot(const Point(10, 1), const Point(2, 0), 'b', 0),
+            ]))
+            .replaceSection(section('a1', [
+              shot(const Point(1, 0), const Point(1, 1), 'a'),
+              shot(const Point(1, 1), const Point(2, 0), 'a', 0),
+            ]));
+
+    test('a series belongs to the earliest trip starting it', () {
+      expect(surveyed().seriesTrips, {10: 'b', 11: 'b', 2: 'a'});
+    });
+
+    test('a zero length shot to a later station only ties in', () {
+      // b ties series 10 in with 1.0 and a in with 10.1, neither starting
+      // the series measured from there
+      final c = surveyed().replaceSection(section('a2', [
+        shot(const Point(10, 1), const Point(1, 0), 'b', 0),
+        shot(const Point(1, 0), const Point(10, 1), 'a', 0),
+      ]));
+      expect(c.seriesTrips, {10: 'b', 11: 'b', 2: 'a'});
+    });
+
+    /// The problem of the reserved series of the trip with [id] in [c]
+    SeriesProblem? problemOf(Cave c, String id) =>
+        c.seriesProblemOf(c.findTrip(id)!);
+
+    test('series their trip\'s ranges allow are fine', () {
+      final c = surveyed(
+          aReserves: const [SeriesRange(1, 9)],
+          bReserves: const [SeriesRange(10)]);
+      expect(problemOf(c, 'a'), isNull);
+      expect(problemOf(c, 'b'), isNull);
+    });
+
+    test('a series outside its trip\'s closed ranges is a problem', () {
+      final problem =
+          problemOf(surveyed(bReserves: const [SeriesRange(10, 10)]), 'b');
+      expect(problem, isA<SeriesOutsideRanges>());
+      expect((problem as SeriesOutsideRanges).series, 11);
+    });
+
+    test('a series below its trip\'s open range is a problem', () {
+      final problem =
+          problemOf(surveyed(bReserves: const [SeriesRange(11)]), 'b');
+      expect((problem as SeriesOutsideRanges).series, 10);
+    });
+
+    test('a series in another trip\'s closed range is a problem for both',
+        () {
+      final c = surveyed(aReserves: const [SeriesRange(2, 10)]);
+      final ofB = problemOf(c, 'b') as SeriesReservedByOther;
+      expect(ofB.series, 10);
+      expect(ofB.reservedBy.id, 'a');
+      final ofA = problemOf(c, 'a') as RangeHoldsOtherSeries;
+      expect(ofA.series, 10);
+      expect(ofA.trip.id, 'b');
+    });
+
+    test('another trip\'s open range reserves nothing', () {
+      final c = surveyed(aReserves: const [SeriesRange(2)]);
+      expect(problemOf(c, 'a'), isNull);
+      expect(problemOf(c, 'b'), isNull);
+    });
+
+    test('without reserved series nothing is a problem', () {
+      expect(problemOf(surveyed(), 'a'), isNull);
+      expect(problemOf(surveyed(), 'b'), isNull);
+    });
+
+    test('ranges themselves can be wrong', () {
+      expect(
+          problemOf(surveyed(aReserves: const [SeriesRange(5, 3)]), 'a'),
+          isA<RangeEndsBeforeStart>());
+      expect(
+          problemOf(
+              surveyed(
+                  aReserves: const [SeriesRange(20), SeriesRange(30, 31)]),
+              'a'),
+          isA<OpenRangeNotLast>());
+      expect(
+          problemOf(
+              surveyed(
+                  aReserves: const [SeriesRange(1, 5), SeriesRange(5, 8)]),
+              'a'),
+          isA<RangesOverlap>());
+      final c = surveyed(
+          aReserves: const [SeriesRange(1, 9)],
+          bReserves: const [SeriesRange(8, 12)]);
+      expect(problemOf(c, 'b'), isA<RangeOverlapsOtherTrip>());
     });
   });
 
@@ -386,6 +499,12 @@ void main() {
           activatedAt: DateTime.utc(2026, 10, 10, 7));
       expect(Trip.fromJson(activated.toJson()).activatedAt,
           activated.activatedAt);
+
+      expect(copy.reservedSeries, isEmpty);
+      expect(original.toJson().containsKey('reservedSeries'), isFalse);
+      const ranges = [SeriesRange(10, 19), SeriesRange(50)];
+      final reserving = original.copyWith(reservedSeries: ranges);
+      expect(Trip.fromJson(reserving.toJson()).reservedSeries, ranges);
     });
   });
 

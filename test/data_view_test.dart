@@ -13,6 +13,7 @@ import 'package:mobile_topo/models/cave.dart';
 import 'package:mobile_topo/models/coordinate_system.dart';
 import 'package:mobile_topo/models/geo_position.dart';
 import 'package:mobile_topo/views/widgets/number_format.dart';
+import 'package:mobile_topo/models/series_range.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/sketch.dart';
 import 'package:mobile_topo/models/survey.dart';
@@ -727,6 +728,80 @@ void main() {
       expect(stretches.single.from, const Point(1, 0));
       expect(stretches.single.to, const Point(3, 0));
       expect(measurementService.currentStation, const Point(3, 0));
+    });
+
+    testWidgets('takes the first free series the active trip reserves',
+        (tester) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
+          referencePoints: [],
+        ),
+      );
+      final trip = Trip(
+          id: 't',
+          date: now,
+          createdAt: now,
+          reservedSeries: const [SeriesRange(2, 2), SeriesRange(20)]);
+      final selectionState = SelectionState()
+        ..selectSection(
+            cave([other, current]).copyWith(trips: [trip]), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+
+      // Series 2 is in use in the other section
+      await startHereOn(tester, '1.0');
+
+      final dummy = selectionState.selectedSection!.survey.stretches.last;
+      expect(dummy.to, const Point(20, 0));
+      expect(dummy.tripId, 't');
+    });
+
+    /// Starts a new series from 1.0 while [trips] are the cave's, the last
+    /// of them active, and returns the section's stretches afterwards
+    Future<List<MeasuredDistance>> startHereWith(
+        WidgetTester tester, List<Trip> trips) async {
+      final current = section(
+        'current',
+        const Survey(
+          stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
+          referencePoints: [],
+        ),
+      );
+      final selectionState = SelectionState()
+        ..selectSection(
+            cave([other, current]).copyWith(trips: trips), current);
+      await pumpDataView(
+          tester, selectionState, MeasurementService(SettingsController()));
+      await startHereOn(tester, '1.0');
+      return selectionState.selectedSection!.survey.stretches;
+    }
+
+    testWidgets('refuses once the active trip\'s series are used up',
+        (tester) async {
+      final stretches = await startHereWith(tester, [
+        Trip(
+            id: 't',
+            date: now,
+            createdAt: now,
+            reservedSeries: const [SeriesRange(1, 2)]),
+      ]);
+      expect(stretches, hasLength(1));
+      expect(find.textContaining('are used up'), findsOneWidget);
+    });
+
+    testWidgets('without reserved series skips those of other trips',
+        (tester) async {
+      final stretches = await startHereWith(tester, [
+        Trip(
+            id: 'reserving',
+            date: now,
+            createdAt: now,
+            reservedSeries: const [SeriesRange(3, 5)]),
+        Trip(id: 't', date: now, createdAt: now.add(const Duration(hours: 1))),
+      ]);
+      expect(stretches.last.to, const Point(6, 0));
     });
   });
 
