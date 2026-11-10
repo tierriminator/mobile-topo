@@ -2,6 +2,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_topo/models/survey.dart';
 
 void main() {
+  group('Point.tryParse', () {
+    test('reads an ID of the form a.b', () {
+      expect(Point.tryParse(' 5.12 '), const Point(5, 12));
+    });
+
+    test('rejects anything else', () {
+      expect(Point.tryParse(''), isNull);
+      expect(Point.tryParse('5'), isNull);
+      expect(Point.tryParse('5.1.2'), isNull);
+      expect(Point.tryParse('a.1'), isNull);
+    });
+  });
+
+  group('Survey.nextSeriesStart', () {
+    const survey = Survey(stretches: [
+      MeasuredDistance(Point(1, 0), Point(1, 1), 5, 0, 0),
+      MeasuredDistance(Point(1, 1), Point(3, 0), 5, 0, 0),
+    ], referencePoints: []);
+
+    test('follows the highest series in use', () {
+      expect(survey.nextSeriesStart(), const Point(4, 0));
+    });
+
+    test('takes a requested ID whose series is free', () {
+      expect(survey.nextSeriesStart(const Point(2, 5)), const Point(2, 5));
+    });
+
+    test('skips the series in use from a requested ID', () {
+      expect(survey.nextSeriesStart(const Point(1, 0)), const Point(2, 0));
+      expect(survey.nextSeriesStart(const Point(3, 0)), const Point(4, 0));
+    });
+  });
+
   group('Point.compareTo', () {
     test('orders by series, then by point', () {
       expect(const Point(1, 2).compareTo(const Point(1, 1)), greaterThan(0));

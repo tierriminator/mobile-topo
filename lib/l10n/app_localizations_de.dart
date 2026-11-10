@@ -470,6 +470,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get tripCommentHint => 'Beteiligte, Zustand der Höhle, …';
 
   @override
+  String get tripNextId => 'Nächste ID';
+
+  @override
+  String get tripNextIdHelp =>
+      'Erster Messpunkt des nächsten Gangs, den «Hier starten» beginnt, solange diese Tour aktiv ist. Die Gangnummer wird bei jeder Verwendung erhöht. Leer: nach der höchsten verwendeten Gangnummer.';
+
+  @override
+  String get tripNextIdInvalid => 'ID wie 5.0 eingeben';
+
+  @override
   String get trip => 'Tour';
 
   @override

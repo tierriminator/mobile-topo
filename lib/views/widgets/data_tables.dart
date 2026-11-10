@@ -1182,14 +1182,10 @@ class _PointCellState extends State<_PointCell> {
       widget.onChanged?.call(null);
       return;
     }
-    final parts = value.split('.');
-    if (parts.length == 2) {
-      final corridor = num.tryParse(parts[0]);
-      final point = num.tryParse(parts[1]);
-      if (corridor != null && point != null) {
-        widget.onChanged?.call(Point(corridor, point));
-        return;
-      }
+    final point = Point.tryParse(value);
+    if (point != null) {
+      widget.onChanged?.call(point);
+      return;
     }
     _controller.text = _pointToString(widget.point);
   }

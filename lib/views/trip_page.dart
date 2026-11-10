@@ -6,6 +6,7 @@ import '../controllers/settings_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/settings.dart';
+import '../models/survey.dart';
 import '../models/trip.dart';
 import 'widgets/number_format.dart';
 
@@ -46,7 +47,8 @@ Future<Trip?> editTrip(
           edited.declination == trip.declination &&
           edited.autoDeclination == trip.autoDeclination &&
           edited.comment == trip.comment &&
-          edited.activatedAt == trip.activatedAt)) {
+          edited.activatedAt == trip.activatedAt &&
+          edited.nextId == trip.nextId)) {
     return null;
   }
   return edited;
@@ -90,6 +92,10 @@ class _TripPageState extends State<TripPage> {
   late final String _declinationText;
   late final TextEditingController _declinationController;
   late final TextEditingController _commentController;
+  late final TextEditingController _nextIdController;
+
+  /// The next ID without one set: after the highest series of the cave
+  late final String _automaticNextId;
 
   @override
   void initState() {
@@ -101,12 +107,21 @@ class _TripPageState extends State<TripPage> {
         formatNumber(_settings.angleUnit.fromDegrees(widget.trip.declination));
     _declinationController = TextEditingController(text: _declinationText);
     _commentController = TextEditingController(text: widget.trip.comment);
+    _nextIdController =
+        TextEditingController(text: widget.trip.nextId?.toString() ?? '');
+    _automaticNextId = Survey(stretches: [
+      for (final section in widget.cave.allSections) ...section.survey.stretches,
+    ], referencePoints: [
+      for (final section in widget.cave.allSections)
+        ...section.survey.referencePoints,
+    ]).nextSeriesStart().toString();
   }
 
   @override
   void dispose() {
     _declinationController.dispose();
     _commentController.dispose();
+    _nextIdController.dispose();
     super.dispose();
   }
 
@@ -166,13 +181,25 @@ class _TripPageState extends State<TripPage> {
     return _settings.angleUnit.toDegrees(num.tryParse(text) ?? 0);
   }
 
-  Trip get _edited => widget.trip.copyWith(
-        date: _date,
-        declination: _declination,
-        autoDeclination: _autoDeclination,
-        comment: _commentController.text.trim(),
-        activatedAt: _activatedAt,
-      );
+  /// Whether the next ID is neither empty nor a station ID
+  bool get _nextIdInvalid =>
+      _nextIdController.text.trim().isNotEmpty &&
+      Point.tryParse(_nextIdController.text) == null;
+
+  /// The trip as edited. An empty next ID takes the series after the
+  /// highest one in use; an invalid one keeps the trip's.
+  Trip get _edited {
+    final nextIdText = _nextIdController.text.trim();
+    return widget.trip.copyWith(
+      date: _date,
+      declination: _declination,
+      autoDeclination: _autoDeclination,
+      comment: _commentController.text.trim(),
+      activatedAt: _activatedAt,
+      nextId: Point.tryParse(nextIdText),
+      clearNextId: nextIdText.isEmpty,
+    );
+  }
 
   /// The automatic declination for the date shown, in degrees
   num get _computedDeclination => widget.cave
@@ -282,6 +309,23 @@ class _TripPageState extends State<TripPage> {
               ),
               minLines: 3,
               maxLines: null,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nextIdController,
+              decoration: InputDecoration(
+                labelText: l10n.tripNextId,
+                hintText: _automaticNextId,
+                helperText: l10n.tripNextIdHelp,
+                helperMaxLines: 4,
+                errorText: _nextIdInvalid ? l10n.tripNextIdInvalid : null,
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+              ],
+              onChanged: (_) => setState(() {}),
             ),
             if (widget.onDelete != null) ...[
               const SizedBox(height: 32),

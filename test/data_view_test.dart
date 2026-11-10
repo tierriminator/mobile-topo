@@ -23,8 +23,13 @@ import 'package:mobile_topo/views/data_view.dart';
 
 /// Repository that only records saves
 class _InMemoryCaveRepository implements CaveRepository {
+  final savedTrips = <Trip>[];
+
   @override
   Future<void> saveSection(String caveId, Section section) async {}
+
+  @override
+  Future<void> saveTrip(String caveId, Trip trip) async => savedTrips.add(trip);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -75,6 +80,7 @@ void main() {
     ViewNavigation? navigation,
     SettingsController? settings,
     LocationService? location,
+    CaveRepository? repository,
   }) {
     return tester.pumpWidget(
       MultiProvider(
@@ -83,7 +89,8 @@ void main() {
           ChangeNotifierProvider.value(value: measurementService),
           ChangeNotifierProvider.value(value: navigation ?? ViewNavigation()),
           ChangeNotifierProvider.value(value: settings ?? SettingsController()),
-          Provider<CaveRepository>.value(value: _InMemoryCaveRepository()),
+          Provider<CaveRepository>.value(
+              value: repository ?? _InMemoryCaveRepository()),
           Provider<LocationService>.value(
               value: location ?? _FakeLocationService()),
         ],
@@ -727,6 +734,53 @@ void main() {
       expect(stretches.single.from, const Point(1, 0));
       expect(stretches.single.to, const Point(3, 0));
       expect(measurementService.currentStation, const Point(3, 0));
+    });
+
+    group('with the active trip\'s next ID', () {
+      /// Starts a new series from 1.0 while the active trip's next ID is
+      /// [nextId] and returns the station it starts at and the trip saved
+      Future<(Point?, Trip?)> startWithNextId(
+          WidgetTester tester, Point nextId) async {
+        final current = section(
+          'current',
+          const Survey(
+            stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
+            referencePoints: [],
+          ),
+        );
+        final trip = Trip(
+            id: 't', date: now, createdAt: now, nextId: nextId);
+        final selectionState = SelectionState()
+          ..selectSection(
+              cave([other, current]).copyWith(trips: [trip]), current);
+        final repository = _InMemoryCaveRepository();
+        await pumpDataView(
+            tester, selectionState, MeasurementService(SettingsController()),
+            repository: repository);
+
+        await startHereOn(tester, '1.0');
+
+        final dummy = selectionState.selectedSection!.survey.stretches.last;
+        expect(dummy.tripId, 't');
+        final activeTrip = selectionState.selectedCave!.activeTrip;
+        expect(repository.savedTrips.lastOrNull?.nextId, activeTrip?.nextId);
+        return (dummy.to, activeTrip);
+      }
+
+      testWidgets('starts the series there and moves the next ID on',
+          (tester) async {
+        final (station, trip) =
+            await startWithNextId(tester, const Point(10, 0));
+        expect(station, const Point(10, 0));
+        expect(trip?.nextId, const Point(11, 0));
+      });
+
+      testWidgets('skips a series already in use', (tester) async {
+        final (station, trip) =
+            await startWithNextId(tester, const Point(2, 1));
+        expect(station, const Point(3, 1));
+        expect(trip?.nextId, const Point(4, 1));
+      });
     });
   });
 

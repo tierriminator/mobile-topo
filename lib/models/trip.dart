@@ -1,3 +1,5 @@
+import 'survey.dart';
+
 /// A surveying event: values common to all measurements taken during it.
 /// Measurements refer to their trip by [id].
 class Trip {
@@ -24,6 +26,11 @@ class Trip {
   /// When the trip was last made the active one, if ever
   final DateTime? activatedAt;
 
+  /// PocketTopo's "Next ID": the first station of the next series "Start
+  /// Here" begins while this trip is active; see [Survey.nextSeriesStart].
+  /// Null takes the series after the highest one in use.
+  final Point? nextId;
+
   const Trip({
     required this.id,
     required this.date,
@@ -32,6 +39,7 @@ class Trip {
     this.comment = '',
     required this.createdAt,
     this.activatedAt,
+    this.nextId,
   });
 
   /// When the trip last became the active one, by being created or made
@@ -51,6 +59,8 @@ class Trip {
     bool? autoDeclination,
     String? comment,
     DateTime? activatedAt,
+    Point? nextId,
+    bool clearNextId = false,
   }) {
     return Trip(
       id: id,
@@ -60,6 +70,7 @@ class Trip {
       comment: comment ?? this.comment,
       createdAt: createdAt,
       activatedAt: activatedAt ?? this.activatedAt,
+      nextId: clearNextId ? null : nextId ?? this.nextId,
     );
   }
 
@@ -72,6 +83,7 @@ class Trip {
         'createdAt': createdAt.toIso8601String(),
         if (activatedAt != null)
           'activatedAt': activatedAt!.toIso8601String(),
+        if (nextId != null) 'nextId': nextId!.toJson(),
       };
 
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
@@ -83,6 +95,10 @@ class Trip {
         createdAt: DateTime.parse(json['createdAt'] as String),
         activatedAt: switch (json['activatedAt']) {
           final String s => DateTime.parse(s),
+          _ => null,
+        },
+        nextId: switch (json['nextId']) {
+          final Map<String, dynamic> m => Point.fromJson(m),
           _ => null,
         },
       );

@@ -98,6 +98,45 @@ void main() {
     expect(await editAndLeave(tester, () async {}), isNull);
   });
 
+  group('next ID', () {
+    Finder field() => find.widgetWithText(TextField, 'Next ID');
+
+    testWidgets('suggests the series after the highest in use',
+        (tester) async {
+      await open(tester);
+      final decoration = tester.widget<TextField>(field()).decoration!;
+      expect(decoration.hintText, '2.0');
+    });
+
+    testWidgets('an entered ID is stored', (tester) async {
+      final edited = await editAndLeave(
+          tester, () => tester.enterText(field(), '5.0'));
+      expect(edited?.nextId, const Point(5, 0));
+    });
+
+    testWidgets('an invalid ID is shown as such and not stored',
+        (tester) async {
+      final edited = await editAndLeave(tester, () async {
+        await tester.enterText(field(), '5');
+        await tester.pump();
+        expect(find.text('Enter an ID like 5.0'), findsOneWidget);
+      });
+      expect(edited, isNull);
+    });
+
+    testWidgets('clearing the ID goes back to the automatic one',
+        (tester) async {
+      final result = await open(tester,
+          tripToEdit: trip.copyWith(nextId: const Point(5, 0)));
+      await tester.enterText(field(), '');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      final edited = await result;
+      expect(edited, isNotNull);
+      expect(edited!.nextId, isNull);
+    });
+  });
+
   testWidgets('the page shows the length surveyed on the trip',
       (tester) async {
     await open(tester);

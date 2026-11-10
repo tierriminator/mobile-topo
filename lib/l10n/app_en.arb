@@ -582,6 +582,18 @@
   "@tripCommentHint": {
     "description": "Hint for the comment of a trip"
   },
+  "tripNextId": "Next ID",
+  "@tripNextId": {
+    "description": "Label of the station ID that 'Start here' gives the next new series while the trip is active"
+  },
+  "tripNextIdHelp": "First station of the next series “Start here” begins while this trip is active. Its series moves on with each use. Empty: after the highest series in use.",
+  "@tripNextIdHelp": {
+    "description": "Explanation of a trip's next ID"
+  },
+  "tripNextIdInvalid": "Enter an ID like 5.0",
+  "@tripNextIdInvalid": {
+    "description": "Error shown when a trip's next ID is not of the form a.b"
+  },
   "trip": "Trip",
   "@trip": {
     "description": "Context menu item showing a row's trip"

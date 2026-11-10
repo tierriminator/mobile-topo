@@ -161,8 +161,11 @@ Pure domain objects without serialization logic:
   - `Survey`: Collection of stretches and reference points with position computation
 
 - **`trip.dart`**: `Trip` with ID, date, declination correction or
-  automatic declination, comment, creation time and the time it was last
-  made active
+  automatic declination, comment, creation time, the time it was last
+  made active and PocketTopo's optional "Next ID": the station "Start
+  Here" begins a new series at while the trip is active, skipping series
+  in use; its series moves on with each use. Without it the new series
+  follows the highest one in use
 
 - **`cave.dart`**: Explorer hierarchy
   - `Cave`: Top-level container with areas, sections, trips and the

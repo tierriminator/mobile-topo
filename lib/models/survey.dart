@@ -26,6 +26,16 @@ class Point implements Comparable<Point> {
   /// The following point in the same series
   Point get next => Point(corridorId, pointId.toInt() + 1);
 
+  /// The station with ID [text] in the format `a.b`, or null if it is none
+  static Point? tryParse(String text) {
+    final parts = text.trim().split('.');
+    if (parts.length != 2) return null;
+    final corridor = num.tryParse(parts[0]);
+    final point = num.tryParse(parts[1]);
+    if (corridor == null || point == null) return null;
+    return Point(corridor, point);
+  }
+
   @override
   String toString() => '$corridorId.$pointId';
 
@@ -478,13 +488,23 @@ class Survey {
     return null;
   }
 
-  /// First station of a new series: the series after the highest one in use
-  Point get nextSeriesStart {
-    var maxSeries = 0;
-    for (final station in stations) {
-      maxSeries = math.max(maxSeries, station.corridorId.toInt());
+  /// First station of a new series: [requested], PocketTopo's "Next ID",
+  /// unless its series is in use, then the first free series after it.
+  /// Without [requested], the series after the highest one in use.
+  Point nextSeriesStart([Point? requested]) {
+    final series = {for (final station in stations) station.corridorId};
+    if (requested == null) {
+      var maxSeries = 0;
+      for (final s in series) {
+        maxSeries = math.max(maxSeries, s.toInt());
+      }
+      return Point(maxSeries + 1, 0);
     }
-    return Point(maxSeries + 1, 0);
+    var corridor = requested.corridorId;
+    while (series.contains(corridor)) {
+      corridor = corridor.floor() + 1;
+    }
+    return Point(corridor, requested.pointId);
   }
 
   /// Total surveyed length: the sum of all survey shots between two stations.

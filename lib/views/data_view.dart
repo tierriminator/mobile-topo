@@ -326,16 +326,30 @@ class _DataViewState extends State<DataView> {
   }
 
   /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
-  /// first station of a new series, so measuring continues from there.
+  /// first station of a new series, so measuring continues from there. The
+  /// station is the active trip's next ID, whose series then moves on.
   Future<void> _startNewSeries(Section section, Point fromStation) async {
+    final selectionState = context.read<SelectionState>();
+    final repository = context.read<CaveRepository>();
+    final trip = selectionState.selectedCave?.activeTrip;
+    Point? newStation;
     await _changeSurvey(section.id, (survey) {
       // Station IDs must be unique in the whole cave, so the new series
       // number is taken from all sections, not just this one
-      final newStation = _caveSurvey(survey).nextSeriesStart;
+      final station = _caveSurvey(survey).nextSeriesStart(trip?.nextId);
+      newStation = station;
       return survey.addStretch(MeasuredDistance(
-          fromStation, newStation, 0, 0, 0,
-          tripId: _activeTripId));
+          fromStation, station, 0, 0, 0,
+          tripId: trip?.id));
     });
+
+    final cave = selectionState.selectedCave;
+    final used = newStation;
+    if (trip?.nextId == null || cave == null || used == null) return;
+    final moved = trip!.copyWith(
+        nextId: Point(used.corridorId.floor() + 1, used.pointId));
+    selectionState.updateTrips(cave.replaceTrip(moved));
+    await repository.saveTrip(cave.id, moved);
   }
 
   /// PocketTopo's "Continue Here", offered only at the last station of a

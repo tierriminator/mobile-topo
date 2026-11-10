@@ -467,6 +467,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tripCommentHint => 'Surveyors, conditions, …';
 
   @override
+  String get tripNextId => 'Next ID';
+
+  @override
+  String get tripNextIdHelp =>
+      'First station of the next series “Start here” begins while this trip is active. Its series moves on with each use. Empty: after the highest series in use.';
+
+  @override
+  String get tripNextIdInvalid => 'Enter an ID like 5.0';
+
+  @override
   String get trip => 'Trip';
 
   @override

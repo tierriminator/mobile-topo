@@ -907,6 +907,24 @@ abstract class AppLocalizations {
   /// **'Surveyors, conditions, …'**
   String get tripCommentHint;
 
+  /// Label of the station ID that 'Start here' gives the next new series while the trip is active
+  ///
+  /// In en, this message translates to:
+  /// **'Next ID'**
+  String get tripNextId;
+
+  /// Explanation of a trip's next ID
+  ///
+  /// In en, this message translates to:
+  /// **'First station of the next series “Start here” begins while this trip is active. Its series moves on with each use. Empty: after the highest series in use.'**
+  String get tripNextIdHelp;
+
+  /// Error shown when a trip's next ID is not of the form a.b
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an ID like 5.0'**
+  String get tripNextIdInvalid;
+
   /// Context menu item showing a row's trip
   ///
   /// In en, this message translates to:

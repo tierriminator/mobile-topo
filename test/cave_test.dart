@@ -386,6 +386,12 @@ void main() {
           activatedAt: DateTime.utc(2026, 10, 10, 7));
       expect(Trip.fromJson(activated.toJson()).activatedAt,
           activated.activatedAt);
+
+      expect(copy.nextId, isNull);
+      expect(original.toJson().containsKey('nextId'), isFalse);
+      final withNextId = original.copyWith(nextId: const Point(5, 0));
+      expect(Trip.fromJson(withNextId.toJson()).nextId, const Point(5, 0));
+      expect(withNextId.copyWith(clearNextId: true).nextId, isNull);
     });
   });
 
