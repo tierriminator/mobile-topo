@@ -36,6 +36,9 @@ enum AngleUnit {
 enum ShotDirection { forward, backward }
 
 class Settings {
+  static const minStationLabelScale = 0.5;
+  static const maxStationLabelScale = 3.0;
+
   final bool smartModeEnabled;
   final ShotDirection shotDirection;
   final LengthUnit lengthUnit;
@@ -44,6 +47,10 @@ class Settings {
   /// The coordinate system new caves start with
   final CoordinateSystem defaultCoordinateSystem;
   final bool showGrid;
+
+  /// Size of the station IDs in the map and sketch views, as a factor of
+  /// their usual size, from [minStationLabelScale] to [maxStationLabelScale]
+  final double stationLabelScale;
   final bool autoConnect;
   final String? lastConnectedDeviceAddress;
   final String? lastConnectedDeviceName;
@@ -60,6 +67,7 @@ class Settings {
     this.angleUnit = AngleUnit.degrees,
     this.defaultCoordinateSystem = CoordinateSystem.swiss,
     this.showGrid = true,
+    this.stationLabelScale = 1.0,
     this.autoConnect = false,
     this.lastConnectedDeviceAddress,
     this.lastConnectedDeviceName,
@@ -75,6 +83,7 @@ class Settings {
     AngleUnit? angleUnit,
     CoordinateSystem? defaultCoordinateSystem,
     bool? showGrid,
+    double? stationLabelScale,
     bool? autoConnect,
     String? lastConnectedDeviceAddress,
     String? lastConnectedDeviceName,
@@ -90,6 +99,7 @@ class Settings {
       defaultCoordinateSystem:
           defaultCoordinateSystem ?? this.defaultCoordinateSystem,
       showGrid: showGrid ?? this.showGrid,
+      stationLabelScale: stationLabelScale ?? this.stationLabelScale,
       autoConnect: autoConnect ?? this.autoConnect,
       lastConnectedDeviceAddress:
           lastConnectedDeviceAddress ?? this.lastConnectedDeviceAddress,
@@ -110,6 +120,7 @@ class Settings {
         'angleUnit': angleUnit.name,
         'defaultCoordinateSystem': defaultCoordinateSystem.toJson(),
         'showGrid': showGrid,
+        'stationLabelScale': stationLabelScale,
         'autoConnect': autoConnect,
         'lastConnectedDeviceAddress': lastConnectedDeviceAddress,
         'lastConnectedDeviceName': lastConnectedDeviceName,
@@ -135,6 +146,9 @@ class Settings {
         defaultCoordinateSystem: CoordinateSystem.fromJson(
             json['defaultCoordinateSystem'] as String?),
         showGrid: json['showGrid'] as bool? ?? true,
+        stationLabelScale: (json['stationLabelScale'] as num? ?? 1.0)
+            .toDouble()
+            .clamp(minStationLabelScale, maxStationLabelScale),
         autoConnect: json['autoConnect'] as bool? ?? true,
         lastConnectedDeviceAddress: json['lastConnectedDeviceAddress'] as String?,
         lastConnectedDeviceName: json['lastConnectedDeviceName'] as String?,

@@ -25,21 +25,26 @@ Point? stationAt(Map<Point, Offset> positions, Offset tap,
   return null;
 }
 
-/// Where a station's ID is drawn, relative to the station
+/// Font size of station IDs at a label scale of 1
+const _labelFontSize = 10.0;
+
+/// Where a station's ID is drawn, relative to the station, at a label
+/// scale of 1. Its vertical part grows with the scale, keeping the bottom of
+/// a larger ID next to the station.
 const _labelOffset = Offset(6, -12);
 
 /// How far a station may lie outside the canvas and still have its ID
-/// reach into it
+/// reach into it, at a label scale of 1
 const _labelReach = 100.0;
 
-/// Station IDs laid out for drawing, by ID and whether the station is
-/// selected. Laying out the IDs of a large cave for every frame makes
-/// panning lag, so they are kept, up to [_maxLabels].
-final _labels = <(String, bool), TextPainter>{};
+/// Station IDs laid out for drawing, by ID, whether the station is
+/// selected and label scale. Laying out the IDs of a large cave for every
+/// frame makes panning lag, so they are kept, up to [_maxLabels].
+final _labels = <(String, bool, double), TextPainter>{};
 const _maxLabels = 20000;
 
-TextPainter _label(Point id, bool selected) {
-  final key = (id.toString(), selected);
+TextPainter _label(Point id, bool selected, double scale) {
+  final key = (id.toString(), selected, scale);
   if (_labels[key] case final label?) return label;
   if (_labels.length >= _maxLabels) {
     for (final label in _labels.values) {
@@ -52,15 +57,20 @@ TextPainter _label(Point id, bool selected) {
       text: key.$1,
       style: TextStyle(
         color: selected ? Colors.blue : Colors.black87,
-        fontSize: 10,
+        fontSize: _labelFontSize * scale,
       ),
     ),
     textDirection: TextDirection.ltr,
   )..layout();
 }
 
-/// Draws a station as a dot of [radius] in [color] with its ID next to it.
-/// A selected station is drawn larger and in blue.
+/// Where the ID of a station at [screenPos] is drawn at [labelScale]
+Offset _labelPosition(Offset screenPos, double labelScale) =>
+    screenPos + Offset(_labelOffset.dx, _labelOffset.dy * labelScale);
+
+/// Draws a station as a dot of [radius] in [color] with its ID next to it,
+/// [labelScale] times its usual size. A selected station is drawn larger
+/// and in blue.
 void paintStation(
   Canvas canvas,
   Offset screenPos,
@@ -68,6 +78,7 @@ void paintStation(
   required Color color,
   required bool selected,
   double radius = 4,
+  double labelScale = 1,
 }) {
   canvas.drawCircle(
     screenPos,
@@ -76,7 +87,8 @@ void paintStation(
       ..color = selected ? Colors.blue : color
       ..style = PaintingStyle.fill,
   );
-  _label(id, selected).paint(canvas, screenPos + _labelOffset);
+  _label(id, selected, labelScale)
+      .paint(canvas, _labelPosition(screenPos, labelScale));
 }
 
 /// Draws [stations], given by ID and screen position, like [paintStation],
@@ -89,8 +101,9 @@ void paintStations(
   required Color color,
   Point? selected,
   double radius = 4,
+  double labelScale = 1,
 }) {
-  final area = (Offset.zero & size).inflate(_labelReach);
+  final area = (Offset.zero & size).inflate(_labelReach * labelScale);
   final shown = [
     for (final station in stations)
       if (area.contains(station.$2) && station.$1 != selected) station,
@@ -106,12 +119,13 @@ void paintStations(
       ..strokeCap = StrokeCap.round,
   );
   for (final (id, position) in shown) {
-    _label(id, false).paint(canvas, position + _labelOffset);
+    _label(id, false, labelScale)
+        .paint(canvas, _labelPosition(position, labelScale));
   }
   for (final (id, position) in stations) {
     if (id == selected) {
       paintStation(canvas, position, id,
-          color: color, selected: true, radius: radius);
+          color: color, selected: true, radius: radius, labelScale: labelScale);
     }
   }
 }

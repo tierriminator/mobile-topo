@@ -626,6 +626,14 @@ class AppLocalizationsDe extends AppLocalizations {
       'Raster in der Skizzenansicht anzeigen';
 
   @override
+  String get optionsStationLabelSize => 'Grösse der Messpunktnamen';
+
+  @override
+  String optionsStationLabelSizeValue(int percent) {
+    return '$percent %';
+  }
+
+  @override
   String get optionsCalibrationSection => 'Kalibrierung';
 
   @override

@@ -1201,6 +1201,18 @@ abstract class AppLocalizations {
   /// **'Display grid in sketch view'**
   String get optionsShowGridDescription;
 
+  /// Label for the size of the station IDs in the map and sketch views
+  ///
+  /// In en, this message translates to:
+  /// **'Station ID size'**
+  String get optionsStationLabelSize;
+
+  /// Size of the station IDs as a percentage of their usual size
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} %'**
+  String optionsStationLabelSizeValue(int percent);
+
   /// Section header for calibration
   ///
   /// In en, this message translates to:

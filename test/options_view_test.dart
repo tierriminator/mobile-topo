@@ -26,6 +26,60 @@ void main() {
       expect(Settings.fromJson(settings.toJson()).defaultCoordinateSystem,
           const Utm(33, south: true));
     });
+
+    test('station IDs are at their usual size by default', () {
+      expect(const Settings().stationLabelScale, 1.0);
+      expect(Settings.fromJson(const {}).stationLabelScale, 1.0);
+    });
+
+    test('the station ID size survives a JSON round trip', () {
+      const settings = Settings(stationLabelScale: 2.5);
+      expect(Settings.fromJson(settings.toJson()).stationLabelScale, 2.5);
+    });
+
+    test('a station ID size out of range is clamped', () {
+      expect(Settings.fromJson(const {'stationLabelScale': 10}).stationLabelScale,
+          Settings.maxStationLabelScale);
+      expect(Settings.fromJson(const {'stationLabelScale': 0}).stationLabelScale,
+          Settings.minStationLabelScale);
+    });
+  });
+
+  group('station ID size', () {
+    testWidgets('is set with a slider and saved', (tester) async {
+      final controller = SettingsController();
+      final repository = MockSettingsRepository();
+      await tester.pumpWidget(MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: controller),
+          ChangeNotifierProvider(
+              create: (_) => DistoXService(controller, MockBluetoothAdapter())),
+          Provider<SettingsRepository>.value(value: repository),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: OptionsView()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      final slider = find.byType(Slider);
+      await tester.scrollUntilVisible(slider, 100,
+          scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(slider);
+      await tester.pumpAndSettle();
+      expect(find.text('Station ID size'), findsOneWidget);
+      expect(find.text('100 %'), findsOneWidget);
+
+      // The right end of the slider is the largest size
+      await tester.drag(slider, Offset(tester.getSize(slider).width, 0));
+      await tester.pumpAndSettle();
+
+      expect(controller.stationLabelScale, Settings.maxStationLabelScale);
+      expect((await repository.load()).stationLabelScale,
+          Settings.maxStationLabelScale);
+      expect(find.text('300 %'), findsOneWidget);
+    });
   });
 
   group('default coordinate system', () {

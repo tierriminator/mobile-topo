@@ -784,6 +784,19 @@
   "@optionsShowGridDescription": {
     "description": "Description for show grid feature"
   },
+  "optionsStationLabelSize": "Station ID size",
+  "@optionsStationLabelSize": {
+    "description": "Label for the size of the station IDs in the map and sketch views"
+  },
+  "optionsStationLabelSizeValue": "{percent} %",
+  "@optionsStationLabelSizeValue": {
+    "description": "Size of the station IDs as a percentage of their usual size",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "optionsCalibrationSection": "Calibration",
   "@optionsCalibrationSection": {
     "description": "Section header for calibration"

@@ -60,6 +60,14 @@ class SettingsController extends ChangeNotifier {
     }
   }
 
+  double get stationLabelScale => _settings.stationLabelScale;
+  set stationLabelScale(double value) {
+    if (_settings.stationLabelScale != value) {
+      _settings = _settings.copyWith(stationLabelScale: value);
+      notifyListeners();
+    }
+  }
+
   bool get autoConnect => _settings.autoConnect;
   set autoConnect(bool value) {
     if (_settings.autoConnect != value) {

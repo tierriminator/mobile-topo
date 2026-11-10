@@ -621,6 +621,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get optionsShowGridDescription => 'Display grid in sketch view';
 
   @override
+  String get optionsStationLabelSize => 'Station ID size';
+
+  @override
+  String optionsStationLabelSizeValue(int percent) {
+    return '$percent %';
+  }
+
+  @override
   String get optionsCalibrationSection => 'Calibration';
 
   @override

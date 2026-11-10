@@ -270,7 +270,8 @@ class _MapViewState extends State<MapView> {
       );
     }
 
-    final lengthUnit = context.watch<SettingsController>().lengthUnit;
+    final settings = context.watch<SettingsController>();
+    final lengthUnit = settings.lengthUnit;
 
     String statusText;
     if (_positions[_selectedStation] case final pos?) {
@@ -334,6 +335,7 @@ class _MapViewState extends State<MapView> {
                               sectionStations: _sectionStationPositions,
                               transform: _transform,
                               selectedStation: _selectedStation,
+                              labelScale: settings.stationLabelScale,
                             ),
                             size: Size.infinite,
                           ),
@@ -371,6 +373,9 @@ class _MapPainter extends CustomPainter {
   final ViewTransform transform;
   final Point? selectedStation;
 
+  /// Size of the station IDs as a factor of their usual size
+  final double labelScale;
+
   _MapPainter({
     required this.caveShots,
     required this.sectionShots,
@@ -378,6 +383,7 @@ class _MapPainter extends CustomPainter {
     required this.sectionStations,
     required this.transform,
     this.selectedStation,
+    this.labelScale = 1,
   });
 
   void _drawShots(Canvas canvas, Size size, List<(Offset, Offset)> shots,
@@ -408,6 +414,7 @@ class _MapPainter extends CustomPainter {
       ],
       color: color,
       selected: selectedStation,
+      labelScale: labelScale,
     );
   }
 
@@ -426,6 +433,7 @@ class _MapPainter extends CustomPainter {
   bool shouldRepaint(covariant _MapPainter oldDelegate) {
     return oldDelegate.transform != transform ||
         oldDelegate.selectedStation != selectedStation ||
+        oldDelegate.labelScale != labelScale ||
         oldDelegate.caveShots != caveShots ||
         oldDelegate.sectionShots != sectionShots ||
         oldDelegate.caveStations != caveStations ||

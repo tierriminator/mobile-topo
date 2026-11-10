@@ -122,6 +122,20 @@ class OptionsView extends StatelessWidget {
               _saveSettings(context);
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.format_size),
+            title: Text(l10n.optionsStationLabelSize),
+            trailing: Text(l10n.optionsStationLabelSizeValue(
+                (settings.stationLabelScale * 100).round())),
+            subtitle: Slider(
+              value: settings.stationLabelScale,
+              min: Settings.minStationLabelScale,
+              max: Settings.maxStationLabelScale,
+              divisions: 10,
+              onChanged: (value) => settings.stationLabelScale = value,
+              onChangeEnd: (_) => _saveSettings(context),
+            ),
+          ),
 
           const Divider(),
 

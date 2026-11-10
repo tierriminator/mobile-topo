@@ -716,6 +716,7 @@ class _SketchViewState extends State<SketchView> {
                               currentStroke: _currentStroke,
                               transform: _transform,
                               gridSpacing: _gridSpacing(settings, pixelsPerMm),
+                              labelScale: settings.stationLabelScale,
                             ),
                             size: Size.infinite,
                           ),
@@ -881,6 +882,9 @@ class _SketchPainter extends CustomPainter {
   /// Distance between grid lines in metres, or null for no grid
   final double? gridSpacing;
 
+  /// Size of the station IDs as a factor of their usual size
+  final double labelScale;
+
   _SketchPainter({
     required this.drawing,
     this.background,
@@ -890,6 +894,7 @@ class _SketchPainter extends CustomPainter {
     this.currentStroke,
     required this.transform,
     this.gridSpacing,
+    this.labelScale = 1,
   });
 
   Offset _worldToScreen(Offset worldPos, Size size) =>
@@ -954,6 +959,7 @@ class _SketchPainter extends CustomPainter {
       color: color,
       selected: selectedStation,
       radius: 3,
+      labelScale: labelScale,
     );
   }
 
@@ -980,7 +986,10 @@ class _SketchPainter extends CustomPainter {
             center, _worldToScreen(end, size), crossSectionPaint);
       }
       paintStation(canvas, center, crossSection.station,
-          color: Colors.red, selected: false, radius: 3);
+          color: Colors.red,
+          selected: false,
+          radius: 3,
+          labelScale: labelScale);
     }
 
     for (final stroke in sketch.strokes) {
@@ -1021,6 +1030,7 @@ class _SketchPainter extends CustomPainter {
         oldDelegate.crossSections != crossSections ||
         oldDelegate.currentStroke != currentStroke ||
         oldDelegate.gridSpacing != gridSpacing ||
+        oldDelegate.labelScale != labelScale ||
         oldDelegate.selectedStation != selectedStation ||
         oldDelegate.drawing != drawing ||
         oldDelegate.background != background;
