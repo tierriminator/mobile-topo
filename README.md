@@ -138,18 +138,48 @@ anywhere in the repository.
 | `mise run build-ios` | Build for iOS device (unsigned) |
 | `mise run doctor` | `flutter doctor -v` |
 
+## Contributing
+
+### Versions and issues
+
+Versions follow [semantic versioning](https://semver.org/). Issues are
+tracked as GitHub issues and assigned to a release with a milestone named
+`v<version>`, pre-releases included, for example `v1.1.0`, `v1.1.0-beta.1`
+or `v1.0.1`.
+
+### Branches
+
+Each minor or major release has its own branch, named
+`release/<major>.<minor>`, for example `release/1.1`. Pre-releases and patch
+releases have no branch of their own. Other branches can be named freely.
+
+Every change, a feature or a bug fix, gets its own branch and pull request.
+Merging the pull request resolves the issue.
+
+- **Features and fixes for an upcoming release** target its release branch.
+  Its pre-releases (`1.1.0-beta.1`, ...) are published from the release
+  branch. The branch is merged into `main` only once it is out of its
+  pre-release phase, and the release (`1.1.0`) is then published from
+  `main`.
+- **Patches** for the current release target `main` directly, never a
+  release branch. After the merge, a patch release is published from `main`
+  with the patch number increased (`1.0.1`). Open release branches merge
+  `main` to take up its patches.
+
+A release branch may always merge the branches of earlier releases, so
+`release/1.1` may merge `release/1.0`. Only the oldest release branch may be
+merged into `main`.
+
+Pull requests into a release branch close their issues when merged, through
+`.github/workflows/close-issues.yml`: GitHub itself only closes issues for
+pull requests into `main`.
+
+See [Releasing](#releasing) for how to publish a release.
+
 ## Releasing
 
 Android releases are signed APKs published as GitHub releases by
 `.github/workflows/release.yml`.
-
-### Branches
-
-`main` holds the current release line and takes its fixes directly. New
-features go to a branch for the next minor release, named
-`release/<major>.<minor>.0` (for example `release/1.1.0`). It merges into
-`main` only once `main` is stable, out of its pre-releases, and the release is
-published from `main` after the merge.
 
 ### Release key
 
