@@ -260,6 +260,69 @@ void main() {
     });
   });
 
+  group('editing', () {
+    /// Shows a 5 m shot at 90° in edit mode, updated as the data view does,
+    /// with a text above the table to tap outside of it
+    Future<List<MeasuredDistance>> pumpEditableTable(
+        WidgetTester tester) async {
+      final data = [const MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)];
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: [
+                  const Text('Outside'),
+                  Expanded(
+                    child: StretchesTable(
+                      data: List.of(data),
+                      editMode: true,
+                      onUpdate: (index, stretch) =>
+                          setState(() => data[index] = stretch),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      return data;
+    }
+
+    testWidgets('tapping another cell applies the edit and edits that cell',
+        (tester) async {
+      final data = await pumpEditableTable(tester);
+
+      await tester.tap(find.text('5.00'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '7');
+      await tester.tap(find.text('90'));
+      await tester.pumpAndSettle();
+
+      expect(data.single.distance, 7);
+      expect(find.text('7.00'), findsOneWidget);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, '90');
+      expect(field.focusNode!.hasFocus, isTrue);
+    });
+
+    testWidgets('tapping outside the table applies the edit', (tester) async {
+      final data = await pumpEditableTable(tester);
+
+      await tester.tap(find.text('5.00'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '7');
+      await tester.tap(find.text('Outside'));
+      await tester.pumpAndSettle();
+
+      expect(data.single.distance, 7);
+      expect(find.byType(TextField), findsNothing);
+    });
+  });
+
   group('large tables', () {
     const rows = 10000;
     final key = GlobalKey<StretchesTableState>();
