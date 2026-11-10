@@ -8,6 +8,7 @@ import '../data/cave_repository.dart';
 import '../l10n/app_localizations.dart';
 import '../models/cave.dart';
 import '../models/coordinate_system.dart';
+import '../models/series_range.dart';
 import '../models/settings.dart';
 import '../models/survey.dart';
 import '../services/measurement_service.dart';
@@ -326,16 +327,34 @@ class _DataViewState extends State<DataView> {
   }
 
   /// PocketTopo's "Start Here": appends a dummy shot from [fromStation] to the
-  /// first station of a new series, so measuring continues from there.
+  /// first station of a new series, so measuring continues from there. The
+  /// series is the first free one the active trip's reserved series allow,
+  /// else one no other trip reserves; once the reserved series are used
+  /// up, nothing is started and the user is told so.
   Future<void> _startNewSeries(Section section, Point fromStation) async {
+    final cave = context.read<SelectionState>().selectedCave;
+    final trip = cave?.activeTrip;
+    final reserved = trip?.reservedSeries ?? const <SeriesRange>[];
+    final blocked = cave?.seriesReservedByOthers(trip?.id) ?? const [];
+    var started = true;
     await _changeSurvey(section.id, (survey) {
       // Station IDs must be unique in the whole cave, so the new series
       // number is taken from all sections, not just this one
-      final newStation = _caveSurvey(survey).nextSeriesStart;
+      final newStation = _caveSurvey(survey)
+          .nextSeriesStart(reserved: reserved, blocked: blocked);
+      if (newStation == null) {
+        started = false;
+        return survey;
+      }
       return survey.addStretch(MeasuredDistance(
           fromStation, newStation, 0, 0, 0,
-          tripId: _activeTripId));
+          tripId: trip?.id));
     });
+    if (started || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          AppLocalizations.of(context)!.startHereReservedSeriesUsedUp),
+    ));
   }
 
   /// PocketTopo's "Continue Here", offered only at the last station of a

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/cave.dart';
+import '../../models/series_problem.dart';
+import '../../models/trip.dart';
 import '../trip_page.dart';
 
 /// Thin warning bar pointing at a likely wrong trip for new measurements:
@@ -18,12 +20,51 @@ class TripBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colors = Theme.of(context).colorScheme;
     final trip = cave.activeTrip;
+    return _WarningBar(
+      text: trip == null
+          ? l10n.tripBarNoTripWarning
+          : l10n.tripBarOldTrip(tripLabel(context, trip)),
+      onTap: onTap,
+    );
+  }
+}
+
+/// Thin warning bar pointing at a problem of the active trip's reserved
+/// series; see [Cave.seriesProblemOf]
+class ReservedSeriesBar extends StatelessWidget {
+  final Trip trip;
+  final SeriesProblem problem;
+  final VoidCallback onTap;
+
+  const ReservedSeriesBar({
+    super.key,
+    required this.trip,
+    required this.problem,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _WarningBar(
+      text: AppLocalizations.of(context)!.tripBarSeriesProblem(
+          tripLabel(context, trip), seriesProblemText(context, problem)),
+      onTap: onTap,
+    );
+  }
+}
+
+/// A warning shown in a thin bar above the bottom navigation
+class _WarningBar extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+
+  const _WarningBar({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final foreground = colors.onErrorContainer;
-    final text = trip == null
-        ? l10n.tripBarNoTripWarning
-        : l10n.tripBarOldTrip(tripLabel(context, trip));
 
     return Material(
       color: colors.errorContainer,

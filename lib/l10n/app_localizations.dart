@@ -907,6 +907,128 @@ abstract class AppLocalizations {
   /// **'Surveyors, conditions, …'**
   String get tripCommentHint;
 
+  /// Heading of the series number ranges a trip numbers its new series from
+  ///
+  /// In en, this message translates to:
+  /// **'Reserved series'**
+  String get tripReservedSeries;
+
+  /// Explanation of a trip's reserved series
+  ///
+  /// In en, this message translates to:
+  /// **'While this trip is active, “Start here” gives a new series the first free number of these ranges, in order. A range reserves its series: it cannot overlap the ranges of other trips nor hold series they started. Leave the end of the last range empty to continue from there like without ranges, after the highest series in use and clear of the series other trips reserve, but never below its start.'**
+  String get tripReservedSeriesHelp;
+
+  /// Label of the first series of a reserved range
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get tripReservedSeriesFrom;
+
+  /// Label of the last series of a reserved range
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get tripReservedSeriesTo;
+
+  /// Hint in the empty last series of a reserved range, which then has no end
+  ///
+  /// In en, this message translates to:
+  /// **'open'**
+  String get tripReservedSeriesOpen;
+
+  /// Button adding a reserved series range to a trip
+  ///
+  /// In en, this message translates to:
+  /// **'Add range'**
+  String get tripReservedSeriesAdd;
+
+  /// Tooltip of the button removing a reserved series range
+  ///
+  /// In en, this message translates to:
+  /// **'Remove range'**
+  String get tripReservedSeriesRemove;
+
+  /// Error shown when a reserved range has no first series
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a series'**
+  String get tripReservedSeriesFirstMissing;
+
+  /// Problem of a trip's reserved series: a range ending before it starts
+  ///
+  /// In en, this message translates to:
+  /// **'The range {range} ends before it starts'**
+  String seriesProblemEndsBeforeStart(String range);
+
+  /// Problem of a trip's reserved series: an open range other than the last
+  ///
+  /// In en, this message translates to:
+  /// **'Only the last range can be open, not {range}'**
+  String seriesProblemOpenNotLast(String range);
+
+  /// Problem of a trip's reserved series: two of its closed ranges share a series
+  ///
+  /// In en, this message translates to:
+  /// **'The ranges {range} and {other} overlap'**
+  String seriesProblemRangesOverlap(String range, String other);
+
+  /// Problem of a trip's reserved series: a closed range shares a series with another trip's
+  ///
+  /// In en, this message translates to:
+  /// **'The range {range} overlaps {other}, reserved by {trip}'**
+  String seriesProblemOverlapsOtherTrip(
+    String range,
+    String other,
+    String trip,
+  );
+
+  /// Problem of a trip's reserved series: a closed range holds a series another trip started
+  ///
+  /// In en, this message translates to:
+  /// **'The range {range} holds series {series}, started on {trip}'**
+  String seriesProblemHoldsOtherSeries(
+    String range,
+    String series,
+    String trip,
+  );
+
+  /// Problem of a trip's reserved series: the trip started a series they do not allow
+  ///
+  /// In en, this message translates to:
+  /// **'Series {series} was started outside the reserved series'**
+  String seriesProblemOutsideRanges(String series);
+
+  /// Problem of a trip's reserved series: the trip started a series another trip reserves
+  ///
+  /// In en, this message translates to:
+  /// **'Series {series} was started in the series {trip} reserves'**
+  String seriesProblemReservedByOther(String series, String trip);
+
+  /// The series number “Start here” gives the next new series while the trip is active
+  ///
+  /// In en, this message translates to:
+  /// **'Next new series: {series}'**
+  String tripNextSeries(String series);
+
+  /// Shown instead of the next new series when the trip's reserved series are used up
+  ///
+  /// In en, this message translates to:
+  /// **'No series left for a new series'**
+  String get tripNextSeriesNone;
+
+  /// Shown when Start here finds no free series in the active trip's reserved series
+  ///
+  /// In en, this message translates to:
+  /// **'The reserved series of the active trip are used up. Add a range on its page.'**
+  String get startHereReservedSeriesUsedUp;
+
+  /// Trip bar error when the active trip's reserved series have a problem, given as one of the seriesProblem texts
+  ///
+  /// In en, this message translates to:
+  /// **'{trip}: {problem}'**
+  String tripBarSeriesProblem(String trip, String problem);
+
   /// Context menu item showing a row's trip
   ///
   /// In en, this message translates to:

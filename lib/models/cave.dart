@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'coordinate_system.dart';
 import 'geo_position.dart';
 import 'magnetic_declination.dart';
+import 'series_problem.dart';
+import 'series_range.dart';
 import 'sketch.dart';
 import 'survey.dart';
 import 'trip.dart';
@@ -221,6 +223,157 @@ class Cave {
         ],
         referencePoints: const [],
       ).totalLength;
+
+  /// The closed series ranges reserved by the trips other than the one
+  /// with [tripId]; open ranges only bound their own trip's series
+  List<SeriesRange> seriesReservedByOthers(String? tripId) => [
+        for (final trip in trips)
+          if (trip.id != tripId)
+            for (final range in trip.reservedSeries)
+              if (!range.isOpen) range,
+      ];
+
+  /// The trip each series belongs to: the trip of the "Start Here" dummy
+  /// shot that started it ([MeasuredDistance.startsSeries]), the earliest
+  /// by date if several did. A dummy shot only starts a series if it leads
+  /// to the series' first station and no earlier trip measured in the
+  /// series; otherwise it ties in with a series measured before, which is
+  /// no more than measuring in it. Series no dummy shot of a known trip
+  /// started, like the first one, belong to no trip.
+  Map<num, String> get seriesTrips {
+    final order = [...trips]..sort((a, b) {
+        final byDate = a.date.compareTo(b.date);
+        return byDate != 0 ? byDate : a.createdAt.compareTo(b.createdAt);
+      });
+    final rank = {for (final (i, trip) in order.indexed) trip.id: i};
+
+    // Per series, its first station and the earliest trip measuring in it;
+    // reference points and stretches without a known trip count as earliest
+    final firstPoints = <num, num>{};
+    for (final section in allSections) {
+      for (final station in section.survey.stations) {
+        final first = firstPoints[station.corridorId];
+        if (first == null || station.pointId < first) {
+          firstPoints[station.corridorId] = station.pointId;
+        }
+      }
+    }
+    final firstMeasured = <num, int>{};
+    void measured(Point station, int tripRank) {
+      final earliest = firstMeasured[station.corridorId];
+      if (earliest == null || tripRank < earliest) {
+        firstMeasured[station.corridorId] = tripRank;
+      }
+    }
+
+    for (final section in allSections) {
+      for (final ref in section.survey.referencePoints) {
+        measured(ref.id, -1);
+      }
+      for (final stretch in section.survey.stretches) {
+        if (stretch.startsSeries) continue;
+        final tripRank = rank[stretch.tripId] ?? -1;
+        measured(stretch.from, tripRank);
+        if (stretch.to != null) measured(stretch.to!, tripRank);
+      }
+    }
+
+    final owners = <num, int>{};
+    for (final section in allSections) {
+      for (final stretch in section.survey.stretches) {
+        final tripRank = rank[stretch.tripId];
+        if (!stretch.startsSeries || tripRank == null) continue;
+        final to = stretch.to!;
+        final series = to.corridorId;
+        if (to.pointId != firstPoints[series] ||
+            tripRank > (firstMeasured[series] ?? tripRank)) {
+          continue;
+        }
+        final owner = owners[series];
+        if (owner == null || tripRank < owner) owners[series] = tripRank;
+      }
+    }
+    return {
+      for (final MapEntry(key: series, value: tripRank) in owners.entries)
+        series: order[tripRank].id,
+    };
+  }
+
+  /// What is wrong with the range at [index] of the reserved series of
+  /// [trip], if anything, with [seriesTrips] as [Cave.seriesTrips] gives
+  /// them. Only the last range may be open; an open range only bounds the
+  /// trip's series from below, so nothing else is wrong with it. A closed
+  /// range reserves its series, so it must not overlap another closed range
+  /// of any trip nor hold a series another trip started. [trip] may differ
+  /// from this cave's trip with its ID, as while it is being edited.
+  SeriesProblem? rangeProblemOf(
+      Trip trip, int index, Map<num, String> seriesTrips) {
+    final ranges = trip.reservedSeries;
+    final range = ranges[index];
+    final last = range.last;
+    if (last == null) {
+      return index == ranges.length - 1 ? null : OpenRangeNotLast(range);
+    }
+    if (last < range.first) return RangeEndsBeforeStart(range);
+
+    for (final (i, other) in ranges.indexed) {
+      if (i != index && !other.isOpen && other.overlaps(range)) {
+        return RangesOverlap(range, other);
+      }
+    }
+    for (final other in trips) {
+      if (other.id == trip.id) continue;
+      for (final reserved in other.reservedSeries) {
+        if (!reserved.isOpen && reserved.overlaps(range)) {
+          return RangeOverlapsOtherTrip(range, reserved, other);
+        }
+      }
+    }
+    for (final MapEntry(key: series, value: tripId) in seriesTrips.entries) {
+      final starter = findTrip(tripId);
+      if (starter != null && starter.id != trip.id && range.contains(series)) {
+        return RangeHoldsOtherSeries(range, series, starter);
+      }
+    }
+    return null;
+  }
+
+  /// What is wrong with the reserved series of [trip], if anything: the
+  /// first problem of its ranges ([rangeProblemOf]), else one of the series
+  /// it started ([startedSeriesProblemOf]), with [seriesTrips] as
+  /// [Cave.seriesTrips] gives them
+  SeriesProblem? seriesProblemOf(Trip trip, [Map<num, String>? seriesTrips]) {
+    // Without reserved series nothing can be wrong, so the series need not
+    // be looked at
+    if (trip.reservedSeries.isEmpty &&
+        !trips.any((t) => t.reservedSeries.isNotEmpty)) {
+      return null;
+    }
+    final owners = seriesTrips ?? this.seriesTrips;
+    for (var i = 0; i < trip.reservedSeries.length; i++) {
+      final problem = rangeProblemOf(trip, i, owners);
+      if (problem != null) return problem;
+    }
+    return startedSeriesProblemOf(trip, owners);
+  }
+
+  /// What is wrong with a series [trip] started, as [seriesTrips] gives
+  /// them, if anything: one its reserved series do not allow
+  /// ([Trip.allowsSeries]) or one another trip's closed range holds
+  SeriesProblem? startedSeriesProblemOf(
+      Trip trip, Map<num, String> seriesTrips) {
+    for (final MapEntry(key: series, value: tripId) in seriesTrips.entries) {
+      if (tripId != trip.id) continue;
+      final reservedBy = trips
+          .where((t) =>
+              t.id != trip.id &&
+              t.reservedSeries.any((r) => !r.isOpen && r.contains(series)))
+          .firstOrNull;
+      if (reservedBy != null) return SeriesReservedByOther(series, reservedBy);
+      if (!trip.allowsSeries(series)) return SeriesOutsideRanges(series);
+    }
+    return null;
+  }
 
   /// Surveyed length of the whole cave, counted like [Survey.totalLength]
   double get totalLength => combinedSurvey.totalLength;

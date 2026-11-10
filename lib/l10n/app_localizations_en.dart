@@ -467,6 +467,91 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tripCommentHint => 'Surveyors, conditions, …';
 
   @override
+  String get tripReservedSeries => 'Reserved series';
+
+  @override
+  String get tripReservedSeriesHelp =>
+      'While this trip is active, “Start here” gives a new series the first free number of these ranges, in order. A range reserves its series: it cannot overlap the ranges of other trips nor hold series they started. Leave the end of the last range empty to continue from there like without ranges, after the highest series in use and clear of the series other trips reserve, but never below its start.';
+
+  @override
+  String get tripReservedSeriesFrom => 'From';
+
+  @override
+  String get tripReservedSeriesTo => 'To';
+
+  @override
+  String get tripReservedSeriesOpen => 'open';
+
+  @override
+  String get tripReservedSeriesAdd => 'Add range';
+
+  @override
+  String get tripReservedSeriesRemove => 'Remove range';
+
+  @override
+  String get tripReservedSeriesFirstMissing => 'Enter a series';
+
+  @override
+  String seriesProblemEndsBeforeStart(String range) {
+    return 'The range $range ends before it starts';
+  }
+
+  @override
+  String seriesProblemOpenNotLast(String range) {
+    return 'Only the last range can be open, not $range';
+  }
+
+  @override
+  String seriesProblemRangesOverlap(String range, String other) {
+    return 'The ranges $range and $other overlap';
+  }
+
+  @override
+  String seriesProblemOverlapsOtherTrip(
+    String range,
+    String other,
+    String trip,
+  ) {
+    return 'The range $range overlaps $other, reserved by $trip';
+  }
+
+  @override
+  String seriesProblemHoldsOtherSeries(
+    String range,
+    String series,
+    String trip,
+  ) {
+    return 'The range $range holds series $series, started on $trip';
+  }
+
+  @override
+  String seriesProblemOutsideRanges(String series) {
+    return 'Series $series was started outside the reserved series';
+  }
+
+  @override
+  String seriesProblemReservedByOther(String series, String trip) {
+    return 'Series $series was started in the series $trip reserves';
+  }
+
+  @override
+  String tripNextSeries(String series) {
+    return 'Next new series: $series';
+  }
+
+  @override
+  String get tripNextSeriesNone => 'No series left for a new series';
+
+  @override
+  String get startHereReservedSeriesUsedUp =>
+      'The reserved series of the active trip are used up. Add a range on its page.';
+
+  @override
+  String tripBarSeriesProblem(String trip, String problem) {
+    return '$trip: $problem';
+  }
+
+  @override
   String get trip => 'Trip';
 
   @override

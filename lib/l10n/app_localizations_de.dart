@@ -470,6 +470,92 @@ class AppLocalizationsDe extends AppLocalizations {
   String get tripCommentHint => 'Beteiligte, Zustand der Höhle, …';
 
   @override
+  String get tripReservedSeries => 'Reservierte Gangnummern';
+
+  @override
+  String get tripReservedSeriesHelp =>
+      'Solange diese Tour aktiv ist, gibt «Hier starten» einem neuen Gang die erste freie Nummer dieser Bereiche, in ihrer Reihenfolge. Ein Bereich reserviert seine Gangnummern: Er darf sich nicht mit Bereichen anderer Touren überschneiden und keine Gänge enthalten, die sie begonnen haben. Bleibt das Ende des letzten Bereichs leer, geht es von dort weiter wie ohne Bereiche, nach der höchsten verwendeten Gangnummer und an den Reservierungen anderer Touren vorbei, aber nie unter seinem Anfang.';
+
+  @override
+  String get tripReservedSeriesFrom => 'Von';
+
+  @override
+  String get tripReservedSeriesTo => 'Bis';
+
+  @override
+  String get tripReservedSeriesOpen => 'offen';
+
+  @override
+  String get tripReservedSeriesAdd => 'Bereich hinzufügen';
+
+  @override
+  String get tripReservedSeriesRemove => 'Bereich entfernen';
+
+  @override
+  String get tripReservedSeriesFirstMissing => 'Gangnummer eingeben';
+
+  @override
+  String seriesProblemEndsBeforeStart(String range) {
+    return 'Der Bereich $range endet vor seinem Anfang';
+  }
+
+  @override
+  String seriesProblemOpenNotLast(String range) {
+    return 'Nur der letzte Bereich darf offen sein, nicht $range';
+  }
+
+  @override
+  String seriesProblemRangesOverlap(String range, String other) {
+    return 'Die Bereiche $range und $other überschneiden sich';
+  }
+
+  @override
+  String seriesProblemOverlapsOtherTrip(
+    String range,
+    String other,
+    String trip,
+  ) {
+    return 'Der Bereich $range überschneidet sich mit $other, reserviert von $trip';
+  }
+
+  @override
+  String seriesProblemHoldsOtherSeries(
+    String range,
+    String series,
+    String trip,
+  ) {
+    return 'Der Bereich $range enthält Gang $series, begonnen auf $trip';
+  }
+
+  @override
+  String seriesProblemOutsideRanges(String series) {
+    return 'Gang $series wurde ausserhalb der reservierten Gangnummern begonnen';
+  }
+
+  @override
+  String seriesProblemReservedByOther(String series, String trip) {
+    return 'Gang $series wurde in den Gangnummern begonnen, die $trip reserviert';
+  }
+
+  @override
+  String tripNextSeries(String series) {
+    return 'Nächster neuer Gang: $series';
+  }
+
+  @override
+  String get tripNextSeriesNone =>
+      'Keine Gangnummer mehr frei für einen neuen Gang';
+
+  @override
+  String get startHereReservedSeriesUsedUp =>
+      'Die reservierten Gangnummern der aktiven Tour sind aufgebraucht. Auf ihrer Seite einen Bereich hinzufügen.';
+
+  @override
+  String tripBarSeriesProblem(String trip, String problem) {
+    return '$trip: $problem';
+  }
+
+  @override
   String get trip => 'Tour';
 
   @override

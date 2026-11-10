@@ -12,6 +12,7 @@ import 'package:mobile_topo/data/cave_repository.dart';
 import 'package:mobile_topo/data/settings_repository.dart';
 import 'package:mobile_topo/main.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/series_range.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
 import 'package:mobile_topo/services/bluetooth_adapter.dart';
@@ -192,5 +193,47 @@ void main() {
     // The new trip is today's, so the warning is gone
     expect(find.text('Trips'), findsOneWidget);
     expect(find.byType(TripBar), findsNothing);
+  });
+
+  group('reserved series', () {
+    final invalid = Trip(
+        id: 'invalid',
+        date: now,
+        comment: 'Carla',
+        createdAt: now,
+        reservedSeries: const [SeriesRange(5, 3)]);
+    final valid = Trip(
+        id: 'valid',
+        date: now,
+        comment: 'Dora',
+        createdAt: now.add(const Duration(minutes: 1)));
+
+    testWidgets('a problem of the active trip shows in a bar opening it',
+        (tester) async {
+      await pumpApp(tester, caveWith([invalid]));
+      expect(find.byType(ReservedSeriesBar), findsOneWidget);
+      expect(find.textContaining('The range 5–3 ends before it starts'),
+          findsOneWidget);
+
+      await tester.tap(find.byType(ReservedSeriesBar));
+      await tester.pumpAndSettle();
+      expect(find.byType(TripPage), findsOneWidget);
+    });
+
+    testWidgets('a problem of another trip shows only in the explorer',
+        (tester) async {
+      await pumpApp(tester, caveWith([invalid, valid]));
+      expect(find.byType(ReservedSeriesBar), findsNothing);
+
+      await tester.tap(find.text('Explorer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cave'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Trips'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.error), findsOneWidget);
+      expect(
+          find.byTooltip('The range 5–3 ends before it starts'), findsOneWidget);
+    });
   });
 }

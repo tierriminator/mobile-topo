@@ -1,3 +1,5 @@
+import 'series_range.dart';
+
 /// A surveying event: values common to all measurements taken during it.
 /// Measurements refer to their trip by [id].
 class Trip {
@@ -24,6 +26,12 @@ class Trip {
   /// When the trip was last made the active one, if ever
   final DateTime? activatedAt;
 
+  /// The series new series take their number from while this trip is
+  /// active, in order. Closed ranges reserve their series for this trip;
+  /// the last range may be open ended, which only keeps the trip's series
+  /// from going below its start. See [Survey.nextSeriesStart].
+  final List<SeriesRange> reservedSeries;
+
   const Trip({
     required this.id,
     required this.date,
@@ -32,12 +40,19 @@ class Trip {
     this.comment = '',
     required this.createdAt,
     this.activatedAt,
+    this.reservedSeries = const [],
   });
 
   /// When the trip last became the active one, by being created or made
   /// active; the trip with the latest is the one new measurements are
   /// assigned to
   DateTime get lastActivated => activatedAt ?? createdAt;
+
+  /// Whether the reserved series let this trip start [series]: any series
+  /// without reserved series, else one of its closed ranges or one from
+  /// the start of its open range on
+  bool allowsSeries(num series) =>
+      reservedSeries.isEmpty || reservedSeries.any((r) => r.contains(series));
 
   /// Whether the trip took place on a day before the day of [now]. A trip
   /// usually covers a single day, so such a trip is likely outdated.
@@ -51,6 +66,7 @@ class Trip {
     bool? autoDeclination,
     String? comment,
     DateTime? activatedAt,
+    List<SeriesRange>? reservedSeries,
   }) {
     return Trip(
       id: id,
@@ -60,6 +76,7 @@ class Trip {
       comment: comment ?? this.comment,
       createdAt: createdAt,
       activatedAt: activatedAt ?? this.activatedAt,
+      reservedSeries: reservedSeries ?? this.reservedSeries,
     );
   }
 
@@ -72,6 +89,8 @@ class Trip {
         'createdAt': createdAt.toIso8601String(),
         if (activatedAt != null)
           'activatedAt': activatedAt!.toIso8601String(),
+        if (reservedSeries.isNotEmpty)
+          'reservedSeries': [for (final r in reservedSeries) r.toJson()],
       };
 
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
@@ -84,6 +103,13 @@ class Trip {
         activatedAt: switch (json['activatedAt']) {
           final String s => DateTime.parse(s),
           _ => null,
+        },
+        reservedSeries: switch (json['reservedSeries']) {
+          final List<dynamic> l => [
+              for (final r in l)
+                SeriesRange.fromJson(r as Map<String, dynamic>),
+            ],
+          _ => const [],
         },
       );
 }
