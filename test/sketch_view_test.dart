@@ -108,6 +108,10 @@ Future<void> _pumpSketchView(
   );
 }
 
+/// The sketch's canvas, which fills the space between the bars
+final _canvas = find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.size == Size.infinite);
+
 const _singleShot = Survey(
   stretches: [MeasuredDistance(Point(1, 0), Point(1, 1), 5, 90, 0)],
   referencePoints: [ReferencePoint(Point(1, 0), 0, 0, 0)],
@@ -138,7 +142,7 @@ void main() {
 
     // Each scroll step zooms in by 10%; 80 steps go far past the former
     // limit of 200 px/m
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     for (var i = 0; i < 80; i++) {
       await tester.sendEventToBinding(PointerScrollEvent(
         position: center,
@@ -150,13 +154,29 @@ void main() {
     expect(find.textContaining('Scale: 1:0.'), findsOneWidget);
   });
 
+  testWidgets('the zoom buttons zoom in and out', (tester) async {
+    final section = _section('section', _singleShot);
+    await _pumpSketchView(tester, _cave([section]), section);
+    // 20 px/m at 6.3 px/mm
+    expect(find.text('Scale: 1:315'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zoom in'));
+    await tester.pump();
+    expect(find.text('Scale: 1:158'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Zoom out'));
+    await tester.tap(find.byTooltip('Zoom out'));
+    await tester.pump();
+    expect(find.text('Scale: 1:630'), findsOneWidget);
+  });
+
   testWidgets('tapping a station shows its coordinates', (tester) async {
     final section = _section('section', _singleShot);
     await _pumpSketchView(tester, _cave([section]), section);
 
     // The view is centred between the stations at 0 m and 5 m east, at the
     // default 20 px per metre
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     await tester.tapAt(center + const Offset(50, 0));
     await tester.pump(kDoubleTapTimeout);
 
@@ -179,7 +199,7 @@ void main() {
     await tester.pump();
 
     // Stations at 0 m and 5 m along, centred at the default 20 px per metre
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     await tester.longPressAt(center + const Offset(50, 0));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(PopupMenuItem<VoidCallback>, 'Flip'));
@@ -196,7 +216,7 @@ void main() {
         repository: repository);
 
     // Stations at 0 m and 5 m east, centred at the default 20 px per metre
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
     await tester.longPressAt(center + const Offset(50, 0));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(
@@ -258,7 +278,7 @@ void main() {
         settings: SettingsController(const Settings(showGrid: false)));
 
     // The shot, the splay at 1.1 and one line in the cross section
-    expect(_linesPainted(tester.renderObject(find.byType(CustomPaint).last)),
+    expect(_linesPainted(tester.renderObject(_canvas)),
         3);
   });
 
@@ -266,7 +286,7 @@ void main() {
       (tester) async {
     final section = _section('section', _singleShot);
     await _pumpSketchView(tester, _cave([section]), section);
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
 
     await tester.longPressAt(center + const Offset(50, 0));
     await tester.pumpAndSettle();
@@ -287,7 +307,7 @@ void main() {
     final navigation = ViewNavigation();
     await _pumpSketchView(tester, _cave([section]), section,
         navigation: navigation);
-    final center = tester.getCenter(find.byType(CustomPaint).last);
+    final center = tester.getCenter(_canvas);
 
     Future<void> choose(String item) async {
       await tester.longPressAt(center + const Offset(50, 0));
@@ -326,7 +346,7 @@ void main() {
         [false, true]);
     expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
     // Now in the centre, where tapping keeps it selected
-    await tester.tapAt(tester.getCenter(find.byType(CustomPaint).last));
+    await tester.tapAt(tester.getCenter(_canvas));
     await tester.pump(kDoubleTapTimeout);
     expect(find.text('Station 1.1: E 5.0m, N 0.0m, Alt 0.0m'), findsOneWidget);
   });
@@ -345,7 +365,7 @@ void main() {
     await _pumpSketchView(
         tester, _cave([entrance, continuation]), continuation,
         settings: SettingsController(const Settings(showGrid: false)));
-    final canvas = find.byType(CustomPaint).last;
+    final canvas = _canvas;
 
     expect(_linesPainted(tester.renderObject(canvas)), 1);
 
@@ -372,7 +392,7 @@ void main() {
           find.widgetWithText(CheckedPopupMenuItem<VoidCallback>, 'Show All'));
       await tester.pumpAndSettle();
 
-      expect(_dotsPainted(tester.renderObject(find.byType(CustomPaint).last)),
+      expect(_dotsPainted(tester.renderObject(_canvas)),
           count);
     }
 

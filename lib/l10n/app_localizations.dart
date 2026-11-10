@@ -343,6 +343,18 @@ abstract class AppLocalizations {
   /// **'Show All'**
   String get sketchShowAll;
 
+  /// Tooltip of the button zooming the map or sketch in
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// Tooltip of the button zooming the map or sketch out
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
+
   /// Station menu: place a cross section seen along the passage (PocketTopo's 'XSection |')
   ///
   /// In en, this message translates to:

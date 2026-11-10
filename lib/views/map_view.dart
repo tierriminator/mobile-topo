@@ -11,6 +11,7 @@ import '../services/screen_density.dart';
 import 'widgets/station_markers.dart';
 import 'widgets/survey_key.dart';
 import 'widgets/view_transform.dart';
+import 'widgets/zoom_buttons.dart';
 
 class MapView extends StatefulWidget {
   const MapView({super.key});
@@ -190,6 +191,11 @@ class _MapViewState extends State<MapView> {
     }
   }
 
+  void _zoom(double factor) {
+    setState(
+        () => _transform = _transform.zoomedAtCenter(_canvasSize, factor));
+  }
+
   Point? _stationAt(Offset localPosition) => stationAt(
         {for (final s in _shownStations) s: _positions[s]!.plan},
         localPosition,
@@ -315,30 +321,42 @@ class _MapViewState extends State<MapView> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    return Listener(
-                      onPointerSignal: _onPointerSignal,
-                      child: GestureDetector(
-                        onScaleStart: _onScaleStart,
-                        onScaleUpdate: _onScaleUpdate,
-                        onTapUp: _handleTapUp,
-                        onLongPressStart: (d) =>
-                            _openStationMenu(d.localPosition, d.globalPosition),
-                        onSecondaryTapUp: (d) =>
-                            _openStationMenu(d.localPosition, d.globalPosition),
-                        child: ClipRect(
-                          child: CustomPaint(
-                            painter: _MapPainter(
-                              caveShots: _caveShots,
-                              sectionShots: _sectionShots,
-                              caveStations: _caveStations,
-                              sectionStations: _sectionStationPositions,
-                              transform: _transform,
-                              selectedStation: _selectedStation,
+                    return Stack(
+                      children: [
+                        Listener(
+                          onPointerSignal: _onPointerSignal,
+                          child: GestureDetector(
+                            onScaleStart: _onScaleStart,
+                            onScaleUpdate: _onScaleUpdate,
+                            onTapUp: _handleTapUp,
+                            onLongPressStart: (d) => _openStationMenu(
+                                d.localPosition, d.globalPosition),
+                            onSecondaryTapUp: (d) => _openStationMenu(
+                                d.localPosition, d.globalPosition),
+                            child: ClipRect(
+                              child: CustomPaint(
+                                painter: _MapPainter(
+                                  caveShots: _caveShots,
+                                  sectionShots: _sectionShots,
+                                  caveStations: _caveStations,
+                                  sectionStations: _sectionStationPositions,
+                                  transform: _transform,
+                                  selectedStation: _selectedStation,
+                                ),
+                                size: Size.infinite,
+                              ),
                             ),
-                            size: Size.infinite,
                           ),
                         ),
-                      ),
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: ZoomButtons(
+                            onZoomIn: () => _zoom(zoomButtonStep),
+                            onZoomOut: () => _zoom(1 / zoomButtonStep),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),

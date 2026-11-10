@@ -67,6 +67,18 @@ void main() {
     expect(moved.distance, lessThan(1e-9));
   });
 
+  test('zooming at the centre keeps the world point there in place', () {
+    const transform = ViewTransform(scale: 10, offset: Offset(7, 3));
+    final center = size.center(Offset.zero);
+    final worldAtCenter = transform.screenToWorld(center, size);
+
+    final zoomed = transform.zoomedAtCenter(size, 0.5);
+
+    expect(zoomed.scale, 5);
+    final moved = zoomed.worldToScreen(worldAtCenter, size) - center;
+    expect(moved.distance, lessThan(1e-9));
+  });
+
   test('scrolling up zooms in and scrolling down zooms out', () {
     const transform = ViewTransform(scale: 100);
     PointerScrollEvent scroll(double dy) => PointerScrollEvent(

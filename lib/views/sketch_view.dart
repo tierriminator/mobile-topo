@@ -19,6 +19,7 @@ import '../services/screen_density.dart';
 import 'widgets/station_markers.dart';
 import 'widgets/survey_key.dart';
 import 'widgets/view_transform.dart';
+import 'widgets/zoom_buttons.dart';
 
 enum SketchViewMode { outline, sideView }
 
@@ -445,6 +446,11 @@ class _SketchViewState extends State<SketchView> {
     }
   }
 
+  void _zoom(double factor) {
+    setState(
+        () => _transform = _transform.zoomedAtCenter(_canvasSize, factor));
+  }
+
   void _eraseAt(Offset screenPos) {
     final worldPos = _screenToWorld(screenPos);
     final newSketch = _currentSketch.eraseAt(worldPos, 15 / _transform.scale);
@@ -685,42 +691,56 @@ class _SketchViewState extends State<SketchView> {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-                    return Listener(
-                      onPointerSignal: _onPointerSignal,
-                      child: GestureDetector(
-                        onScaleStart: _onScaleStart,
-                        onScaleUpdate: _onScaleUpdate,
-                        onScaleEnd: _onScaleEnd,
-                        // Stations are tapped and their menu opened only in
-                        // move mode, as in PocketTopo
-                        onTapUp: _sketchMode == SketchMode.move ? _onTapUp : null,
-                        onLongPressStart: _sketchMode == SketchMode.move
-                            ? (d) => _openStationMenu(
-                                d.localPosition, d.globalPosition)
-                            : null,
-                        onSecondaryTapUp: _sketchMode == SketchMode.move
-                            ? (d) => _openStationMenu(
-                                d.localPosition, d.globalPosition)
-                            : null,
-                        child: ClipRect(
-                          child: CustomPaint(
-                            painter: _SketchPainter(
-                              drawing: _drawing,
-                              background: _showAll &&
-                                      _viewMode == SketchViewMode.outline
-                                  ? _outlineRestDrawing
-                                  : null,
-                              selectedStation: _selectedStation,
-                              sketch: _currentSketch,
-                              crossSections: _crossSectionDrawings,
-                              currentStroke: _currentStroke,
-                              transform: _transform,
-                              gridSpacing: _gridSpacing(settings, pixelsPerMm),
+                    return Stack(
+                      children: [
+                        Listener(
+                          onPointerSignal: _onPointerSignal,
+                          child: GestureDetector(
+                            onScaleStart: _onScaleStart,
+                            onScaleUpdate: _onScaleUpdate,
+                            onScaleEnd: _onScaleEnd,
+                            // Stations are tapped and their menu opened only
+                            // in move mode, as in PocketTopo
+                            onTapUp:
+                                _sketchMode == SketchMode.move ? _onTapUp : null,
+                            onLongPressStart: _sketchMode == SketchMode.move
+                                ? (d) => _openStationMenu(
+                                    d.localPosition, d.globalPosition)
+                                : null,
+                            onSecondaryTapUp: _sketchMode == SketchMode.move
+                                ? (d) => _openStationMenu(
+                                    d.localPosition, d.globalPosition)
+                                : null,
+                            child: ClipRect(
+                              child: CustomPaint(
+                                painter: _SketchPainter(
+                                  drawing: _drawing,
+                                  background: _showAll &&
+                                          _viewMode == SketchViewMode.outline
+                                      ? _outlineRestDrawing
+                                      : null,
+                                  selectedStation: _selectedStation,
+                                  sketch: _currentSketch,
+                                  crossSections: _crossSectionDrawings,
+                                  currentStroke: _currentStroke,
+                                  transform: _transform,
+                                  gridSpacing:
+                                      _gridSpacing(settings, pixelsPerMm),
+                                ),
+                                size: Size.infinite,
+                              ),
                             ),
-                            size: Size.infinite,
                           ),
                         ),
-                      ),
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: ZoomButtons(
+                            onZoomIn: () => _zoom(zoomButtonStep),
+                            onZoomOut: () => _zoom(1 / zoomButtonStep),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
