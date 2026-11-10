@@ -336,6 +336,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wie PocketTopo ihn exportiert, damit xtherion ihn mit den Skizzen importiert';
 
   @override
+  String get exportPocketTopo => 'PocketTopo (.top)';
+
+  @override
+  String get exportPocketTopoHelp =>
+      'Datendatei, die PocketTopo öffnet, mit den Skizzen';
+
+  @override
+  String exportPocketTopoStation(String station) {
+    return 'PocketTopo kann den Messpunkt $station nicht speichern: Es nimmt ganze Zahlen, Gangnummern bis 32767 und Punktnummern bis 65535';
+  }
+
+  @override
   String get sectionLength => 'Vermessene Länge';
 
   @override

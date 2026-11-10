@@ -18,7 +18,7 @@ Future<String?> editSection(
   bool editName = false,
   bool isSelected = false,
   VoidCallback? onSelect,
-  TherionExport? onExport,
+  SurveyExport? onExport,
   Future<bool> Function()? onDelete,
 }) async {
   final name = await Navigator.of(context).push<String>(
@@ -58,7 +58,7 @@ class SectionPage extends StatefulWidget {
 
   /// Exports the section under its name as edited. Without it, the page
   /// offers no export button.
-  final TherionExport? onExport;
+  final SurveyExport? onExport;
 
   /// Deletes the section and returns whether it was deleted; the page
   /// closes if so. Without it, the page offers no delete button.
@@ -154,9 +154,9 @@ class _SectionPageState extends State<SectionPage> {
 
   /// Asks for the format and exports the section under the edited name
   Future<void> _export() async {
-    final pocketTopoText = await chooseExportFormat(context);
-    if (pocketTopoText == null) return;
-    await widget.onExport!(_name, pocketTopoText: pocketTopoText);
+    final format = await chooseExportFormat(context);
+    if (format == null) return;
+    await widget.onExport!(_name, format);
   }
 
   Future<void> _delete() async {

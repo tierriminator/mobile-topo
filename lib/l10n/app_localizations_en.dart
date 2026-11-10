@@ -336,6 +336,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'As PocketTopo exports it, for xtherion to import with the sketches';
 
   @override
+  String get exportPocketTopo => 'PocketTopo (.top)';
+
+  @override
+  String get exportPocketTopoHelp =>
+      'Data file PocketTopo opens, with the sketches';
+
+  @override
+  String exportPocketTopoStation(String station) {
+    return 'PocketTopo cannot store station $station: it takes whole numbers, series up to 32767 and points up to 65535';
+  }
+
+  @override
   String get sectionLength => 'Surveyed length';
 
   @override

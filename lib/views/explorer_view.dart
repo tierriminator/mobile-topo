@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -329,24 +330,39 @@ class ExplorerViewState extends State<ExplorerView> {
     }
   }
 
-  /// Lets the user save [sections] of [cave] for Therion under [name]:
-  /// as a survey file, or as the text PocketTopo exports for xtherion if
-  /// [pocketTopoText] is set
-  Future<void> _exportTherion(Cave cave, List<Section> sections, String name,
-      {required bool pocketTopoText}) async {
+  /// Lets the user save [sections] of [cave] under [name] in [format]
+  Future<void> _export(Cave cave, List<Section> sections, String name,
+      ExportFormat format) async {
     final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
-    final contents = pocketTopoText
-        ? TherionFile.pocketTopoText(cave, sections)
-        : TherionFile.survey(cave, sections, name);
+    final Uint8List bytes;
+    try {
+      bytes = switch (format) {
+        ExportFormat.therionSurvey =>
+          utf8.encode(TherionFile.survey(cave, sections, name)),
+        ExportFormat.therionText =>
+          utf8.encode(TherionFile.pocketTopoText(cave, sections)),
+        ExportFormat.pocketTopo => PocketTopoFile.write(cave, sections),
+      };
+    } on PocketTopoStationException catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.exportPocketTopoStation(e.station.toString()))));
+      return;
+    }
     final baseName = name.trim().replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final extension = switch (format) {
+      ExportFormat.therionSurvey => 'th',
+      ExportFormat.therionText => 'txt',
+      ExportFormat.pocketTopo => 'top',
+    };
 
     try {
       await FilePicker.saveFile(
-        fileName: '${baseName.isEmpty ? 'survey' : baseName}'
-            '${pocketTopoText ? '.txt' : '.th'}',
-        bytes: utf8.encode(contents),
-        mimeType: 'text/plain',
+        fileName: '${baseName.isEmpty ? 'survey' : baseName}.$extension',
+        bytes: bytes,
+        mimeType: format == ExportFormat.pocketTopo
+            ? 'application/octet-stream'
+            : 'text/plain',
       );
     } on Exception catch (e) {
       messenger.showSnackBar(
@@ -511,11 +527,10 @@ class ExplorerViewState extends State<ExplorerView> {
       context,
       cave,
       editName: editName,
-      onExport: (name, {required pocketTopoText}) async {
+      onExport: (name, format) async {
         final current = _explorerState.findCave(cave.id);
         if (current == null) return;
-        await _exportTherion(current, current.allSections, name,
-            pocketTopoText: pocketTopoText);
+        await _export(current, current.allSections, name, format);
       },
       onDelete: () => _deleteCave(cave),
       onShowReferencePoints: cave.allSections.isEmpty
@@ -638,12 +653,11 @@ class ExplorerViewState extends State<ExplorerView> {
         final current = _loadedSection(cave.id, section.id);
         if (current != null) _selectSection(path, current);
       },
-      onExport: (name, {required pocketTopoText}) async {
+      onExport: (name, format) async {
         final current = _loadedSection(cave.id, section.id);
         final latest = _explorerState.findCave(cave.id);
         if (current == null || latest == null) return;
-        await _exportTherion(latest, [current], name,
-            pocketTopoText: pocketTopoText);
+        await _export(latest, [current], name, format);
       },
       onDelete: () => _deleteSection(section, cave.id),
     );

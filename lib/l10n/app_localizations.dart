@@ -703,6 +703,24 @@ abstract class AppLocalizations {
   /// **'As PocketTopo exports it, for xtherion to import with the sketches'**
   String get exportTherionTextHelp;
 
+  /// Export format: a PocketTopo data file
+  ///
+  /// In en, this message translates to:
+  /// **'PocketTopo (.top)'**
+  String get exportPocketTopo;
+
+  /// Explanation of the PocketTopo export format
+  ///
+  /// In en, this message translates to:
+  /// **'Data file PocketTopo opens, with the sketches'**
+  String get exportPocketTopoHelp;
+
+  /// Message shown when a station ID does not fit a PocketTopo file
+  ///
+  /// In en, this message translates to:
+  /// **'PocketTopo cannot store station {station}: it takes whole numbers, series up to 32767 and points up to 65535'**
+  String exportPocketTopoStation(String station);
+
   /// Length of all survey shots of a section
   ///
   /// In en, this message translates to:
