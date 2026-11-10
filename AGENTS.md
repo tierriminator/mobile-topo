@@ -341,7 +341,11 @@ UI widgets:
 - **`widgets/data_tables.dart`**: Reusable table components
 - **`widgets/station_markers.dart`**: Station hit testing, drawing and status
   text shared by the map and sketch views; stations and lines are drawn in
-  batches and station IDs laid out once, so large caves pan smoothly
+  batches and station IDs laid out once, so large caves pan smoothly.
+  `StationMarkers` keeps them from cluttering when zoomed out: a station
+  whose dot would overlap one already drawn is left out, as is an ID that
+  would overlap another; stations drawn on top (the selected section's,
+  the selected station before all) take precedence
 - **`widgets/survey_key.dart`**: `SurveyKey` tells the map and sketch views
   whether the survey data changed, so they only recompute positions then,
   not on every rebuild
