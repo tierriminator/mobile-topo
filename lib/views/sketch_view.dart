@@ -916,10 +916,13 @@ class _SketchPainter extends CustomPainter {
     }
   }
 
+  /// Draws the shots and splays of [drawing] and adds its stations to
+  /// [markers], drawn once all shots are
   void _drawSurvey(
     Canvas canvas,
     Size size,
-    _SurveyDrawing drawing, {
+    _SurveyDrawing drawing,
+    StationMarkers markers, {
     required Color color,
     required Color splayColor,
   }) {
@@ -943,16 +946,13 @@ class _SketchPainter extends CustomPainter {
         ..strokeWidth = 1.5,
     );
 
-    paintStations(
-      canvas,
-      size,
+    markers.add(
       [
         for (final MapEntry(key: station, value: position)
             in drawing.stations.entries)
           (station, _worldToScreen(position, size)),
       ],
       color: color,
-      selected: selectedStation,
       radius: 3,
     );
   }
@@ -962,12 +962,14 @@ class _SketchPainter extends CustomPainter {
     if (gridSpacing case final spacing?) _drawGrid(canvas, size, spacing);
 
     // The rest of the cave in black, as in the map view
+    final markers = StationMarkers(size, selected: selectedStation);
     if (background case final background?) {
-      _drawSurvey(canvas, size, background,
+      _drawSurvey(canvas, size, background, markers,
           color: Colors.black, splayColor: Colors.grey);
     }
-    _drawSurvey(canvas, size, drawing,
+    _drawSurvey(canvas, size, drawing, markers,
         color: Colors.red, splayColor: Colors.orange);
+    markers.paint(canvas);
 
     final crossSectionPaint = Paint()
       ..color = Colors.orange

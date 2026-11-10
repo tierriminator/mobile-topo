@@ -79,39 +79,115 @@ void paintStation(
   _label(id, selected).paint(canvas, screenPos + _labelOffset);
 }
 
-/// Draws [stations], given by ID and screen position, like [paintStation],
-/// all dots in one go and leaving out the stations too far off the canvas
-/// of [size] to show. The [selected] station is drawn last, on top.
-void paintStations(
-  Canvas canvas,
-  Size size,
-  Iterable<(Point, Offset)> stations, {
-  required Color color,
-  Point? selected,
-  double radius = 4,
-}) {
-  final area = (Offset.zero & size).inflate(_labelReach);
-  final shown = [
-    for (final station in stations)
-      if (area.contains(station.$2) && station.$1 != selected) station,
-  ];
-  canvas.drawRawPoints(
-    PointMode.points,
-    Float32List.fromList([
-      for (final (_, position) in shown) ...[position.dx, position.dy],
-    ]),
-    Paint()
-      ..color = color
-      ..strokeWidth = 2 * radius
-      ..strokeCap = StrokeCap.round,
-  );
-  for (final (id, position) in shown) {
-    _label(id, false).paint(canvas, position + _labelOffset);
+/// Space kept free between the dots of two stations, in pixels
+const _dotGap = 2.0;
+
+/// The station markers of a frame: stations, given by ID and screen
+/// position, drawn like [paintStation] once all are added. Zoomed out,
+/// stations crowd together, so a station whose dot would overlap one
+/// already drawn is left out, as is an ID that would overlap another. The
+/// stations added last are drawn on top and so take precedence, the
+/// selected station before all others.
+class StationMarkers {
+  final Size size;
+  final Point? selected;
+  final _groups = <({
+    List<(Point, Offset)> stations,
+    Color color,
+    double radius,
+  })>[];
+
+  StationMarkers(this.size, {this.selected});
+
+  /// Adds [stations] drawn with dots of [radius] in [color]
+  void add(Iterable<(Point, Offset)> stations,
+      {required Color color, double radius = 4}) {
+    _groups.add((stations: stations.toList(), color: color, radius: radius));
   }
-  for (final (id, position) in stations) {
-    if (id == selected) {
-      paintStation(canvas, position, id,
+
+  /// Draws the stations, each group's dots in one go, leaving out those too
+  /// far off the canvas to show
+  void paint(Canvas canvas) {
+    final area = (Offset.zero & size).inflate(_labelReach);
+    final dots = _Occupied();
+    final labels = _Occupied();
+
+    // The selected station from the topmost group it is in
+    final selectedGroup = _groups.lastIndexWhere(
+        (group) => group.stations.any((station) => station.$1 == selected));
+    (Offset, Color, double)? selectedMarker;
+    if (selectedGroup >= 0) {
+      final group = _groups[selectedGroup];
+      final position =
+          group.stations.firstWhere((station) => station.$1 == selected).$2;
+      selectedMarker = (position, group.color, group.radius);
+      dots.add(Rect.fromCircle(center: position, radius: group.radius + 2));
+      labels.add(position + _labelOffset & _label(selected!, true).size);
+    }
+
+    final shownDots = List.generate(_groups.length, (_) => <Offset>[]);
+    final shownLabels = <(Point, Offset)>[];
+    for (var g = _groups.length - 1; g >= 0; g--) {
+      final group = _groups[g];
+      for (final (id, position) in group.stations) {
+        if (id == selected || !area.contains(position)) continue;
+        final dot = Rect.fromCircle(
+            center: position, radius: group.radius + _dotGap / 2);
+        if (dots.overlaps(dot)) continue;
+        dots.add(dot);
+        shownDots[g].add(position);
+        final label = position + _labelOffset & _label(id, false).size;
+        if (labels.overlaps(label)) continue;
+        labels.add(label);
+        shownLabels.add((id, position));
+      }
+    }
+
+    for (var g = 0; g < _groups.length; g++) {
+      canvas.drawRawPoints(
+        PointMode.points,
+        Float32List.fromList([
+          for (final position in shownDots[g]) ...[position.dx, position.dy],
+        ]),
+        Paint()
+          ..color = _groups[g].color
+          ..strokeWidth = 2 * _groups[g].radius
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    for (final (id, position) in shownLabels) {
+      _label(id, false).paint(canvas, position + _labelOffset);
+    }
+    if (selectedMarker case (final position, final color, final radius)) {
+      paintStation(canvas, position, selected!,
           color: color, selected: true, radius: radius);
+    }
+  }
+}
+
+/// Rectangles taken on the canvas, kept in a grid to find overlaps fast
+class _Occupied {
+  static const _cellSize = 32.0;
+  final _cells = <(int, int), List<Rect>>{};
+
+  Iterable<(int, int)> _cellsOf(Rect rect) sync* {
+    for (var x = (rect.left / _cellSize).floor();
+        x <= (rect.right / _cellSize).floor();
+        x++) {
+      for (var y = (rect.top / _cellSize).floor();
+          y <= (rect.bottom / _cellSize).floor();
+          y++) {
+        yield (x, y);
+      }
+    }
+  }
+
+  bool overlaps(Rect rect) => _cellsOf(rect)
+      .any((cell) => _cells[cell]?.any(rect.overlaps) ?? false);
+
+  void add(Rect rect) {
+    for (final cell in _cellsOf(rect)) {
+      (_cells[cell] ??= []).add(rect);
     }
   }
 }

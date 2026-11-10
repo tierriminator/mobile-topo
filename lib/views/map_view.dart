@@ -397,19 +397,12 @@ class _MapPainter extends CustomPainter {
     );
   }
 
-  void _drawStations(Canvas canvas, Size size, List<(Point, Offset)> stations,
-      Color color) {
-    paintStations(
-      canvas,
-      size,
+  List<(Point, Offset)> _onScreen(
+          List<(Point, Offset)> stations, Size size) =>
       [
         for (final (station, position) in stations)
           (station, transform.worldToScreen(position, size)),
-      ],
-      color: color,
-      selected: selectedStation,
-    );
-  }
+      ];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -418,8 +411,10 @@ class _MapPainter extends CustomPainter {
     _drawShots(canvas, size, sectionShots, Colors.red);
 
     // Draw stations, again with the section's stations on top
-    _drawStations(canvas, size, caveStations, Colors.black);
-    _drawStations(canvas, size, sectionStations, Colors.red);
+    (StationMarkers(size, selected: selectedStation)
+          ..add(_onScreen(caveStations, size), color: Colors.black)
+          ..add(_onScreen(sectionStations, size), color: Colors.red))
+        .paint(canvas);
   }
 
   @override
