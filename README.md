@@ -147,12 +147,25 @@ anywhere in the repository.
 
 ## Contributing
 
-### Versions and issues
+### Versions
 
-Versions follow [semantic versioning](https://semver.org/). Issues are
-tracked as GitHub issues and assigned to a release with a milestone named
+Versions follow [semantic versioning](https://semver.org/).
+
+### Issues
+
+Features and bugs are tracked as
+[GitHub issues](https://github.com/tierriminator/mobile-topo/issues).
+
+The maintainer assigns issues to releases with milestones named
 `v<version>`, pre-releases included, for example `v1.1.0`, `v1.1.0-beta.1`
-or `v1.0.1`.
+or `v1.0.1`. An issue's milestone tells which branch its pull request
+targets (see [Branches](#branches)).
+
+The pull request resolving an issue names it with a closing keyword in its
+description, for example `Closes #9`, so that merging it closes the issue.
+GitHub does this itself for pull requests into `main`;
+`.github/workflows/close-issues.yml` does it for pull requests into release
+branches.
 
 ### Branches
 
@@ -161,7 +174,7 @@ Each minor or major release has its own branch, named
 releases have no branch of their own. Other branches can be named freely.
 
 Every change, a feature or a bug fix, gets its own branch and pull request.
-Merging the pull request resolves the issue.
+Merging the pull request resolves the issue (see [Issues](#issues)).
 
 - **Features and fixes for an upcoming release** target its release branch.
   Its pre-releases (`1.1.0-beta.1`, ...) are published from the release
@@ -176,10 +189,6 @@ Merging the pull request resolves the issue.
 A release branch may always merge the branches of earlier releases, so
 `release/1.1` may merge `release/1.0`. Only the oldest release branch may be
 merged into `main`.
-
-Pull requests into a release branch close their issues when merged, through
-`.github/workflows/close-issues.yml`: GitHub itself only closes issues for
-pull requests into `main`.
 
 See [Releasing](#releasing) for how to publish a release.
 

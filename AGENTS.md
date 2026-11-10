@@ -21,12 +21,18 @@ and the release is published from `main`. Patches target `main` directly,
 never a release branch, and are followed by a patch release from `main`;
 open release branches merge `main` to take them up. A release branch may
 merge the branches of earlier releases; only the oldest release branch may
-be merged into `main`. Closing keywords in a
-pull request into a release branch close the issues on merge
-(`.github/workflows/close-issues.yml`).
-Versions follow semantic versioning; issues are GitHub issues, assigned to a
-release with a milestone named `v<version>`, pre-releases included (for
-example `v1.1.0-beta.1`). See "Contributing" in `README.md`.
+be merged into `main`. Versions follow semantic versioning.
+
+## Issues
+
+Features and bugs are GitHub issues. The maintainer assigns them to releases
+with milestones named `v<version>`, pre-releases included (for example
+`v1.1.0-beta.1`); an issue's milestone gives its pull request's target
+branch. Do not create or change milestones. The pull request resolving an
+issue names it with a closing keyword in its description (`Closes #9`), so
+merging closes it: GitHub does this for pull requests into `main`,
+`.github/workflows/close-issues.yml` for those into release branches. See
+"Contributing" in `README.md`.
 
 ## Project Goal
 
