@@ -11,10 +11,22 @@ are relative to the git root.
 
 ## Branches
 
-Fixes for the current release line go directly to `main`. New features go to
-the branch of the next minor release, `release/<major>.<minor>.0` (for
-example `release/1.1.0`), which merges into `main` once `main` is out of its
-pre-releases. See "Branches" in `README.md`.
+Each minor or major release has its own branch, `release/<major>.<minor>`
+(for example `release/1.1`); pre-releases and patch releases have none.
+Other branch names are free. Every change, feature or bug fix, gets its own
+branch and pull request; merging it resolves the issue. Changes for an
+upcoming release target its release branch, whose pre-releases are published
+from that branch; it merges into `main` once out of its pre-release phase,
+and the release is published from `main`. Patches target `main` directly,
+never a release branch, and are followed by a patch release from `main`;
+open release branches merge `main` to take them up. A release branch may
+merge the branches of earlier releases; only the oldest release branch may
+be merged into `main`. Closing keywords in a
+pull request into a release branch close the issues on merge
+(`.github/workflows/close-issues.yml`).
+Versions follow semantic versioning; issues are GitHub issues, assigned to a
+release with a milestone named `v<version>`, pre-releases included (for
+example `v1.1.0-beta.1`). See "Contributing" in `README.md`.
 
 ## Project Goal
 

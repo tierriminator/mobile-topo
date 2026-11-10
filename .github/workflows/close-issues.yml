@@ -1,0 +1,57 @@
+# Closes the issues a pull request resolves when it is merged into a release
+# branch. GitHub only does this for pull requests into the default branch.
+# See "Branches" in README.md.
+#
+# pull_request_target runs this file as it is on the release branch, so every
+# release branch needs it. It never checks out the pull request's code, so it
+# is safe for pull requests from forks.
+name: Close issues
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - "release/**"
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  close:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close the resolved issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # Closing keywords in the description, as GitHub reads them.
+          from_body=$(printf '%s\n' "$PR_BODY" \
+            | grep -oiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+#[0-9]+' \
+            | grep -oE '[0-9]+$' || true)
+          # Issues linked in the pull request's Development sidebar.
+          linked=$(gh api graphql \
+            -f query='query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  closingIssuesReferences(first: 50) {
+                    nodes { number repository { nameWithOwner } }
+                  }
+                }
+              }
+            }' \
+            -F owner="${GH_REPO%/*}" -F repo="${GH_REPO#*/}" -F pr="$PR" \
+            --jq ".data.repository.pullRequest.closingIssuesReferences.nodes[]
+              | select(.repository.nameWithOwner == \"$GH_REPO\") | .number")
+          for issue in $(printf '%s\n%s\n' "$from_body" "$linked" | sort -un); do
+            state=$(gh issue view "$issue" --json state --jq .state) || continue
+            if [ "$state" = OPEN ]; then
+              gh issue close "$issue" --reason completed \
+                --comment "Resolved by #$PR, merged into \`$BASE\`."
+            fi
+          done
