@@ -424,6 +424,23 @@
   "@exportTherionTextHelp": {
     "description": "Explanation of the Therion text export format"
   },
+  "exportPocketTopo": "PocketTopo (.top)",
+  "@exportPocketTopo": {
+    "description": "Export format: a PocketTopo data file"
+  },
+  "exportPocketTopoHelp": "Data file PocketTopo opens, with the sketches",
+  "@exportPocketTopoHelp": {
+    "description": "Explanation of the PocketTopo export format"
+  },
+  "exportPocketTopoStation": "PocketTopo cannot store station {station}: it takes whole numbers, series up to 32767 and points up to 65535",
+  "@exportPocketTopoStation": {
+    "description": "Message shown when a station ID does not fit a PocketTopo file",
+    "placeholders": {
+      "station": {
+        "type": "String"
+      }
+    }
+  },
   "sectionLength": "Surveyed length",
   "@sectionLength": {
     "description": "Length of all survey shots of a section"

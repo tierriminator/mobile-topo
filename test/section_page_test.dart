@@ -45,7 +45,7 @@ void main() {
   Future<Future<String?>> open(WidgetTester tester,
       {bool isSelected = false,
       VoidCallback? onSelect,
-      TherionExport? onExport,
+      SurveyExport? onExport,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
     late Future<String?> result;
@@ -145,19 +145,26 @@ void main() {
 
   testWidgets('exports under the edited name, keeping the page open',
       (tester) async {
-    final exports = <(String, bool)>[];
+    final exports = <(String, ExportFormat)>[];
     await open(tester,
-        onExport: (name, {required pocketTopoText}) async =>
-            exports.add((name, pocketTopoText)));
+        onExport: (name, format) async => exports.add((name, format)));
     await editName(tester, 'Main passage');
-    for (final format in ['Therion survey (.th)', 'Therion text (.txt)']) {
+    for (final format in [
+      'Therion survey (.th)',
+      'Therion text (.txt)',
+      'PocketTopo (.top)',
+    ]) {
       await tester.tap(find.text('Export'));
       await tester.pumpAndSettle();
       await tester.tap(find.text(format));
       await tester.pumpAndSettle();
     }
 
-    expect(exports, [('Main passage', false), ('Main passage', true)]);
+    expect(exports, [
+      ('Main passage', ExportFormat.therionSurvey),
+      ('Main passage', ExportFormat.therionText),
+      ('Main passage', ExportFormat.pocketTopo),
+    ]);
     expect(find.byType(SectionPage), findsOneWidget);
   });
 
@@ -165,7 +172,7 @@ void main() {
       (tester) async {
     var exports = 0;
     await open(tester,
-        onExport: (name, {required pocketTopoText}) async => exports++);
+        onExport: (name, format) async => exports++);
     await tester.tap(find.text('Export'));
     await tester.pumpAndSettle();
     expect(find.text('Export format'), findsOneWidget);

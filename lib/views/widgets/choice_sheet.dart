@@ -39,27 +39,43 @@ Future<T?> showChoiceSheet<T>(
   );
 }
 
-/// Exports for Therion under [name]: as a survey file, or as the text
-/// PocketTopo exports for xtherion if [pocketTopoText] is set
-typedef TherionExport = Future<void> Function(String name,
-    {required bool pocketTopoText});
+/// The formats survey data is exported in
+enum ExportFormat {
+  /// A Therion survey file (`.th`)
+  therionSurvey,
 
-/// Asks for the Therion export format: returns whether it is the text
-/// PocketTopo exports, or null if the user dismisses the choice
-Future<bool?> chooseExportFormat(BuildContext context) {
+  /// The text PocketTopo exports for xtherion (`.txt`)
+  therionText,
+
+  /// A PocketTopo data file (`.top`)
+  pocketTopo,
+}
+
+/// Exports under [name] in [format]
+typedef SurveyExport = Future<void> Function(String name, ExportFormat format);
+
+/// Asks for the export format, or returns null if the user dismisses the
+/// choice
+Future<ExportFormat?> chooseExportFormat(BuildContext context) {
   final l10n = AppLocalizations.of(context)!;
   return showChoiceSheet(context, title: l10n.exportFormat, choices: [
     (
-      value: false,
+      value: ExportFormat.therionSurvey,
       icon: Icons.description,
       label: l10n.exportTherionSurvey,
       help: l10n.exportTherionSurveyHelp,
     ),
     (
-      value: true,
+      value: ExportFormat.therionText,
       icon: Icons.draw,
       label: l10n.exportTherionText,
       help: l10n.exportTherionTextHelp,
+    ),
+    (
+      value: ExportFormat.pocketTopo,
+      icon: Icons.insert_drive_file,
+      label: l10n.exportPocketTopo,
+      help: l10n.exportPocketTopoHelp,
     ),
   ]);
 }

@@ -284,7 +284,11 @@ Persistence and serialization:
 - **`settings_repository.dart`**: SharedPreferences-based settings persistence
 - **`pocket_topo_file.dart`**: Reads PocketTopo `.top` files (format in
   `docs/pocket_topo/PocketTopoFileFormat.txt`) into trips, a survey and
-  sketches; repeated measurements of a survey shot are averaged
+  sketches; repeated measurements of a survey shot are averaged. Writes
+  sections back as one `.top` file: a shot per stretch, the trips they
+  use, reference points in metres, and the drawings relative to the first
+  origin, placed so that reading the file puts them where they were.
+  Station IDs PocketTopo cannot store throw `PocketTopoStationException`
 - **`therion_file.dart`**: Writes sections for Therion, either as a `.th`
   survey file (a centreline per trip, fixed stations as entered with the
   cave's coordinate system as `cs`) or as the `.txt` PocketTopo exports
@@ -329,13 +333,13 @@ UI widgets:
   its coordinate system, the coordinates the automatic declination uses
   in that system (the first reference
   point's, or the Hölloch's with a warning and a way to the reference
-  points), exporting the cave for Therion under the name as edited, and
-  deleting it
+  points), exporting the cave for Therion or PocketTopo under the name as
+  edited, and deleting it
 - **`section_page.dart`**: Section overview page titled with the
   section's editable name: surveyed length, height difference, number of
   stations and of trips measured on, a button opening the section in the
-  data, map and sketch views, exporting it for Therion under the name as
-  edited, and deleting it
+  data, map and sketch views, exporting it for Therion or PocketTopo under
+  the name as edited, and deleting it
 - **`options_view.dart`**: Settings UI (smart mode, shot direction, units and the coordinate system for new caves, DistoX connection)
 - **`widgets/coordinate_system_field.dart`**: Picks a coordinate system, with zone and hemisphere for UTM; used on the cave page and in the options
 - **`widgets/data_tables.dart`**: Reusable table components
@@ -353,8 +357,9 @@ UI widgets:
   position for a reference point (from its row menu), averaging fixes
   until the user takes the position, which is stored as WGS84 degrees
 - **`widgets/choice_sheet.dart`**: Bottom sheet choosing one of a few
-  options, each with an icon and a line of help; also the Therion export
-  format choice of the cave and section pages
+  options, each with an icon and a line of help; also the export format
+  choice of the cave and section pages (`ExportFormat`: Therion survey,
+  Therion text or PocketTopo)
 - **`widgets/trip_bar.dart`**: Trip warning bar and the trip check dialog,
   both driven by `MainScreen` in `main.dart`
 

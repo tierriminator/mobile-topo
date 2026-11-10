@@ -136,7 +136,7 @@ class PocketTopoImport {
       a.comment.trim() == b.comment.trim();
 }
 
-/// Reads PocketTopo `.top` files, version 3, as described in
+/// Reads and writes PocketTopo `.top` files, version 3, as described in
 /// `docs/pocket_topo/PocketTopoFileFormat.txt`
 class PocketTopoFile {
   /// Reads [bytes] of a `.top` file. [newId] makes the IDs of the trips.
@@ -148,6 +148,25 @@ class PocketTopoFile {
       throw const FormatException('The PocketTopo file ends unexpectedly');
     }
   }
+
+  /// A `.top` file of [sections] of [cave]: their stretches, one shot each,
+  /// the trips these were measured on, the reference points in metres, and
+  /// the outline and side view drawings. Reading it back gives the same
+  /// data, the drawings placed where they are. Throws a
+  /// [PocketTopoStationException] if a station ID does not fit the format.
+  static Uint8List write(Cave cave, List<Section> sections) =>
+      _TopWriter(cave, sections).write();
+}
+
+/// Thrown when [station] cannot be written to a `.top` file, which takes
+/// whole numbers, series up to 32767 and points up to 65535
+class PocketTopoStationException implements Exception {
+  final Point station;
+
+  const PocketTopoStationException(this.station);
+
+  @override
+  String toString() => 'Station $station does not fit a PocketTopo file';
 }
 
 /// A shot as stored in the file, before repeated measurements are merged
@@ -461,5 +480,202 @@ class _TopReader {
       comment: shots.map((s) => s.comment).nonNulls.firstOrNull,
       flipped: first.flipped,
     );
+  }
+}
+
+class _TopWriter {
+  final Cave cave;
+  final List<Section> sections;
+  final _out = BytesBuilder();
+
+  _TopWriter(this.cave, this.sections);
+
+  /// Scale of the views when PocketTopo opens the file, 1:500
+  static const int _scale = 500;
+
+  Uint8List write() {
+    final survey = Survey(
+      stretches: [for (final s in sections) ...s.survey.stretches],
+      referencePoints: [for (final s in sections) ...s.survey.referencePoints],
+    );
+    final trips = [
+      for (final trip in cave.trips)
+        if (survey.stretches.any((s) => s.tripId == trip.id)) trip,
+    ];
+    final tripIndex = {
+      for (var i = 0; i < trips.length; i++) trips[i].id: i,
+    };
+
+    _out.add(const [0x54, 0x6F, 0x70, 3]); // "Top", version 3
+
+    _int32(trips.length);
+    trips.forEach(_trip);
+
+    _int32(survey.stretches.length);
+    for (final stretch in survey.stretches) {
+      _shot(stretch, tripIndex[stretch.tripId] ?? -1);
+    }
+
+    // In metres, as positions are computed from them
+    final references = cave.corrected(survey.copyWith(stretches: const []))
+        .referencePoints;
+    _int32(references.length);
+    references.forEach(_reference);
+
+    // The overview's scroll position and scale
+    _mapping();
+
+    // Drawings are relative to the first origin, placed as an import does
+    final origin = survey.origins.firstOrNull?.id;
+    final caveSurvey = cave.combinedSurvey;
+    final (outlineOrigin, sideViewOrigin) = origin == null
+        ? (Offset.zero, Offset.zero)
+        : PocketTopoImport._originIn(caveSurvey, origin) ??
+            PocketTopoImport._originIn(cave.corrected(survey), origin)!;
+    _drawing([for (final s in sections) s.outlineSketch], outlineOrigin,
+        caveSurvey);
+    _drawing([for (final s in sections) s.sideViewSketch], sideViewOrigin,
+        caveSurvey);
+
+    return _out.toBytes();
+  }
+
+  void _byte(int value) => _out.addByte(value);
+
+  void _int16(int value) => _out.add(
+      (ByteData(2)..setInt16(0, value, Endian.little)).buffer.asUint8List());
+
+  void _uint16(int value) => _out.add(
+      (ByteData(2)..setUint16(0, value, Endian.little)).buffer.asUint8List());
+
+  void _int32(int value) => _out.add(
+      (ByteData(4)..setInt32(0, value, Endian.little)).buffer.asUint8List());
+
+  void _uint32(int value) => _out.add(
+      (ByteData(4)..setUint32(0, value, Endian.little)).buffer.asUint8List());
+
+  void _int64(int value) => _out.add(
+      (ByteData(8)..setInt64(0, value, Endian.little)).buffer.asUint8List());
+
+  /// A .NET string: its length in 7 bit groups, low group first, then the
+  /// UTF-8 bytes
+  void _string(String text) {
+    final bytes = utf8.encode(text);
+    var length = bytes.length;
+    while (length >= 0x80) {
+      _byte(length & 0x7F | 0x80);
+      length >>= 7;
+    }
+    _byte(length);
+    _out.add(bytes);
+  }
+
+  /// [degrees] in the file's angle units, 2^16 to the full circle
+  static int _units(num degrees) => (degrees * 65536 / 360).round();
+
+  /// Millimetres of [metres]
+  static int _mm(num metres) => (metres * 1000).round();
+
+  /// A station ID: series 0 as plain numbers, as the reader takes those,
+  /// the others as series and point of up to 15 and 16 bits
+  void _station(Point? station) {
+    if (station == null) return _uint32(_TopReader._undefinedId);
+    final series = station.corridorId;
+    final point = station.pointId;
+    if (series == series.roundToDouble() && point == point.roundToDouble()) {
+      final s = series.toInt();
+      final p = point.toInt();
+      if (s == 0 && p >= 0 && p <= 0x7FFFFFFE) {
+        return _uint32(p + _TopReader._numberBase);
+      }
+      if (s > 0 && s < 0x8000 && p >= 0 && p <= 0xFFFF) {
+        return _uint32(s << 16 | p);
+      }
+    }
+    throw PocketTopoStationException(station);
+  }
+
+  /// A time as .NET ticks of its wall clock time, as PocketTopo stores it
+  void _time(DateTime time) {
+    const epochTicks = 621355968000000000;
+    final utc = DateTime.utc(time.year, time.month, time.day, time.hour,
+        time.minute, time.second, time.millisecond, time.microsecond);
+    _int64(utc.microsecondsSinceEpoch * 10 + epochTicks);
+  }
+
+  /// A trip on its date at the time of day it was created
+  void _trip(Trip trip) {
+    final created = trip.createdAt;
+    _time(DateTime(trip.date.year, trip.date.month, trip.date.day,
+        created.hour, created.minute, created.second, created.millisecond));
+    _string(trip.comment);
+    if (trip.autoDeclination) {
+      _int16(_TopReader._autoDeclination);
+    } else {
+      // Within ±180°, short of the value that stands for automatic
+      final units = (_units(trip.declination) + 0x8000) % 0x10000 - 0x8000;
+      _int16(units == _TopReader._autoDeclination ? 0x7FFF : units);
+    }
+  }
+
+  void _shot(MeasuredDistance stretch, int tripIndex) {
+    _station(stretch.from);
+    _station(stretch.to);
+    _int32(_mm(stretch.distance));
+    _uint16(_units(stretch.azimut) % 0x10000);
+    _int16(_units(stretch.inclination).clamp(-0x4000, 0x4000));
+    final comment = stretch.comment;
+    _byte((stretch.flipped ? 1 : 0) | (comment != null ? 2 : 0));
+    _byte(0); // Roll of the device, not kept
+    _int16(tripIndex);
+    if (comment != null) _string(comment);
+  }
+
+  void _reference(ReferencePoint ref) {
+    _station(ref.id);
+    _int64(_mm(ref.east));
+    _int64(_mm(ref.north));
+    _int32(_mm(ref.altitude));
+    _string(ref.comment ?? '');
+  }
+
+  void _mapping() {
+    _point(Offset.zero);
+    _int32(_scale);
+  }
+
+  void _point(Offset position) {
+    _int32(_mm(position.dx));
+    _int32(_mm(position.dy));
+  }
+
+  /// The strokes and cross sections of [sketches] as one drawing, relative
+  /// to [origin]. Vertical cross sections look along the passage of
+  /// [caveSurvey], as the sketch view draws them.
+  void _drawing(List<Sketch> sketches, Offset origin, Survey caveSurvey) {
+    _mapping();
+    for (final sketch in sketches) {
+      for (final stroke in sketch.strokes) {
+        _byte(1);
+        _int32(stroke.points.length);
+        for (final point in stroke.points) {
+          _point(point - origin);
+        }
+        final color = _TopReader._colors.indexOf(stroke.color);
+        _byte(color < 0 ? 1 : color + 1);
+      }
+      for (final crossSection in sketch.crossSections) {
+        _byte(3);
+        _point(crossSection.position - origin);
+        _station(crossSection.station);
+        _int32(switch (crossSection.kind) {
+          CrossSectionKind.horizontal => -1,
+          CrossSectionKind.vertical =>
+            _units(caveSurvey.passageAzimuth(crossSection.station) ?? 0) %
+                0x10000,
+        });
+      }
+    }
+    _byte(0);
   }
 }

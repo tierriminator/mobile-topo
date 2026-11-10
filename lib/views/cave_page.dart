@@ -21,7 +21,7 @@ Future<CaveEdit?> editCave(
   BuildContext context,
   Cave cave, {
   bool editName = false,
-  TherionExport? onExport,
+  SurveyExport? onExport,
   Future<bool> Function()? onDelete,
   VoidCallback? onShowReferencePoints,
 }) async {
@@ -56,7 +56,7 @@ class CavePage extends StatefulWidget {
 
   /// Exports the cave under its name as edited. Without it, the page offers
   /// no export button.
-  final TherionExport? onExport;
+  final SurveyExport? onExport;
 
   /// Deletes the cave and returns whether it was deleted; the page closes
   /// if so. Without it, the page offers no delete button.
@@ -152,9 +152,9 @@ class _CavePageState extends State<CavePage> {
 
   /// Asks for the format and exports the cave under the edited name
   Future<void> _export() async {
-    final pocketTopoText = await chooseExportFormat(context);
-    if (pocketTopoText == null) return;
-    await widget.onExport!(_name, pocketTopoText: pocketTopoText);
+    final format = await chooseExportFormat(context);
+    if (format == null) return;
+    await widget.onExport!(_name, format);
   }
 
   Future<void> _delete() async {

@@ -44,7 +44,7 @@ void main() {
   /// [settings] and returns the pending result of editCave
   Future<Future<CaveEdit?>> open(WidgetTester tester,
       {Cave? cave,
-      TherionExport? onExport,
+      SurveyExport? onExport,
       Future<bool> Function()? onDelete,
       Settings settings = const Settings()}) async {
     late Future<CaveEdit?> result;
@@ -284,10 +284,9 @@ void main() {
 
   testWidgets('exports under the edited name in the chosen format',
       (tester) async {
-    final exports = <(String, bool)>[];
+    final exports = <(String, ExportFormat)>[];
     await open(tester,
-        onExport: (name, {required pocketTopoText}) async =>
-            exports.add((name, pocketTopoText)));
+        onExport: (name, format) async => exports.add((name, format)));
     await editName(tester, 'Hölloch');
     await tester.scrollUntilVisible(find.text('Export'), 100,
         scrollable: find.byType(Scrollable).first);
@@ -296,7 +295,7 @@ void main() {
     await tester.tap(find.text('Therion text (.txt)'));
     await tester.pumpAndSettle();
 
-    expect(exports, [('Hölloch', true)]);
+    expect(exports, [('Hölloch', ExportFormat.therionText)]);
     expect(find.byType(CavePage), findsOneWidget);
   });
 
