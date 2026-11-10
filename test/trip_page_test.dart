@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile_topo/controllers/settings_controller.dart';
 import 'package:mobile_topo/l10n/app_localizations.dart';
 import 'package:mobile_topo/models/cave.dart';
+import 'package:mobile_topo/models/series_range.dart';
 import 'package:mobile_topo/models/settings.dart';
 import 'package:mobile_topo/models/survey.dart';
 import 'package:mobile_topo/models/trip.dart';
@@ -47,6 +48,7 @@ void main() {
   Future<Future<Trip?>> open(WidgetTester tester,
       {Future<bool> Function()? onDelete,
       Trip? tripToEdit,
+      Cave? inCave,
       Settings settings = const Settings()}) async {
     late Future<Trip?> result;
     await tester.pumpWidget(ChangeNotifierProvider(
@@ -57,7 +59,7 @@ void main() {
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () => result = editTrip(
-                context, cave, tripToEdit ?? trip,
+                context, inCave ?? cave, tripToEdit ?? trip,
                 onDelete: onDelete),
             child: const Text('open'),
           ),
@@ -96,6 +98,180 @@ void main() {
 
   testWidgets('leaving the page unchanged returns null', (tester) async {
     expect(await editAndLeave(tester, () async {}), isNull);
+  });
+
+  group('reserved series', () {
+    Finder fields(String label) => find.widgetWithText(TextField, label);
+
+    /// Scrolls the page until [finder] is built and on screen
+    Future<void> reveal(WidgetTester tester, Finder finder) async {
+      await tester.scrollUntilVisible(finder, 100,
+          scrollable: find.byType(Scrollable).first);
+      // Built may still be just below the screen
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> addRange(WidgetTester tester) async {
+      await reveal(tester, find.text('Add range'));
+      await tester.tap(find.text('Add range'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a range added starts after the highest series in use',
+        (tester) async {
+      final edited = await editAndLeave(tester, () => addRange(tester));
+      expect(edited?.reservedSeries, const [SeriesRange(2)]);
+    });
+
+    testWidgets('a further range starts after the ranges so far',
+        (tester) async {
+      final edited = await editAndLeave(tester, () async {
+        await addRange(tester);
+        await tester.enterText(fields('To').first, '9');
+        await addRange(tester);
+      });
+      expect(edited?.reservedSeries,
+          const [SeriesRange(2, 9), SeriesRange(10)]);
+    });
+
+    testWidgets('shows the series the next new series gets', (tester) async {
+      await open(tester);
+      await reveal(tester, find.text('Next new series: 2'));
+      expect(find.text('Next new series: 2'), findsOneWidget);
+      await addRange(tester);
+      await tester.enterText(fields('From').first, '30');
+      await tester.pump();
+      await reveal(tester, find.text('Next new series: 30'));
+      expect(find.text('Next new series: 30'), findsOneWidget);
+    });
+
+    testWidgets('invalid ranges are shown as such and stored anyway',
+        (tester) async {
+      final edited = await editAndLeave(tester, () async {
+        await addRange(tester);
+        await addRange(tester);
+        await tester.pump();
+        expect(find.text('Only the last range can be open, not 2–'),
+            findsOneWidget);
+        await tester.enterText(fields('To').first, '1');
+        await tester.pump();
+        expect(find.text('The range 2–1 ends before it starts'),
+            findsOneWidget);
+      });
+      expect(edited?.reservedSeries,
+          const [SeriesRange(2, 1), SeriesRange(3)]);
+    });
+
+    testWidgets('a range without a first series is left out',
+        (tester) async {
+      final edited = await editAndLeave(tester, () async {
+        await addRange(tester);
+        await tester.enterText(fields('From').first, '');
+        await tester.enterText(fields('To').first, '5');
+        await tester.pump();
+        expect(find.text('Enter a series'), findsOneWidget);
+      });
+      expect(edited, isNull);
+    });
+
+    /// Opens the page for [tripToEdit], or else [trip], in a cave where
+    /// [trip] started series 2 and trip "other", which reserves the series
+    /// 5 to 9, started series 3
+    Future<Future<Trip?>> openWithOtherTrip(WidgetTester tester,
+        {Trip? tripToEdit}) {
+      final other = Trip(
+          id: 'other',
+          date: DateTime(2026, 10, 9),
+          comment: 'Team B',
+          createdAt: DateTime(2026),
+          reservedSeries: const [SeriesRange(5, 9)]);
+      final section = cave.sections.single;
+      final withSeries = section.copyWith(
+          survey: section.survey.copyWith(stretches: [
+        ...section.survey.stretches,
+        const MeasuredDistance(Point(1, 1), Point(2, 0), 0, 0, 0,
+            tripId: 't'),
+        const MeasuredDistance(Point(1, 2), Point(3, 0), 0, 0, 0,
+            tripId: 'other'),
+      ]));
+      return open(tester,
+          tripToEdit: tripToEdit,
+          inCave: cave
+              .copyWith(trips: [trip, other]).replaceSection(withSeries));
+    }
+
+    /// Enters [first] to [last] as a new range and returns what is shown
+    /// as wrong with it
+    Future<String?> rangeError(WidgetTester tester, String first,
+        [String last = '']) async {
+      await addRange(tester);
+      await tester.enterText(fields('From').last, first);
+      await tester.enterText(fields('To').last, last);
+      await tester.pump();
+      final texts = find.byWidgetPredicate((w) =>
+          w is Text &&
+          w.style?.color ==
+              Theme.of(tester.element(find.byType(ListView))).colorScheme.error);
+      return texts.evaluate().map((e) => (e.widget as Text).data).firstOrNull;
+    }
+
+    testWidgets('a range cannot overlap another trip\'s', (tester) async {
+      await openWithOtherTrip(tester);
+      expect(await rangeError(tester, '9', '12'),
+          startsWith('The range 9–12 overlaps 5–9, reserved by'));
+    });
+
+    testWidgets('a range cannot hold a series another trip started',
+        (tester) async {
+      await openWithOtherTrip(tester);
+      expect(await rangeError(tester, '3', '4'),
+          startsWith('The range 3–4 holds series 3, started on'));
+    });
+
+    testWidgets('a range can hold the series the trip started',
+        (tester) async {
+      await openWithOtherTrip(tester);
+      expect(await rangeError(tester, '1', '2'), isNull);
+    });
+
+    testWidgets('an open range may start anywhere, even on other trips',
+        (tester) async {
+      await openWithOtherTrip(tester);
+      expect(await rangeError(tester, '1'), isNull);
+    });
+
+    testWidgets('shows a series of the trip outside its closed ranges',
+        (tester) async {
+      await openWithOtherTrip(tester,
+          tripToEdit:
+              trip.copyWith(reservedSeries: const [SeriesRange(10, 12)]));
+      const text = 'Series 2 was started outside the reserved series';
+      await reveal(tester, find.text(text));
+      expect(find.text(text), findsOneWidget);
+    });
+
+    testWidgets('shows a series of the trip below its open range',
+        (tester) async {
+      await openWithOtherTrip(tester,
+          tripToEdit: trip.copyWith(reservedSeries: const [SeriesRange(3)]));
+      const text = 'Series 2 was started outside the reserved series';
+      await reveal(tester, find.text(text));
+      expect(find.text(text), findsOneWidget);
+    });
+
+    testWidgets('a removed range is no longer reserved', (tester) async {
+      final result = await open(tester,
+          tripToEdit: trip.copyWith(reservedSeries: const [SeriesRange(5)]));
+      await reveal(tester, find.byTooltip('Remove range'));
+      await tester.tap(find.byTooltip('Remove range'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      final edited = await result;
+      expect(edited, isNotNull);
+      expect(edited!.reservedSeries, isEmpty);
+    });
   });
 
   testWidgets('the page shows the length surveyed on the trip',
@@ -305,8 +481,13 @@ void main() {
     final result = await open(tester, onDelete: () async => true);
     await tester.enterText(
         find.widgetWithText(TextField, 'Comment'), 'Anna, Ben');
+    // The focused comment field would keep scrolling itself into view
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
     await tester.scrollUntilVisible(find.text('Delete'), 100,
         scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Delete'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 
@@ -319,6 +500,8 @@ void main() {
     await open(tester, onDelete: () async => false);
     await tester.scrollUntilVisible(find.text('Delete'), 100,
         scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Delete'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
 
