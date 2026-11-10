@@ -281,11 +281,26 @@ class BluetoothPlugin :
             return
         }
 
+        // Android 12+ refuses the request without BLUETOOTH_CONNECT.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            currentActivity.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            result.success(false)
+            return
+        }
+
         pendingEnableResult = result
-        currentActivity.startActivityForResult(
-            Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
-            REQUEST_ENABLE_BLUETOOTH
-        )
+        try {
+            currentActivity.startActivityForResult(
+                Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE),
+                REQUEST_ENABLE_BLUETOOTH
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "requestEnable failed", e)
+            pendingEnableResult = null
+            result.success(false)
+        }
     }
 
     private val activityResultListener =

@@ -83,6 +83,9 @@ class BluetoothChannel {
     try {
       final result = await _channel.invokeMethod<bool>('isAvailable');
       return result ?? false;
+    } on MissingPluginException {
+      // No native Bluetooth plugin on this platform
+      return false;
     } on PlatformException catch (e) {
       debugPrint('Bluetooth availability check failed: $e');
       return false;
