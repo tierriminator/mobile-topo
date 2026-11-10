@@ -1171,7 +1171,8 @@ class _PointCellState extends State<_PointCell> {
   void _onFocusChange() {
     if (!_focusNode.hasFocus) {
       _saveValue();
-      widget.onEditingComplete?.call();
+      // Another cell may already be edited, which must stay so
+      if (widget.isEditing) widget.onEditingComplete?.call();
     }
   }
 
@@ -1219,6 +1220,8 @@ class _PointCellState extends State<_PointCell> {
           border: InputBorder.none,
         ),
         onSubmitted: (_) => _focusNode.unfocus(),
+        // Touch screens keep the focus on taps elsewhere; apply the edit
+        onTapOutside: (_) => _focusNode.unfocus(),
       ),
     );
   }
@@ -1292,7 +1295,8 @@ class _NumberCellState extends State<_NumberCell> {
   void _onFocusChange() {
     if (!_focusNode.hasFocus) {
       _saveValue();
-      widget.onEditingComplete?.call();
+      // Another cell may already be edited, which must stay so
+      if (widget.isEditing) widget.onEditingComplete?.call();
     }
   }
 
@@ -1342,6 +1346,8 @@ class _NumberCellState extends State<_NumberCell> {
           ),
         ],
         onSubmitted: (_) => _focusNode.unfocus(),
+        // Touch screens keep the focus on taps elsewhere; apply the edit
+        onTapOutside: (_) => _focusNode.unfocus(),
       ),
     );
   }
